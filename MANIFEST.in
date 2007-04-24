@@ -1,0 +1,2 @@
+recursive-include example *
+prune example/.svn
