@@ -1,0 +1,55 @@
+Version 0.6
+
+	* packet.VerifyReply() had a syntax error when not called with a raw
+	  packet
+	* Add bind() method to the Client class
+	* [SECURITY] Fix handling of timeouts in client module: when a bad
+	  packet was received pyrad immediately started the next retry instead
+	  of discarding it and waiting for a timeout. This could be exploited
+	  by sending a number of bogus responses before a correct reply to
+	  make pyrad not see the real response.
+	* correctly set Acct-Delay-Time when resending accounting requests
+	  packets
+	* verify account request packages as well (from Farshad Khoshkhui)
+	* protect against packets with bogus lengts (from Farshad Khoshkhui)
+
+Version 0.5
+
+	* Fix typo in server class which broke handling of accounting packets
+	* Create seperate AuthPacket and AcctPacket classes; this resulted in
+	  a fair number of API changes
+	* Packets now know how to create and verify replies 
+	* Client now directs authentication and accounting packets to the
+	  correct port on the server
+	* Add twisted support via the new curved module
+	* Fix incorrect exception handling in client code
+	* Update example server to handle accounting packets
+	* Add example for sending account packets
+
+Version 0.4
+
+	* Fix last case of bogus exception usage
+	* Move RADIUS code constants to packet module
+	* Add support for decoding passwords and generating reply
+	  packets to Packet class
+	* Add basic RADIUS server and proxy implementation
+
+Version 0.3
+
+	* client.Timeout is now derived from Exception
+	* Docstring documentation added
+	* Include example dictionaries and authentication script
+
+Version 0.2
+
+	* Use proper exceptions
+	* Encode and decode vendor attributes
+	* Dictionary can parse vendor dictionaries
+	* Dictionary can handle attribute values
+	* Enhance most constructors; they now take extra optional parameters
+	  with initialisation info
+	* No longer use obsolete python interfaces like whrandom
+
+Version 0.1
+
+	* First release
