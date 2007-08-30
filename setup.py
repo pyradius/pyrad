@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 version = "1.0alpha1"
 
 setup(	name		= "pyrad",
-	version		= "version",
+	version		= version,
 	author		= "Wichert Akkerman",
 	author_email	= "wichert@simplon.biz",
 	url		= "http://www.wiggy.net/code/pyrad/",
@@ -18,7 +18,7 @@ setup(	name		= "pyrad",
             "Programming Language :: Python",
             "Topic :: Software Development :: Libraries :: Python Modules",
             "Topic :: System :: Systems Administration :: Authentication/Directory",
-            ]
+            ],
 	packages	= [ "pyrad" ],
 	keywords	= [ "radius", "authentication" ],
 	package_dir	= { "pyrad" : "src" },

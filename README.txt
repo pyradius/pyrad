@@ -35,7 +35,7 @@ REQUIREMENTS & INSTALLATION
 pyrad requires Python 2.0 or later.
 
 Installing is simple; pyrad uses the standard distutils system for installing
-Python modules:
+Python modules::
 
   python setup.py install
 
