@@ -2,8 +2,10 @@
 
 from setuptools import setup, find_packages
 
+version = "1.0alpha1"
+
 setup(	name		= "pyrad",
-	version		= "0.9",
+	version		= "version",
 	author		= "Wichert Akkerman",
 	author_email	= "wichert@simplon.biz",
 	url		= "http://www.wiggy.net/code/pyrad/",
