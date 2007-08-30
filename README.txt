@@ -5,7 +5,7 @@ pyrad is an implementation of a RADIUS client as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
 them and decoding responses. 
 
-Here is an example of doing a authentication request:
+Here is an example of doing a authentication request::
 
   import pyrad.packet
   from pyrad.client import Client
