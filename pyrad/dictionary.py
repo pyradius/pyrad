@@ -122,6 +122,9 @@ class Dictionary:
 			self.ReadDictionary(i)
 	
 
+	def __len__(self):
+                return len(self.attributes)
+
 	def __getitem__(self, key):
 		return self.attributes[key]
 

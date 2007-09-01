@@ -1,11 +1,11 @@
 # A simple dictionary
 
-Attribute  Test-String       1       string
-Attribute  Test-Octets       2       octets
-Attribute  Test-Integer      3       integer
-Attribute  Test-Ip-Address   4       ipaddr
-Attribute  Test-Ipv6-Address 5       ipv6addr
-Attribute  Test-If-Id        6       ifid
-Attribute  Test-Date         7       date
-Attribute  Test-Abinary      8       abinary
+ATTRIBUTE  Test-String       1       string
+ATTRIBUTE  Test-Octets       2       octets
+ATTRIBUTE  Test-Integer      3       integer
+ATTRIBUTE  Test-Ip-Address   4       ipaddr
+ATTRIBUTE  Test-Ipv6-Address 5       ipv6addr
+ATTRIBUTE  Test-If-Id        6       ifid
+ATTRIBUTE  Test-Date         7       date
+ATTRIBUTE  Test-Abinary      8       abinary
 

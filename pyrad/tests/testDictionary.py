@@ -20,7 +20,7 @@ class DictionaryParsingTests(unittest.TestCase):
 
     def testParseSimpleDictionary(self):
         dict=Dictionary(os.path.join(self.path, "simple"))
-        self.assertEqual(len(dict), 5)
+        self.assertEqual(len(dict), 8)
         values = [
                 ( "Test-String", 1, "string" ),
                 ( "Test-Octets", 2, "octets" ),
@@ -35,5 +35,5 @@ class DictionaryParsingTests(unittest.TestCase):
         for (attr, code, type) in values:
             attr=dict[attr]
             self.assertEqual(attr.code, code)
-            self.assertEqual(attr.datatype, type)
+            self.assertEqual(attr.type, type)
 
