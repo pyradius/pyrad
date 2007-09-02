@@ -109,7 +109,6 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO("ATTRIBUTE Oops-Too-Few-Columns"))
         except ParseError, e:
-            self.assertEqual(e.linenumber, 1)
             self.assertEqual("attribute" in str(e), True)
 
 
@@ -119,7 +118,6 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO("ATTRIBUTE Test-Type 1 dummy"))
         except ParseError, e:
-            self.assertEqual(e.linenumber, 1)
             self.assertEqual("dummy" in str(e), True)
 
 
@@ -129,7 +127,6 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO("ATTRIBUTE Test-Type 1 Simplon"))
         except ParseError, e:
-            self.assertEqual(e.linenumber, 1)
             self.assertEqual("Simplon" in str(e), True)
 
 
@@ -139,7 +136,6 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO("VALUE Oops-Too-Few-Columns"))
         except ParseError, e:
-            self.assertEqual(e.linenumber, 1)
             self.assertEqual("value" in str(e), True)
 
 
@@ -149,7 +145,6 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO("VALUE Test-Attribute Test-Text 1"))
         except ParseError, e:
-            self.assertEqual(e.linenumber, 1)
             self.assertEqual("unknown attribute" in str(e), True)
 
 
@@ -177,11 +172,10 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO("VENDOR Simplon"))
         except ParseError, e:
-            self.assertEqual(e.linenumber, 1)
             self.assertEqual("vendor" in str(e), True)
 
 
-    def testVenderParsing(self):
+    def testVendorParsing(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
                 StringIO("ATTRIBUTE Test-Type 1 integer Simplon"))
         self.dict.ReadDictionary(StringIO("VENDOR Simplon 42"))
@@ -190,3 +184,57 @@ class DictionaryParsingTests(unittest.TestCase):
                         "ATTRIBUTE Test-Type 1 integer Simplon"))
         self.assertEquals(self.dict.attrindex["Test-Type"], (42, 1))
 
+
+    def testBeginVendorTooFewColumns(self):
+        self.assertRaises(ParseError, self.dict.ReadDictionary,
+                StringIO("BEGIN-VENDOR"))
+        try:
+            self.dict.ReadDictionary(StringIO("BEGIN-VENDOR"))
+        except ParseError, e:
+            self.assertEqual("begin-vendor" in str(e), True)
+
+
+    def testBeginVendorUnknownVendor(self):
+        self.assertRaises(ParseError, self.dict.ReadDictionary,
+                StringIO("BEGIN-VENDOR Simplon"))
+        try:
+            self.dict.ReadDictionary(StringIO("BEGIN-VENDOR Simplon"))
+        except ParseError, e:
+            self.assertEqual("Simplon" in str(e), True)
+
+
+    def testBeginVendorParsing(self):
+        self.dict.ReadDictionary(StringIO(
+                        "VENDOR Simplon 42\n"
+                        "BEGIN-VENDOR Simplon\n"
+                        "ATTRIBUTE Test-Type 1 integer"))
+        self.assertEquals(self.dict.attrindex["Test-Type"], (42, 1))
+
+
+    def testEndVendorUnknownVendor(self):
+        self.assertRaises(ParseError, self.dict.ReadDictionary,
+                StringIO("END-VENDOR"))
+        try:
+            self.dict.ReadDictionary(StringIO("END-VENDOR"))
+        except ParseError, e:
+            self.assertEqual("end-vendor" in str(e), True)
+
+    def testEndVendorUnbalanced(self):
+        try:
+            self.dict.ReadDictionary(StringIO(
+                            "VENDOR Simplon 42\n"
+                            "BEGIN-VENDOR Simplon\n"
+                            "END-VENDOR Oops\n"))
+        except ParseError, e:
+            self.assertEqual("Oops" in str(e), True)
+        else:
+            self.fail()
+
+
+    def testEndVendorParsing(self):
+        self.dict.ReadDictionary(StringIO(
+                        "VENDOR Simplon 42\n"
+                        "BEGIN-VENDOR Simplon\n"
+                        "END-VENDOR Simplon\n"
+                        "ATTRIBUTE Test-Type 1 integer"))
+        self.assertEquals(self.dict.attrindex["Test-Type"], 1)
