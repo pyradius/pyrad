@@ -6,7 +6,8 @@ import struct
 
 
 def EncodeString(str):
-	assert len(str)<=253
+	if len(str)>253:
+		raise ValueError, "Can only encode strings of <= 253 characters"
 
 	return str
 
