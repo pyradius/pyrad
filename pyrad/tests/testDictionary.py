@@ -43,7 +43,7 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(len(dict), 0)
 
     def testParseSimpleDictionary(self):
-        self.assertEqual(len(dict), 8)
+        self.assertEqual(len(self.dict), 8)
         values = [
                 ( "Test-String", 1, "string" ),
                 ( "Test-Octets", 2, "octets" ),
@@ -56,7 +56,7 @@ class DictionaryParsingTests(unittest.TestCase):
                 ]
 
         for (attr, code, type) in values:
-            attr=dict[attr]
+            attr=self.dict[attr]
             self.assertEqual(attr.code, code)
             self.assertEqual(attr.type, type)
 
@@ -64,7 +64,7 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
                 StringIO("ATTRIBUTE Oops-Too-Few-Columns"))
         try:
-            dict.ReadDictionary(StringIO("ATTRIBUTE Oops-Too-Few-Columns"))
+            self.dict.ReadDictionary(StringIO("ATTRIBUTE Oops-Too-Few-Columns"))
         except ParseError, e:
             self.assertEqual(e.linenumber, 1)
             self.assertEqual("attribute" in str(e), True)
