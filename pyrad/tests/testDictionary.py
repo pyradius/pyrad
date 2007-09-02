@@ -9,6 +9,36 @@ from pyrad.dictionary import ParseError
 from pyrad.tools import DecodeAttr
 
 
+class AttributeTests(unittest.TestCase):
+    def testInvalidDataType(self):
+        self.assertRaises(ValueError, Attribute, "name", "code", "datatype")
+
+
+    def testConstructionParameters(self):
+        attr=Attribute("name", "code", "integer", "vendor")
+        self.assertEqual(attr.name, "name")
+        self.assertEqual(attr.code, "code")
+        self.assertEqual(attr.type, "integer")
+        self.assertEqual(attr.vendor, "vendor")
+        self.assertEqual(len(attr.values), 0)
+
+
+    def testNamedConstructionParameters(self):
+        attr=Attribute(name="name", code="code", datatype="integer", vendor="vendor")
+        self.assertEqual(attr.name, "name")
+        self.assertEqual(attr.code, "code")
+        self.assertEqual(attr.type, "integer")
+        self.assertEqual(attr.vendor, "vendor")
+        self.assertEqual(len(attr.values), 0)
+
+
+    def testValues(self):
+        attr=Attribute("name", "code", "integer", "vendor",
+                dict(pie="custard", shake="vanilla"))
+        self.assertEqual(len(attr.values), 2)
+        self.assertEqual(attr.values["shake"], "vanilla")
+
+
 class DictionaryInterfaceTests(unittest.TestCase):
     def testEmptyDictionary(self):
         dict=Dictionary()

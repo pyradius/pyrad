@@ -49,26 +49,19 @@ class ParseError(Exception):
 
 	@ivar msg:        Error message
 	@type msg:        string
-	@ivar filename:   Name of the file being parsed
-	@type filename:   string
 	@ivar linenumber: Line number on which the error occured
 	@type linenumber: integer
 	"""
 
 	def __init__(self, msg=None, **data):
 		self.msg=msg
-		if data.has_key("filename"):
-			self.filename=data["filename"]
-		elif data.has_key("linenumber"):
+		if data.has_key("linenumber"):
 			self.linenumber=data["linenumber"]
 	
 	def __str__(self):
 		str=""
-		if hasattr(self, "filename"):
-			str+=self.filename
-			if hasattr(self, "linenumber"):
-				str+="(%d)" % self.linenumber
-			str+=": "
+		if hasattr(self, "linenumber"):
+			str+="(%d): " % self.linenumber
 		str+="Parse error"
 		if self.msg:
 			str+=": %s" % self.msg
@@ -78,8 +71,9 @@ class ParseError(Exception):
 
 class Attribute:
 	def __init__(self, name, code, datatype, vendor="", values={}):
-		assert datatype in ("string", "ipaddr", "integer", "date",
-					"octets", "abinary", "ipv6addr", "ifid")
+		if datatype not in ("string", "ipaddr", "integer", "date",
+				"octets", "abinary", "ipv6addr", "ifid"):
+			raise ValueError, "Invalid data type"
 		self.name=name
 		self.code=code
 		self.type=datatype
