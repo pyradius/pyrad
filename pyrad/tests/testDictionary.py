@@ -84,6 +84,16 @@ class DictionaryParsingTests(unittest.TestCase):
             self.assertEqual("dummy" in str(e), True)
 
 
+    def testAttributeUnknownVendorError(self):
+        self.assertRaises(ParseError, self.dict.ReadDictionary,
+                StringIO("ATTRIBUTE Test-Type 1 integer Simplon"))
+        try:
+            self.dict.ReadDictionary(StringIO("ATTRIBUTE Test-Type 1 Simplon"))
+        except ParseError, e:
+            self.assertEqual(e.linenumber, 1)
+            self.assertEqual("Simplon" in str(e), True)
+
+
     def testValueTooFewColumnsError(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
                 StringIO("VALUE Oops-Too-Few-Columns"))
@@ -133,6 +143,11 @@ class DictionaryParsingTests(unittest.TestCase):
 
 
     def testVenderParsing(self):
-        self.dict.ReadDictionary(StringIO("VENDOR Simplon 1"))
-        self.assertEqual(self.dict.vendors["Simplon"], 1)
+        self.assertRaises(ParseError, self.dict.ReadDictionary,
+                StringIO("ATTRIBUTE Test-Type 1 integer Simplon"))
+        self.dict.ReadDictionary(StringIO("VENDOR Simplon 42"))
+        self.assertEqual(self.dict.vendors["Simplon"], 42)
+        self.dict.ReadDictionary(StringIO(
+                        "ATTRIBUTE Test-Type 1 integer Simplon"))
+        self.assertEquals(self.dict.attrindex["Test-Type"], (42, 1))
 
