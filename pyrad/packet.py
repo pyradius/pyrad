@@ -12,7 +12,7 @@ RADIUS packet
 __docformat__	= "epytext en"
 
 import md5, struct, types, random, UserDict
-import tools
+from pyrad import tools
 
 # Packet codes
 AccessRequest		= 1

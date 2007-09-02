@@ -2,7 +2,7 @@
 #
 # Copyright 2003 Wichert Akkerman <wichert@wiggy.net>
 
-import packet
+from pyrad import packet
 
 class Host:
 	"""Generic RADIUS capable host.

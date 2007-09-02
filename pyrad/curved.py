@@ -12,7 +12,9 @@ from twisted.internet import protocol, reactor
 from twisted.python import log
 import sys
 
-import dictionary, host, packet
+from pyrad import dictionary
+from pyrad import host
+from pyrad import packet
 
 class PacketError(Exception):
 	"""Exception class for bogus packets

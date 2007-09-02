@@ -42,7 +42,9 @@ The datatypes currently supported are::
 
 __docformat__	= "epytext en"
 
-import bidict, tools
+from pyrad import bidict
+from pyrad import tools
+
 
 class ParseError(Exception):
 	"""Dictionary parser exceptions.

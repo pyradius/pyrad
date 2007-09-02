@@ -6,7 +6,8 @@
 """
 
 import select, socket
-import host, packet
+from pyrad import host
+from pyrad import packet
 
 class RemoteHost:
 	"""Remote RADIUS capable host we can talk to.

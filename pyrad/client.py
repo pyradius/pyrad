@@ -7,7 +7,8 @@
 __docformat__	= "epytext en"
 
 import md5, select, socket, time
-import host, packet
+from pyrad import host
+from pyrad import packet
 
 class Timeout(Exception):
 	"""Simple exception class which is raised when a timeout occurs
