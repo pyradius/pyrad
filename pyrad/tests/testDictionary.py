@@ -37,7 +37,7 @@ class DictionaryParsingTests(unittest.TestCase):
         self.path=os.path.join(home, "tests", "data")
 
     def testParseEmptyDictionary(self):
-        dict=Dictionary(os.path.join(self.path, "empty"))
+        dict=Dictionary(StringIO(""))
         self.assertEqual(len(dict), 0)
 
     def testParseSimpleDictionary(self):
@@ -59,7 +59,7 @@ class DictionaryParsingTests(unittest.TestCase):
             self.assertEqual(attr.code, code)
             self.assertEqual(attr.type, type)
 
-    def testAttributePaseError(self):
+    def testAttributeTooFewColumnsError(self):
         dict=Dictionary()
         self.assertRaises(ParseError, dict.ReadDictionary,
                 StringIO("ATTRIBUTE Oops-Too-Few-Columns"))
@@ -68,4 +68,15 @@ class DictionaryParsingTests(unittest.TestCase):
         except ParseError, e:
             self.assertEqual(e.linenumber, 1)
             self.assertEqual("attribute" in str(e), True)
+
+
+    def testAttributeUnknownTypeError(self):
+        dict=Dictionary()
+        self.assertRaises(ParseError, dict.ReadDictionary,
+                StringIO("ATTRIBUTE Test-Type 1 dummy"))
+        try:
+            dict.ReadDictionary(StringIO("ATTRIBUTE Test-Type 1 dummy"))
+        except ParseError, e:
+            self.assertEqual(e.linenumber, 1)
+            self.assertEqual("dummy" in str(e), True)
 
