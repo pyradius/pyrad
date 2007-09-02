@@ -125,8 +125,13 @@ class Dictionary:
 	def __len__(self):
                 return len(self.attributes)
 
+
 	def __getitem__(self, key):
 		return self.attributes[key]
+
+
+	def __contains__(self, key):
+		return key in self.attributes
 
 
 	def has_key(self, key):

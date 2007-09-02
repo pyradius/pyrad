@@ -1,7 +1,9 @@
 import unittest
+import operator
 import os
 from StringIO import StringIO
 from pyrad.tests import home
+from pyrad.dictionary import Attribute
 from pyrad.dictionary import Dictionary
 from pyrad.dictionary import ParseError
 
@@ -10,6 +12,24 @@ class DictionaryInterfaceTests(unittest.TestCase):
     def testEmptyDictionary(self):
         dict=Dictionary()
         self.assertEqual(len(dict), 0)
+
+    def testContainment(self):
+        dict=Dictionary()
+        self.assertEqual("test" in dict, False)
+        self.assertEqual(dict.has_key("test"), False)
+        dict.attributes["test"]="dummy"
+        self.assertEqual("test" in dict, True)
+        self.assertEqual(dict.has_key("test"), True)
+
+    def testReadonlyContainer(self):
+        dict=Dictionary()
+        self.assertRaises(AttributeError,
+                operator.setitem, dict, "test", "dummy")
+        self.assertRaises(AttributeError,
+                operator.attrgetter("clear"), dict)
+        self.assertRaises(AttributeError,
+                operator.attrgetter("update"), dict)
+
 
 
 class DictionaryParsingTests(unittest.TestCase):
@@ -43,4 +63,9 @@ class DictionaryParsingTests(unittest.TestCase):
         dict=Dictionary()
         self.assertRaises(ParseError, dict.ReadDictionary,
                 StringIO("ATTRIBUTE Oops-Too-Few-Columns"))
+        try:
+            dict.ReadDictionary(StringIO("ATTRIBUTE Oops-Too-Few-Columns"))
+        except ParseError, e:
+            self.assertEqual(e.linenumber, 1)
+            self.assertEqual("attribute" in str(e), True)
 
