@@ -45,6 +45,8 @@ AUTHOR, COPYRIGHT, AVAILABILITY
 
 pyrad was written by Wichert Akkerman <wichert@wiggy.net>
 
+Copyright and license information can be found in LICENSE.txt
+
 The current version and documentation can be found at its homepage:
 
   http://www.wiggy.net/code/pyrad/
