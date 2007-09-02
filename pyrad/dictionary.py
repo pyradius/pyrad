@@ -172,7 +172,7 @@ class Dictionary:
 
 	def __ParseValue(self, state, tokens):
 		if len(tokens)!=4:
-			raise ParseError("Incorrect number of tokens for attribute definition",
+			raise ParseError("Incorrect number of tokens for value definition",
 					linenumber=state["line"])
 
 		(attr, key, value)=tokens[1:]

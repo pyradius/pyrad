@@ -6,6 +6,7 @@ from pyrad.tests import home
 from pyrad.dictionary import Attribute
 from pyrad.dictionary import Dictionary
 from pyrad.dictionary import ParseError
+from pyrad.tools import DecodeAttr
 
 
 class DictionaryInterfaceTests(unittest.TestCase):
@@ -80,3 +81,44 @@ class DictionaryParsingTests(unittest.TestCase):
             self.assertEqual(e.linenumber, 1)
             self.assertEqual("dummy" in str(e), True)
 
+
+    def testValueTooFewColumnsError(self):
+        dict=Dictionary()
+        self.assertRaises(ParseError, dict.ReadDictionary,
+                StringIO("VALUE Oops-Too-Few-Columns"))
+        try:
+            dict.ReadDictionary(StringIO("VALUE Oops-Too-Few-Columns"))
+        except ParseError, e:
+            self.assertEqual(e.linenumber, 1)
+            self.assertEqual("value" in str(e), True)
+
+
+    def testValueForUnknownAttributeError(self):
+        dict=Dictionary()
+        self.assertRaises(ParseError, dict.ReadDictionary,
+                StringIO("VALUE Test-Attribute Test-Text 1"))
+        try:
+            dict.ReadDictionary(StringIO("VALUE Test-Attribute Test-Text 1"))
+        except ParseError, e:
+            self.assertEqual(e.linenumber, 1)
+            self.assertEqual("unknown attribute" in str(e), True)
+
+
+    def testIntegerValueParsing(self):
+        dict=Dictionary(os.path.join(self.path, "simple"))
+        self.assertEqual(len(dict["Test-Integer"].values), 0)
+        dict.ReadDictionary(StringIO("VALUE Test-Integer Value-Six 5"))
+        self.assertEqual(len(dict["Test-Integer"].values), 1)
+        self.assertEqual(
+                DecodeAttr("integer", dict["Test-Integer"].values["Value-Six"]),
+                5)
+
+
+    def testStringValueParsing(self):
+        dict=Dictionary(os.path.join(self.path, "simple"))
+        self.assertEqual(len(dict["Test-String"].values), 0)
+        dict.ReadDictionary(StringIO("VALUE Test-String Value-Custard custardpie"))
+        self.assertEqual(len(dict["Test-String"].values), 1)
+        self.assertEqual(
+                DecodeAttr("string", dict["Test-String"].values["Value-Custard"]),
+                "custardpie")
