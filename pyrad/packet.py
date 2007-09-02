@@ -66,7 +66,7 @@ class Packet(UserDict.UserDict):
 		"""
 		UserDict.UserDict.__init__(self)
 		self.code=code
-		if id!=None:
+		if id is not None:
 			self.id=id
 		else:
 			self.id=CreateID()
@@ -250,7 +250,7 @@ class Packet(UserDict.UserDict):
 		if reply.id!=self.id:
 			return 0
 
-		if rawreply==None:
+		if rawreply is None:
 			rawreply=reply.ReplyPacket()
 		
 		hash=md5.new(rawreply[0:4] + self.authenticator + 
@@ -377,10 +377,10 @@ class AuthPacket(Packet):
 
 		attr=self._PktEncodeAttributes()
 
-		if self.authenticator==None:
+		if self.authenticator is None:
 			self.authenticator=self.CreateAuthenticator()
 
-		if self.id==None:
+		if self.id is None:
 			self.id=self.CreateID()
 
 		header=struct.pack("!BBH16s", self.code, self.id,
@@ -434,7 +434,7 @@ class AuthPacket(Packet):
 		@return:         obfuscated version of the password
 		@rtype:          string
 		"""
-		if self.authenticator==None:
+		if self.authenticator is None:
 			self.authenticator=self.CreateAuthenticator()
 
 		buf=password
@@ -505,7 +505,7 @@ class AcctPacket(Packet):
 
 		attr=self._PktEncodeAttributes()
 
-		if self.id==None:
+		if self.id is None:
 			self.id=self.CreateID()
 
 		header=struct.pack("!BBH", self.code, self.id, (20+len(attr)))
