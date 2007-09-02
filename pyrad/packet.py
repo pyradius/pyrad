@@ -88,8 +88,9 @@ class Packet(UserDict.UserDict):
 
 
 	def CreateReply(self, **attributes):
-		return Packet(self.id, self.secret, self.authenticator,
-				dict=self.dict, **attributes)
+		return Packet(id=self.id, secret=self.secret,
+                        authenticator=self.authenticator, dict=self.dict,
+                        **attributes)
 
 
 	def _DecodeValue(self, attr, value):
