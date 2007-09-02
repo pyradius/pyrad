@@ -109,7 +109,7 @@ class Packet(UserDict.UserDict):
 
 	def _EncodeKeyValues(self, key, values):
 		if type(key)!=types.StringType:
-			return (key, value)
+			return (key, values)
 
 		attr=self.dict.attributes[key]
 
@@ -118,8 +118,7 @@ class Packet(UserDict.UserDict):
 		else:
 			key=attr.code
 
-		return (key,
-			map(lambda v,a=attr,s=self: s._EncodeValue(a,v), values))
+		return (key, [self._EncodeValue(attr, v) for v in values])
 
 
 	def _EncodeKey(self, key):
@@ -186,7 +185,7 @@ class Packet(UserDict.UserDict):
 
 
 	def keys(self):
-		return map(self._DecodeKey, self.data.keys())
+		return [self._DecodeKey(key) for key in self.data.keys()]
 
 
 	def CreateAuthenticator():
