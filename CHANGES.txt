@@ -5,3 +5,5 @@ Pyrad 1.0
    via the python package index.
 
  * Add unit tests
+
+ * Use absolute instead of relative imports.
