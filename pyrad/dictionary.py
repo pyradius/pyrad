@@ -105,10 +105,10 @@ class Dictionary:
 
 	def __init__(self, dict=None, *dicts):
 		"""
-		@param dict:  dictionary file to read
-		@type dict:   string
-		@param dicts: list of dictionary files to read
-		@type dicts:  sequence of strings
+		@param dict:  path of dictionary file or file-like object to read
+		@type dict:   string or file
+		@param dicts: list of dictionaries
+		@type dicts:  sequence of strings or files
 		"""
 		self.vendors=bidict.BiDict()
 		self.vendors.Add("", 0)
@@ -215,11 +215,15 @@ class Dictionary:
 		Reads a RADIUS dictionary file and merges its contents into the
 		class instance.
 
-		@param file: Name of dictionary file to parse
-		@type file:  string
+		@param file: Name of dictionary file to parse or a file-like object
+		@type file:  string or file-like object
 		"""
 
-		fd=open(file, "rt")
+                mustclose=False
+                if isinstrance(file, (str, unicode)):
+                    mustclose=True
+                    fd=open(file, "rt")
+
 		state={}
 		state["vendor"]=""
 
@@ -241,5 +245,6 @@ class Dictionary:
 			elif tokens[0]=="END-VENDOR":
 				self.__ParseEndVendor(state, tokens)
 
-		fd.close()
+                if mustclose:
+                    fd.close()
 
