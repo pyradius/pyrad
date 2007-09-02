@@ -75,7 +75,7 @@ class PacketTests(unittest.TestCase):
     def testAttributeAccess(self):
         self.packet["Test-Integer"]=10
         self.assertEqual(self.packet["Test-Integer"], [10])
-        self.assertEqual(self.packet[3], [10])
+        self.assertEqual(self.packet[3], ["\x00\x00\x00\x0a"])
 
         self.packet["Test-String"]="dummy"
         self.assertEqual(self.packet["Test-String"], ["dummy"])
@@ -85,11 +85,23 @@ class PacketTests(unittest.TestCase):
     def testAttributeValueAccess(self):
         self.packet["Test-Integer"]="Three"
         self.assertEqual(self.packet["Test-Integer"], ["Three"])
+        self.assertEqual(self.packet[3], ["\x00\x00\x00\x03"])
 
 
     def testVendorAttributeAccess(self):
         self.packet["Simplon-Number"]=10
         self.assertEqual(self.packet["Simplon-Number"], [10])
+        self.assertEqual(self.packet[(16,1)], ["\x00\x00\x00\x0a"])
 
         self.packet["Simplon-Number"]="Four"
         self.assertEqual(self.packet["Simplon-Number"], ["Four"])
+        self.assertEqual(self.packet[(16,1)], ["\x00\x00\x00\x04"])
+
+    def testRawAttributeAccess(self):
+        marker=[""]
+        self.packet[1]=marker
+        self.failUnless(self.packet[1] is marker)
+        self.assertEqual(self.packet["Test-String"], marker)
+
+        self.packet[(16,1)]=marker
+        self.failUnless(self.packet[(16,1)] is marker)

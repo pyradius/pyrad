@@ -180,8 +180,8 @@ class Packet(UserDict.UserDict):
 			(key,item)=self._EncodeKeyValues(key, [item])
 			self.data[key]=item
 		else:
-			assert(type(item)==types.ListType)
-			self.data[key]=[item]
+			assert isinstance(item, list)
+			self.data[key]=item
 
 
 	def keys(self):
