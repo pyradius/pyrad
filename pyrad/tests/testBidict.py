@@ -2,6 +2,7 @@ import operator
 import unittest
 from pyrad.bidict import BiDict
 
+
 class BiDictTests(unittest.TestCase):
     def setUp(self):
         self.bidict=BiDict()
@@ -33,6 +34,7 @@ class BiDictTests(unittest.TestCase):
         del self.bidict["present"]
         self.assertEqual(self.bidict.HasForward("missing"), False)
 
+
     def testForwardAccess(self):
         self.bidict.Add("shake", "vanilla")
         self.bidict.Add("pie", "custard")
@@ -59,3 +61,4 @@ class BiDictTests(unittest.TestCase):
         self.assertRaises(KeyError, operator.getitem, self.bidict, "missing")
         self.assertEquals(self.bidict["shake"], "vanilla")
         self.assertEquals(self.bidict["pie"], "custard")
+
