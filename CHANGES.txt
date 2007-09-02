@@ -1,0 +1,7 @@
+Pyrad 1.0
+=========
+
+ * Switch to setuptools, allowing pyrad to be distributed as an egg
+   via the python package index.
+
+ * Add unit tests
