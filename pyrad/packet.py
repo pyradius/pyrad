@@ -170,6 +170,9 @@ class Packet(UserDict.UserDict):
 		return res
 
 	
+        def __contains__(self, key):
+		return self.data.has_key(self._EncodeKey(key))
+
 
 	def has_key(self, key):
 		return self.data.has_key(self._EncodeKey(key))

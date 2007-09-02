@@ -13,6 +13,7 @@ class UtilityTests(unittest.TestCase):
         self.assertNotEqual(id, newid)
 
 
+
 class PacketConstructionTests(unittest.TestCase):
 
     def setUp(self):
@@ -97,6 +98,7 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet["Simplon-Number"], ["Four"])
         self.assertEqual(self.packet[(16,1)], ["\x00\x00\x00\x04"])
 
+
     def testRawAttributeAccess(self):
         marker=[""]
         self.packet[1]=marker
@@ -105,3 +107,45 @@ class PacketTests(unittest.TestCase):
 
         self.packet[(16,1)]=marker
         self.failUnless(self.packet[(16,1)] is marker)
+
+
+    def testHasKey(self):
+        self.assertEqual(self.packet.has_key("Test-String"), False)
+        self.assertEqual("Test-String" in self.packet, False)
+        self.packet["Test-String"]="dummy"
+        self.assertEqual(self.packet.has_key("Test-String"), True)
+        self.assertEqual("Test-String" in self.packet, True)
+
+
+    def testKeys(self):
+        self.assertEqual(self.packet.keys(), [])
+        self.packet["Test-String"]="dummy"
+        self.assertEqual(self.packet.keys(), ["Test-String"])
+        self.packet["Test-Integer"]=10
+        self.assertEqual(self.packet.keys(), ["Test-String", "Test-Integer"])
+        self.packet.data[12345]=None
+        self.assertEqual(self.packet.keys(),
+                        ["Test-String", "Test-Integer", 12345])
+
+
+    def testCreateAuthenticator(self):
+        a=packet.Packet.CreateAuthenticator()
+        self.failUnless(isinstance(a, str))
+        self.assertEqual(len(a), 16)
+
+        b=packet.Packet.CreateAuthenticator()
+        self.assertNotEqual(a, b)
+
+
+    def testGenerateID(self):
+        id=self.packet.CreateID()
+        self.failUnless(isinstance(id, int))
+        newid=self.packet.CreateID()
+        self.assertNotEqual(id, newid)
+
+
+    def testReplyPacket(self):
+        reply=self.packet.ReplyPacket()
+        self.assertEqual(reply, "\x00\x00\x00\x14\xb0\x5e\x4b\xfb\xcc\x1c"
+                                "\x8c\x8e\xc4\x72\xac\xea\x87\x45\x63\xa7")
+
