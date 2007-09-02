@@ -55,11 +55,11 @@ class PacketConstructionTests(unittest.TestCase):
 
 
 
-class PacketConstructionTests(unittest.TestCase):
+class PacketTests(unittest.TestCase):
 
     def setUp(self):
         self.path=os.path.join(home, "tests", "data")
-        self.dict=Dictionary(os.path.join(self.path, "simple"))
+        self.dict=Dictionary(os.path.join(self.path, "full"))
         self.packet=packet.Packet(id=0, secret="secret",
                 authenticator="01234567890ABCDEF", dict=self.dict)
 
@@ -70,3 +70,26 @@ class PacketConstructionTests(unittest.TestCase):
         self.assertEqual(reply.secret, self.packet.secret)
         self.assertEqual(reply.authenticator, self.packet.authenticator)
         self.assertEqual(reply["Test-Integer"], [10])
+
+
+    def testAttributeAccess(self):
+        self.packet["Test-Integer"]=10
+        self.assertEqual(self.packet["Test-Integer"], [10])
+        self.assertEqual(self.packet[3], [10])
+
+        self.packet["Test-String"]="dummy"
+        self.assertEqual(self.packet["Test-String"], ["dummy"])
+        self.assertEqual(self.packet[1], ["dummy"])
+
+
+    def testAttributeValueAccess(self):
+        self.packet["Test-Integer"]="Three"
+        self.assertEqual(self.packet["Test-Integer"], ["Three"])
+
+
+    def testVendorAttributeAccess(self):
+        self.packet["Simplon-Number"]=10
+        self.assertEqual(self.packet["Simplon-Number"], [10])
+
+        self.packet["Simplon-Number"]="Four"
+        self.assertEqual(self.packet["Simplon-Number"], ["Four"])
