@@ -46,6 +46,15 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(len(dict), 0)
 
 
+    def testParseMultipleDictionaries(self):
+        dict=Dictionary(StringIO(""))
+        self.assertEqual(len(dict), 0)
+        one=StringIO("ATTRIBUTE Test-First 1 string")
+        two=StringIO("ATTRIBUTE Test-Second 2 string")
+        dict=Dictionary(StringIO(""), one, two)
+        self.assertEqual(len(dict), 2)
+
+
     def testParseSimpleDictionary(self):
         self.assertEqual(len(self.dict), 8)
         values = [
