@@ -14,6 +14,7 @@ class DictionaryInterfaceTests(unittest.TestCase):
         dict=Dictionary()
         self.assertEqual(len(dict), 0)
 
+
     def testContainment(self):
         dict=Dictionary()
         self.assertEqual("test" in dict, False)
@@ -21,6 +22,7 @@ class DictionaryInterfaceTests(unittest.TestCase):
         dict.attributes["test"]="dummy"
         self.assertEqual("test" in dict, True)
         self.assertEqual(dict.has_key("test"), True)
+
 
     def testReadonlyContainer(self):
         dict=Dictionary()
@@ -38,9 +40,11 @@ class DictionaryParsingTests(unittest.TestCase):
         self.path=os.path.join(home, "tests", "data")
         self.dict=Dictionary(os.path.join(self.path, "simple"))
 
+
     def testParseEmptyDictionary(self):
         dict=Dictionary(StringIO(""))
         self.assertEqual(len(dict), 0)
+
 
     def testParseSimpleDictionary(self):
         self.assertEqual(len(self.dict), 8)
@@ -116,3 +120,19 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(
                 DecodeAttr("string", self.dict["Test-String"].values["Value-Custard"]),
                 "custardpie")
+
+
+    def testVenderTooFewColumnsError(self):
+        self.assertRaises(ParseError, self.dict.ReadDictionary,
+                StringIO("VENDOR Simplon"))
+        try:
+            self.dict.ReadDictionary(StringIO("VENDOR Simplon"))
+        except ParseError, e:
+            self.assertEqual(e.linenumber, 1)
+            self.assertEqual("vendor" in str(e), True)
+
+
+    def testVenderParsing(self):
+        self.dict.ReadDictionary(StringIO("VENDOR Simplon 1"))
+        self.assertEqual(self.dict.vendors["Simplon"], 1)
+
