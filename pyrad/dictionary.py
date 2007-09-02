@@ -220,14 +220,16 @@ class Dictionary:
 		"""
 
                 mustclose=False
-                if isinstrance(file, (str, unicode)):
+                if isinstance(file, (str, unicode)):
                     mustclose=True
                     fd=open(file, "rt")
+                else:
+                    fd=file
 
 		state={}
 		state["vendor"]=""
 
-		for line in fd.xreadlines():
+		for line in fd.readlines():
 			line=line.split("#", 1)[0].strip()
 
 			tokens=line.split()

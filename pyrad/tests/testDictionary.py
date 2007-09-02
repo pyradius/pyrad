@@ -1,7 +1,9 @@
 import unittest
 import os
+from StringIO import StringIO
 from pyrad.tests import home
 from pyrad.dictionary import Dictionary
+from pyrad.dictionary import ParseError
 
 
 class DictionaryInterfaceTests(unittest.TestCase):
@@ -36,4 +38,9 @@ class DictionaryParsingTests(unittest.TestCase):
             attr=dict[attr]
             self.assertEqual(attr.code, code)
             self.assertEqual(attr.type, type)
+
+    def testAttributePaseError(self):
+        dict=Dictionary()
+        self.assertRaises(ParseError, dict.ReadDictionary,
+                StringIO("ATTRIBUTE Oops-Too-Few-Columns"))
 
