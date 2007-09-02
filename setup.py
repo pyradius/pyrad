@@ -23,6 +23,6 @@ setup(	name		= "pyrad",
 	keywords	= [ "radius", "authentication" ],
         zip_safe        = True,
         include_package_data = True,
-        tests_require   = "nose",
+        tests_require   = "nose >=0.10.0b1",
         test_suite      = "nose.collector",
         )
