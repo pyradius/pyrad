@@ -43,7 +43,7 @@ class BiDictTests(unittest.TestCase):
         self.assertEqual(self.bidict.HasForward("pie"), True)
         self.assertEqual(self.bidict.GetForward("pie"), "custard")
         self.assertEqual(self.bidict.HasForward("missing"), False)
-        self.assertRaises(KeyError, self.bidict.GetForward("missing"))
+        self.assertRaises(KeyError, self.bidict.GetForward, "missing")
 
 
     def testBackwardAccess(self):
@@ -52,7 +52,7 @@ class BiDictTests(unittest.TestCase):
         self.assertEqual(self.bidict.HasBackward("vanilla"), True)
         self.assertEqual(self.bidict.GetBackward("vanilla"), "shake")
         self.assertEqual(self.bidict.HasBackward("missing"), False)
-        self.assertRaises(KeyError, self.bidict.GetBackward("missing"))
+        self.assertRaises(KeyError, self.bidict.GetBackward, "missing")
 
 
     def testItemAccessor(self):
