@@ -483,17 +483,17 @@ class AcctPacket(Packet):
 			self.secret, self.authenticator, dict=self.dict,
 			**attributes)
 
-		def VerifyAcctRequest(self):
-			"""Verify request authenticator
+        def VerifyAcctRequest(self):
+                """Verify request authenticator
 
-			@return: True if verification failed else False
-			@rtype: boolean
-			"""
-			assert(self.raw_packet)
-			hash=md5.new(self.raw_packet[0:4] + 16*"\x00" + 
-					self.raw_packet[20:] + self.secret).digest()
+                @return: True if verification failed else False
+                @rtype: boolean
+                """
+                assert(self.raw_packet)
+                hash=md5.new(self.raw_packet[0:4] + 16*"\x00" + 
+                                self.raw_packet[20:] + self.secret).digest()
 
-			return hash==self.authenticator
+                return hash==self.authenticator
 
 	def RequestPacket(self):
 		"""Create a ready-to-transmit authentication request packet
