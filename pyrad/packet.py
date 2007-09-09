@@ -250,7 +250,7 @@ class Packet(UserDict.UserDict):
 
 	def VerifyReply(self, reply, rawreply=None):
 		if reply.id!=self.id:
-			return 0
+			return False
 
 		if rawreply is None:
 			rawreply=reply.ReplyPacket()
@@ -259,9 +259,9 @@ class Packet(UserDict.UserDict):
 			rawreply[20:] + self.secret).digest()
 
 		if hash!=reply.authenticator:
-			return 0
+			return False
 
-		return 1
+		return True
 
 
 	def _PktEncodeAttribute(self, key, value):
