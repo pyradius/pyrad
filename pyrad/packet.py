@@ -122,7 +122,7 @@ class Packet(UserDict.UserDict):
 
 
 	def _EncodeKey(self, key):
-		if type(key)!=types.StringType:
+                if not isinstance(key, str): 
 			return key
 
 		attr=self.dict.attributes[key]
@@ -288,10 +288,7 @@ class Packet(UserDict.UserDict):
 		if len(data)<6:
 			return (26, data)
 
-		try:
-			(vendor, type, length)=struct.unpack("!LBB", data[:6])[0:3]
-		except struct.error:
-			raise PacketError, "Vender attribute header is corrupt"
+                (vendor, type, length)=struct.unpack("!LBB", data[:6])[0:3]
 		# Another sanity check
 		if len(data)!=length+4:
 			return (26,data)
@@ -494,6 +491,7 @@ class AcctPacket(Packet):
                                 self.raw_packet[20:] + self.secret).digest()
 
                 return hash==self.authenticator
+
 
 	def RequestPacket(self):
 		"""Create a ready-to-transmit authentication request packet

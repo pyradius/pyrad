@@ -242,6 +242,15 @@ class PacketTests(unittest.TestCase):
             self.fail()
 
 
+    def testDecodePacketWithPartialAttributes(self):
+        try:
+            self.packet.DecodePacket("\x01\x02\x00\x151234567890123456\x00")
+        except packet.PacketError, e:
+            self.failUnless("header is corrupt" in str(e))
+        else:
+            self.fail()
+
+
     def testDecodePacketWithoutAttributes(self):
         self.packet.DecodePacket("\x01\x02\x00\x141234567890123456")
         self.assertEqual(self.packet.code, 1)
@@ -285,6 +294,22 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet[26], ["value"])
 
 
+    def testEncodeKeyValues(self):
+        self.assertEqual(self.packet._EncodeKeyValues(1, "1234"), (1, "1234"))
+
+
+    def testEncodeKey(self):
+        self.assertEqual(self.packet._EncodeKey(1), 1)
+
+
+    def testAddAttribute(self):
+        self.packet.AddAttribute(1, 1)
+        self.assertEqual(self.packet.data[1], [1])
+        self.packet.AddAttribute(1, 1)
+        self.assertEqual(self.packet.data[1], [1, 1])
+
+
+
 class AuthPacketConstructionTests(PacketConstructionTests):
     klass = packet.AuthPacket
 
@@ -293,10 +318,120 @@ class AuthPacketConstructionTests(PacketConstructionTests):
         self.assertEqual(pkt.code, packet.AccessRequest)
 
 
+
+class AuthPacketTests(unittest.TestCase):
+
+    def setUp(self):
+        self.path=os.path.join(home, "tests", "data")
+        self.dict=Dictionary(os.path.join(self.path, "full"))
+        self.packet=packet.AuthPacket(id=0, secret="secret",
+                authenticator="01234567890ABCDEF", dict=self.dict)
+
+
+    def testCreateReply(self):
+        reply=self.packet.CreateReply(Test_Integer=10)
+        self.assertEqual(reply.code, packet.AccessAccept)
+        self.assertEqual(reply.id, self.packet.id)
+        self.assertEqual(reply.secret, self.packet.secret)
+        self.assertEqual(reply.authenticator, self.packet.authenticator)
+        self.assertEqual(reply["Test-Integer"], [10])
+
+
+    def testRequestPacket(self):
+        self.assertEqual(self.packet.RequestPacket(),
+                "\x01\x00\x00\x1401234567890ABCDE")
+
+    def testRequestPacketCreatesAuthenticator(self):
+        self.packet.authenticator=None
+        self.packet.RequestPacket()
+        self.failUnless(self.packet.authenticator is not None)
+
+
+    def testRequestPacketCreatesID(self):
+        self.packet.id=None
+        self.packet.RequestPacket()
+        self.failUnless(self.packet.id is not None)
+
+
+    def testPwCryptEmptyPassword(self):
+        self.assertEqual(self.packet.PwCrypt(""), "")
+
+
+    def testPwCryptPassword(self):
+        self.assertEqual(self.packet.PwCrypt("Simplon"), 
+                "\xd3U;\xb23\r\x11\xba\x07\xe3\xa8*\xa8x\x14\x01")
+
+
+    def testPwCryptSetsAuthenticator(self):
+        self.packet.authenticator=None
+        self.packet.PwCrypt("")
+        self.failUnless(self.packet.authenticator is not None)
+
+
+    def testPwDecryptEmptyPassword(self):
+        self.assertEqual(self.packet.PwDecrypt(""), "")
+
+
+    def testPwDecryptPassword(self):
+        self.assertEqual(self.packet.PwDecrypt(
+                "\xd3U;\xb23\r\x11\xba\x07\xe3\xa8*\xa8x\x14\x01"),
+                "Simplon")
+
+
+
 class AcctPacketConstructionTests(PacketConstructionTests):
     klass = packet.AcctPacket
 
     def testConstructorDefaults(self):
         pkt=self.klass()
         self.assertEqual(pkt.code, packet.AccountingRequest)
+
+
+    def testConstructorRawPacket(self):
+        raw="\x00\x00\x00\x14\xb0\x5e\x4b\xfb\xcc\x1c" \
+            "\x8c\x8e\xc4\x72\xac\xea\x87\x45\x63\xa7"
+        pkt=self.klass(packet=raw)
+        self.assertEqual(pkt.raw_packet, raw)
+
+
+class AcctPacketTests(unittest.TestCase):
+
+    def setUp(self):
+        self.path=os.path.join(home, "tests", "data")
+        self.dict=Dictionary(os.path.join(self.path, "full"))
+        self.packet=packet.AcctPacket(id=0, secret="secret",
+                authenticator="01234567890ABCDEF", dict=self.dict)
+
+
+    def testCreateReply(self):
+        reply=self.packet.CreateReply(Test_Integer=10)
+        self.assertEqual(reply.code, packet.AccountingResponse)
+        self.assertEqual(reply.id, self.packet.id)
+        self.assertEqual(reply.secret, self.packet.secret)
+        self.assertEqual(reply.authenticator, self.packet.authenticator)
+        self.assertEqual(reply["Test-Integer"], [10])
+
+
+    def testVerifyAcctRequest(self):
+        rawpacket=self.packet.RequestPacket()
+        pkt=packet.AcctPacket(secret="secret", packet=rawpacket)
+        self.assertEqual(pkt.VerifyAcctRequest(), True)
+
+        pkt.secret="different"
+        self.assertEqual(pkt.VerifyAcctRequest(), False)
+        pkt.secret="secret"
+
+        pkt.raw_packet="X" + pkt.raw_packet[1:]
+        self.assertEqual(pkt.VerifyAcctRequest(), False)
+
+
+    def testRequestPacket(self):
+        self.assertEqual(self.packet.RequestPacket(),
+            "\x04\x00\x00\x14\x95\xdf\x90\xccbn\xfb\x15G!\x13\xea\xfa>6\x0f")
+
+
+    def testRequestPacketSetsId(self):
+        self.packet.id=None
+        self.packet.RequestPacket()
+        self.failUnless(self.packet.id is not None)
 
