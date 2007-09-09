@@ -258,7 +258,7 @@ class Packet(UserDict.UserDict):
 		hash=md5.new(rawreply[0:4] + self.authenticator + 
 			rawreply[20:] + self.secret).digest()
 
-		if hash!=reply.authenticator:
+                if hash!=rawreply[4:20]:
 			return False
 
 		return True
