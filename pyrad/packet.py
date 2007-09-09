@@ -395,7 +395,7 @@ class AuthPacket(Packet):
 		"""Unobfuscate a RADIUS password
 
 		RADIUS hides passwords in packets by using an algorithm
-		based on the MD5 hash of the pacaket authenticator and RADIUS
+		based on the MD5 hash of the packet authenticator and RADIUS
 		secret. This function reverses the obfuscation process.
 
 		@param password: obfuscated form of password
@@ -425,7 +425,7 @@ class AuthPacket(Packet):
 		"""Obfuscate password
 		
 		RADIUS hides passwords in packets by using an algorithm
-		based on the MD5 hash of the pacaket authenticator and RADIUS
+		based on the MD5 hash of the packet authenticator and RADIUS
 		secret. If no authenticator has been set before calling PwCrypt
 		one is created automatically. Changing the authenticator after
 		setting a password that has been encrypted using this function
