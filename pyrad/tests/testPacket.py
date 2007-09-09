@@ -15,6 +15,7 @@ class UtilityTests(unittest.TestCase):
 
 
 class PacketConstructionTests(unittest.TestCase):
+    klass = packet.Packet
 
     def setUp(self):
         self.path=os.path.join(home, "tests", "data")
@@ -22,14 +23,14 @@ class PacketConstructionTests(unittest.TestCase):
 
 
     def testBasicConstructor(self):
-        pkt=packet.Packet()
+        pkt=self.klass()
         self.failUnless(isinstance(pkt.code, int))
         self.failUnless(isinstance(pkt.id, int))
         self.failUnless(isinstance(pkt.secret, str))
 
 
     def testNamedConstructor(self):
-        pkt=packet.Packet(code=26, id=38, secret="secret",
+        pkt=self.klass(code=26, id=38, secret="secret",
                 authenticator="authenticator",
                 dict="fakedict")
         self.assertEqual(pkt.code, 26)
@@ -40,18 +41,18 @@ class PacketConstructionTests(unittest.TestCase):
 
 
     def testConstructWithDictionary(self):
-        pkt=packet.Packet(dict=self.dict)
+        pkt=self.klass(dict=self.dict)
         self.failUnless(pkt.dict is self.dict)
 
 
     def testConstructorIgnoredParameters(self):
         marker=[]
-        pkt=packet.Packet(fd=marker)
+        pkt=self.klass(fd=marker)
         self.failIf(getattr(pkt, "fd", None) is marker)
 
 
     def testConstructorWithAttributes(self):
-        pkt=packet.Packet(dict=self.dict, Test_String="this works")
+        pkt=self.klass(dict=self.dict, Test_String="this works")
         self.assertEqual(pkt["Test-String"], ["this works"])
 
 
@@ -282,4 +283,20 @@ class PacketTests(unittest.TestCase):
     def testDecodePacketWithVendorAttribute(self):
         self.packet.DecodePacket("\x01\x02\x00\x1b1234567890123456\x1a\x07value")
         self.assertEqual(self.packet[26], ["value"])
+
+
+class AuthPacketConstructionTests(PacketConstructionTests):
+    klass = packet.AuthPacket
+
+    def testConstructorDefaults(self):
+        pkt=self.klass()
+        self.assertEqual(pkt.code, packet.AccessRequest)
+
+
+class AcctPacketConstructionTests(PacketConstructionTests):
+    klass = packet.AcctPacket
+
+    def testConstructorDefaults(self):
+        pkt=self.klass()
+        self.assertEqual(pkt.code, packet.AccountingRequest)
 
