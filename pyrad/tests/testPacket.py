@@ -149,3 +149,68 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(reply, "\x00\x00\x00\x14\xb0\x5e\x4b\xfb\xcc\x1c"
                                 "\x8c\x8e\xc4\x72\xac\xea\x87\x45\x63\xa7")
 
+    def testVerifyReply(self):
+        reply=self.packet.CreateReply()
+        self.assertEqual(self.packet.VerifyReply(reply), True)
+
+        reply.id+=1
+        self.assertEqual(self.packet.VerifyReply(reply), False)
+        reply.id=self.packet.id
+
+        reply.secret="different"
+        self.assertEqual(self.packet.VerifyReply(reply), False)
+        reply.secret=self.packet.secret
+
+        reply.authenticator="X"*16
+        self.assertEqual(self.packet.VerifyReply(reply), False)
+        reply.authenticator=self.packet.authenticator
+
+
+    def testPktEncodeAttribute(self):
+        encode=self.packet._PktEncodeAttribute
+
+        # Encode a normal attribute
+        self.assertEqual(encode(1, "value"), "\x01\x07value")
+        # Encode a vendor attribute
+        self.assertEqual(encode((1,2), "value"),
+                "\x1a\x0d\x00\x00\x00\x01\x02\x07value")
+
+
+    def testPktEncodeAttributes(self):
+        self.packet[1]=["value"]
+        self.assertEqual(self.packet._PktEncodeAttributes(),
+                "\x01\x07value")
+
+        self.packet.clear()
+        self.packet[(1,2)]=["value"]
+        self.assertEqual(self.packet._PktEncodeAttributes(),
+                "\x1a\x0d\x00\x00\x00\x01\x02\x07value")
+
+        self.packet.clear()
+        self.packet[1]=["one", "two", "three"]
+        self.assertEqual(self.packet._PktEncodeAttributes(),
+                "\x01\x05one\x01\x05two\x01\x07three")
+
+        self.packet.clear()
+        self.packet[1]=["value"]
+        self.packet[(1,2)]=["value"]
+        self.assertEqual(self.packet._PktEncodeAttributes(),
+                "\x1a\x0d\x00\x00\x00\x01\x02\x07value\x01\x07value")
+
+
+    def testPktDecodeVendorAttribute(self):
+        decode=self.packet._PktDecodeVendorAttribute
+
+        # Non-RFC2865 recommended form
+        self.assertEqual(decode(""), (26, ""))
+        self.assertEqual(decode("12345"), (26, "12345"))
+
+        # Almost RFC2865 recommended form: bad length value
+        self.assertEqual(decode("\x00\x00\x00\x01\x02\x06value"),
+                (26, "\x00\x00\x00\x01\x02\x06value"))
+
+        # Proper RFC2865 recommended form
+        self.assertEqual(decode("\x00\x00\x00\x01\x02\x07value"),
+                ((1L,2), "value"))
+
+

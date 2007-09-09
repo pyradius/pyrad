@@ -108,7 +108,7 @@ class Packet(UserDict.UserDict):
 	
 
 	def _EncodeKeyValues(self, key, values):
-		if type(key)!=types.StringType:
+                if not isinstance(key, str):
 			return (key, values)
 
 		attr=self.dict.attributes[key]
