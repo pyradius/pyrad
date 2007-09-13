@@ -61,7 +61,7 @@ class Server(host.Host):
 
 	MaxPacketSize	= 8192
 
-	def __init__(self, addresses=[], authport=1812, acctport=1813, hosts={}, dict=None):
+	def __init__(self, addresses=[], authport=1812, acctport=1813, hosts=None, dict=None):
 		"""Constructor.
 
 		@param addresses: IP addresses to listen on
@@ -76,7 +76,10 @@ class Server(host.Host):
 		@type       dict: Dictionary class instance
 		"""
 		host.Host.__init__(self, authport, acctport, dict)
-		self.hosts=hosts
+                if hosts is None:
+                    self.hosts={}
+                else:
+                    self.hosts=hosts
 
 		self.authfds=[]
 		self.acctfds=[]
