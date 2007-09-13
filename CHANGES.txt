@@ -1,6 +1,10 @@
 Pyrad 1.0
 =========
 
+* The default dictionary for Server instances was shared between all instances,
+  possibly leading to unwanted data pollution. Each Server now gets its own
+  dict instance if none is passed in to the constructor.
+
 * Fixed a timeout handling problem in the client: after receiving an
   invalid reply the current time was not updated, possibly leading to
   the client blocking forever.

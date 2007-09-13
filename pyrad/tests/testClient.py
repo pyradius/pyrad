@@ -6,8 +6,8 @@ from pyrad.packet import AuthPacket
 from pyrad.packet import AcctPacket
 from pyrad.packet import AccessRequest
 from pyrad.packet import AccountingRequest
-from pyrad.packet.tests.mock import MockPacket
-from pyrad.packet.tests.mock import MockSocket
+from pyrad.tests.mock import MockPacket
+from pyrad.tests.mock import MockSocket
 
 BIND_IP = "127.0.0.1"
 BIND_PORT = 53535

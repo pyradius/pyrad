@@ -1,6 +1,34 @@
+import select
+import socket
 import unittest
 from pyrad.server import RemoteHost
 from pyrad.server import Server
+from pyrad.server import PacketError
+from pyrad.tests.mock import MockPoll
+from pyrad.tests.mock import MockSocket
+from pyrad.packet import AccessRequest
+from pyrad.packet import AccountingRequest
+
+
+class TrivialObject:
+    """dummy object"""
+
+
+class MockFd:
+    data = object()
+    source = object()
+
+    def __init__(self, fd=0):
+        self.fd=fd
+
+    def fileno(self):
+        return self.fd
+
+    def recvfrom(self, size):
+        self.size=size
+        return (self.data, self.source)
+
+
 
 class RemoteHostTests(unittest.TestCase):
     def testSimpleConstruction(self):
@@ -43,13 +71,171 @@ class ServerConstructiontests(unittest.TestCase):
 
     def testBindDuringConstruction(self):
         def BindToAddress(self, addr):
-            self.bound=addr
+            self.bound.append(addr)
         bta=Server.BindToAddress
         Server.BindToAddress=BindToAddress
 
+        Server.bound=[]
         server=Server(["one", "two", "three"])
         self.assertEqual(server.bound, ["one", "two", "three"])
+        del Server.bound
 
         Server.BindToAddress=bta
 
+
+
+class SocketTests(unittest.TestCase):
+    def setUp(self):
+        self.orgsocket=socket.socket
+        socket.socket=MockSocket
+        self.server=Server()
+
+
+    def tearDown(self):
+        socket.socket=self.orgsocket
+
+
+    def testBind(self):
+        self.server.BindToAddress("192.168.13.13")
+        self.assertEqual(len(self.server.authfds), 1)
+        self.assertEqual(self.server.authfds[0].address,
+                ("192.168.13.13", 1812))
+
+        self.assertEqual(len(self.server.acctfds), 1)
+        self.assertEqual(self.server.acctfds[0].address,
+                ("192.168.13.13", 1813))
+
+
+    def testGrabPacket(self):
+        def gen(data):
+            res=TrivialObject()
+            res.data=data
+            return res
+
+
+        fd=MockFd()
+        fd.source=object()
+        pkt=self.server._GrabPacket(gen, fd)
+        self.failUnless(isinstance(pkt, TrivialObject))
+        self.failUnless(pkt.fd is fd)
+        self.failUnless(pkt.source is fd.source)
+        self.failUnless(pkt.data is fd.data)
+
+
+    def testPrepareSocketNoFds(self):
+        self.server._poll=MockPoll()
+        self.server._PrepareSockets()
+
+        self.assertEqual(self.server._poll.registry, [])
+        self.assertEqual(self.server._realauthfds, [])
+        self.assertEqual(self.server._realacctfds, [])
+
+
+    def testPrepareSocketAuthFds(self):
+        self.server._poll=MockPoll()
+        self.server._fdmap={}
+        self.server.authfds=[MockFd(12), MockFd(14)]
+        self.server._PrepareSockets()
+
+        self.assertEqual(self.server._fdmap.keys(), [12, 14])
+        self.assertEqual(self.server._poll.registry,
+                [(12, select.POLLIN|select.POLLPRI|select.POLLERR),
+                 (14, select.POLLIN|select.POLLPRI|select.POLLERR)])
+
+
+    def testPrepareSocketAcctFds(self):
+        self.server._poll=MockPoll()
+        self.server._fdmap={}
+        self.server.acctfds=[MockFd(12), MockFd(14)]
+        self.server._PrepareSockets()
+
+        self.assertEqual(self.server._fdmap.keys(), [12, 14])
+        self.assertEqual(self.server._poll.registry,
+                [(12, select.POLLIN|select.POLLPRI|select.POLLERR),
+                 (14, select.POLLIN|select.POLLPRI|select.POLLERR)])
+
+
+class AuthPacketHandlingTests(unittest.TestCase):
+    def setUp(self):
+        self.server=Server()
+        self.server.hosts["host"]=TrivialObject()
+        self.server.hosts["host"].secret="supersecret"
+        self.packet=TrivialObject()
+        self.packet.code=AccessRequest
+        self.packet.source=("host", "port")
+
+
+    def testHandleAuthPacketUnknownHost(self):
+        self.packet.source=("stranger", "port")
+        try:
+            self.server._HandleAuthPacket(self.packet)
+        except PacketError, e:
+            self.failUnless("unknown host" in str(e))
+        else:
+            self.fail()
+
+
+    def testHandleAuthPacketWrongPort(self):
+        self.packet.code=AccountingRequest
+        try:
+            self.server._HandleAuthPacket(self.packet)
+        except PacketError, e:
+            self.failUnless("port" in str(e))
+        else:
+            self.fail()
+
+
+    def testHandleAuthPacket(self):
+        def HandleAuthPacket(self, pkt):
+            self.handled=pkt
+        hap=Server.HandleAuthPacket
+        Server.HandleAuthPacket=HandleAuthPacket
+
+        self.server._HandleAuthPacket(self.packet)
+        self.failUnless(self.server.handled is self.packet)
+
+        Server.HandleAuthPacket=hap
+
+
+
+class AcctPacketHandlingTests(unittest.TestCase):
+    def setUp(self):
+        self.server=Server()
+        self.server.hosts["host"]=TrivialObject()
+        self.server.hosts["host"].secret="supersecret"
+        self.packet=TrivialObject()
+        self.packet.code=AccountingRequest
+        self.packet.source=("host", "port")
+
+
+    def testHandleAcctPacketUnknownHost(self):
+        self.packet.source=("stranger", "port")
+        try:
+            self.server._HandleAcctPacket(self.packet)
+        except PacketError, e:
+            self.failUnless("unknown host" in str(e))
+        else:
+            self.fail()
+
+
+    def testHandleAcctPacketWrongPort(self):
+        self.packet.code=AccessRequest
+        try:
+            self.server._HandleAcctPacket(self.packet)
+        except PacketError, e:
+            self.failUnless("port" in str(e))
+        else:
+            self.fail()
+
+
+    def testHandleAcctPacket(self):
+        def HandleAcctPacket(self, pkt):
+            self.handled=pkt
+        hap=Server.HandleAcctPacket
+        Server.HandleAcctPacket=HandleAcctPacket
+
+        self.server._HandleAcctPacket(self.packet)
+        self.failUnless(self.server.handled is self.packet)
+
+        Server.HandleAcctPacket=hap
 

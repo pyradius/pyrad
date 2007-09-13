@@ -84,3 +84,11 @@ class MockSocket:
 
 
 
+class MockPoll:
+    def __init__(self):
+        self.registry=[]
+
+
+    def register(self, fd, options):
+        self.registry.append((fd, options))
+
