@@ -148,6 +148,7 @@ class Client(host.Host):
 				except packet.PacketError:
 					pass
 
+                                now=time.time()
 
 		raise Timeout
 

@@ -1,9 +1,16 @@
 Pyrad 1.0
 =========
 
- * Switch to setuptools, allowing pyrad to be distributed as an egg
-   via the python package index.
+* Fixed a timeout handling problem in the client: after receiving an
+  invalid reply the current time was not updated, possibly leading to
+  the client blocking forever.
 
- * Add unit tests
+* Switch to setuptools, allowing pyrad to be distributed as an egg
+  via the python package index.
 
- * Use absolute instead of relative imports.
+* Add unit tests.
+
+* Use absolute instead of relative imports.
+
+* Sockets are now opened with SO_REUSEADDR enabled to allow for faster
+  restarts.
