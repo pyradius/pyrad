@@ -69,6 +69,8 @@ class Client(host.Host):
 		if not self._socket:
 			self._socket=socket.socket(socket.AF_INET, 
 				socket.SOCK_DGRAM)
+                        self._socket.setsockopt(socket.SOL_SOCKET,
+                                socket.SO_REUSEADDR, 1)
 
 
 	def _CloseSocket(self):

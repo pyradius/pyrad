@@ -94,9 +94,11 @@ class Server(host.Host):
 		@type  addr: string
 		"""
 		authfd=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                authfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		authfd.bind((addr, self.authport))
 
 		acctfd=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                acctfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		acctfd.bind((addr, self.acctport))
 
 		self.authfds.append(authfd)
