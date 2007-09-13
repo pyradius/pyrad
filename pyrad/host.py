@@ -29,7 +29,7 @@ class Host:
 		self.acctport=acctport
 
 
-	def CreatehPacket(self, **args):
+	def CreatePacket(self, **args):
 		"""Create a new RADIUS packet.
 
 		This utility function creates a new RADIUS authentication
