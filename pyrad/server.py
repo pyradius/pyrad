@@ -115,7 +115,6 @@ class Server(host.Host):
 		@param pkt: packet to process
 		@type  pkt: Packet class instance
 		"""
-		pass
 
 
 	def HandleAcctPacket(self, pkt):
@@ -128,7 +127,6 @@ class Server(host.Host):
 		@param pkt: packet to process
 		@type  pkt: Packet class instance
 		"""
-		pass
 
 
 	def _HandleAuthPacket(self, pkt):
