@@ -239,3 +239,24 @@ class AcctPacketHandlingTests(unittest.TestCase):
 
         Server.HandleAcctPacket=hap
 
+
+class OtherTests(unittest.TestCase):
+    def setUp(self):
+        self.server=Server()
+
+
+    def testCreateReplyPacket(self):
+        class TrivialPacket:
+            source=object()
+            def CreateReply(self, **kw):
+                reply=TrivialObject()
+                reply.kw=kw
+                return reply
+
+        reply=self.server.CreateReplyPacket(TrivialPacket(),
+                one="one", two="two")
+        self.failUnless(isinstance(reply, TrivialObject))
+        self.failUnless(reply.source is TrivialPacket.source)
+        self.assertEqual(reply.kw, dict(one="one", two="two"))
+
+
