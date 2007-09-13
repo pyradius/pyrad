@@ -50,6 +50,6 @@ class ServerConstructiontests(unittest.TestCase):
         server=Server(["one", "two", "three"])
         self.assertEqual(server.bound, ["one", "two", "three"])
 
-        Server.BindToAddress=btoa
+        Server.BindToAddress=bta
 
 
