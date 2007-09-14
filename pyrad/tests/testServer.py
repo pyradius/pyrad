@@ -4,8 +4,11 @@ import unittest
 from pyrad.server import RemoteHost
 from pyrad.server import Server
 from pyrad.server import PacketError
+from pyrad.tests.mock import MockFinished
 from pyrad.tests.mock import MockPoll
 from pyrad.tests.mock import MockSocket
+from pyrad.tests.mock import MockClassMethod
+from pyrad.tests.mock import UnmockClassMethods
 from pyrad.packet import AccessRequest
 from pyrad.packet import AccountingRequest
 
@@ -301,5 +304,30 @@ class OtherTests(unittest.TestCase):
         self.failUnless(self.server.handled is marker)
 
         (Server._GrabPacket, Server._HandleAcctPacket)=originals
+
+
+class ServerRunTests(unittest.TestCase):
+    def setUp(self):
+        self.server=Server()
+        self.origpoll=select.poll
+        select.poll=MockPoll
+
+    def tearDown(self):
+        MockPoll.ressults=[]
+        select.poll=self.origpoll
+        UnmockClassMethods(Server)
+
+
+    def testRunInitializes(self):
+        MockClassMethod(Server, "_PrepareSockets")
+        self.assertRaises(MockFinished, self.server.Run)
+        self.assertEqual(self.server.called, [("_PrepareSockets", (), {})])
+        self.failUnless(isinstance(self.server._fdmap, dict))
+        self.failUnless(isinstance(self.server._poll, MockPoll))
+
+
+    def testRunIgnoresPollWeirdness(self):
+
+        MockPoll.results=(0, select.POLLERR)
 
 

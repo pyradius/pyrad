@@ -83,12 +83,43 @@ class MockSocket:
         self.closed=True
 
 
+class MockFinished(Exception):
+    pass
+
 
 class MockPoll:
+    results=[]
+
     def __init__(self):
         self.registry=[]
 
 
     def register(self, fd, options):
         self.registry.append((fd, options))
+
+
+    def poll(self):
+        for result in self.results:
+            yield result
+        raise MockFinished
+
+
+def MockClassMethod(klass, name):
+    def func(self, *args, **kwargs):
+        if not hasattr(self, "called"):
+            self.called=[]
+        self.called.append((name, args, kwargs))
+
+    if not hasattr(klass, "_originals"):
+        klass._originals={}
+    klass._originals[name]=getattr(klass, name)
+    setattr(klass, name, func)
+        
+
+def UnmockClassMethods(klass):
+    if not hasattr(klass, "_originals"):
+        return
+    for (name, func) in klass._originals.items():
+        setattr(klass, name, func)
+    del klass._originals
 
