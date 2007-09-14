@@ -1,6 +1,8 @@
 Pyrad 1.0
 =========
 
+* Fix several errors that prevented the proxy code from working.
+
 * Use the standard logging module instead of printing to stdout.
 
 * The default dictionary for Server instances was shared between all instances,

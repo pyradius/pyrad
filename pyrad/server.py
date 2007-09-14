@@ -287,7 +287,7 @@ class Proxy(Server):
 		Server._PrepareSockets(self)
 
 		self._proxyfd=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self._fdmap[proxyfd.fileno()]=proxyfd
+		self._fdmap[self._proxyfd.fileno()]=self._proxyfd
 		self._poll.register(self._proxyfd.fileno(), (select.POLLIN|select.POLLPRI|select.POLLERR))
 
 
@@ -308,7 +308,7 @@ class Proxy(Server):
 
 		pkt.secret=self.hosts[pkt.source[0]].secret
 
-		if not pkt.code in [ client.AccessAccept, client.AccessReject, client.AccountingResponse ]:
+		if not pkt.code in [ packet.AccessAccept, packet.AccessReject, packet.AccountingResponse ]:
 			raise PacketError, "Received non-response on proxy socket"
 
 
