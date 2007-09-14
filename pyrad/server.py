@@ -8,6 +8,9 @@
 import select, socket
 from pyrad import host
 from pyrad import packet
+import logging
+
+logger=logging.getLogger("pyrad")
 
 class RemoteHost:
 	"""Remote RADIUS capable host we can talk to.
@@ -262,11 +265,11 @@ class Server(host.Host):
 						fdo=self._fdmap[fd]
 						self._ProcessInput(fdo)
 					except PacketError, err:
-						print "Dropping packet: " + str(err)
+                                                logger.info("Dropping packet: " + str(err))
 					except packet.PacketError, err:
-						print "Received a broken packet: " + str(err)
+						logger.info("Received a broken packet: " + str(err))
 				else:
-					print "Unexpected event!"
+                                        logger.error("Unexpected event in server main loop")
 
 
 class Proxy(Server):

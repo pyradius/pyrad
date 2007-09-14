@@ -1,6 +1,8 @@
 Pyrad 1.0
 =========
 
+* Use the standard logging module instead of printing to stdout.
+
 * The default dictionary for Server instances was shared between all instances,
   possibly leading to unwanted data pollution. Each Server now gets its own
   dict instance if none is passed in to the constructor.
