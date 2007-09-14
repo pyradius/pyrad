@@ -260,3 +260,46 @@ class OtherTests(unittest.TestCase):
         self.assertEqual(reply.kw, dict(one="one", two="two"))
 
 
+    def testAuthProcessInput(self):
+        marker=object()
+        def MockGrabPacket(self, pktgen, fd):
+            self.grabbed=(pktgen, fd)
+            return marker
+        def MockHandleAuthPacket(self, pkt):
+            self.handled=pkt
+
+        fd=MockFd(1)
+        self.server._realauthfds=[1]
+        originals=(Server._GrabPacket, Server._HandleAuthPacket)
+        Server._GrabPacket=MockGrabPacket
+        Server._HandleAuthPacket=MockHandleAuthPacket
+
+        self.server._ProcessInput(fd)
+        self.failUnless(self.server.grabbed[1] is fd)
+        self.failUnless(self.server.handled is marker)
+
+        (Server._GrabPacket, Server._HandleAuthPacket)=originals
+
+
+    def testAcctProcessInput(self):
+        marker=object()
+        def MockGrabPacket(self, pktgen, fd):
+            self.grabbed=(pktgen, fd)
+            return marker
+        def MockHandleAcctPacket(self, pkt):
+            self.handled=pkt
+
+        fd=MockFd(1)
+        self.server._realauthfds=[]
+        self.server._realacctfds=[1]
+        originals=(Server._GrabPacket, Server._HandleAcctPacket)
+        Server._GrabPacket=MockGrabPacket
+        Server._HandleAcctPacket=MockHandleAcctPacket
+
+        self.server._ProcessInput(fd)
+        self.failUnless(self.server.grabbed[1] is fd)
+        self.failUnless(self.server.handled is marker)
+
+        (Server._GrabPacket, Server._HandleAcctPacket)=originals
+
+
