@@ -1,9 +1,10 @@
 import select
 import socket
 import unittest
+from pyrad.packet import PacketError
 from pyrad.server import RemoteHost
 from pyrad.server import Server
-from pyrad.server import PacketError
+from pyrad.server import ServerPacketError
 from pyrad.tests.mock import MockFinished
 from pyrad.tests.mock import MockPoll
 from pyrad.tests.mock import MockSocket
@@ -172,7 +173,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
         self.packet.source=("stranger", "port")
         try:
             self.server._HandleAuthPacket(self.packet)
-        except PacketError, e:
+        except ServerPacketError, e:
             self.failUnless("unknown host" in str(e))
         else:
             self.fail()
@@ -182,7 +183,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
         self.packet.code=AccountingRequest
         try:
             self.server._HandleAuthPacket(self.packet)
-        except PacketError, e:
+        except ServerPacketError, e:
             self.failUnless("port" in str(e))
         else:
             self.fail()
@@ -215,7 +216,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
         self.packet.source=("stranger", "port")
         try:
             self.server._HandleAcctPacket(self.packet)
-        except PacketError, e:
+        except ServerPacketError, e:
             self.failUnless("unknown host" in str(e))
         else:
             self.fail()
@@ -225,7 +226,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
         self.packet.code=AccessRequest
         try:
             self.server._HandleAcctPacket(self.packet)
-        except PacketError, e:
+        except ServerPacketError, e:
             self.failUnless("port" in str(e))
         else:
             self.fail()
@@ -326,8 +327,33 @@ class ServerRunTests(unittest.TestCase):
         self.failUnless(isinstance(self.server._poll, MockPoll))
 
 
-    def testRunIgnoresPollWeirdness(self):
+    def testRunIgnoresPollErrors(self):
+        self.server.authfds=[MockFd()]
+        MockPoll.results=[(0, select.POLLERR)]
+        self.assertRaises(MockFinished, self.server.Run)
 
-        MockPoll.results=(0, select.POLLERR)
+
+    def testRunIgnoresServerPacketErrors(self):
+        def RaisePacketError(self, fd):
+            raise ServerPacketError
+        MockClassMethod(Server, "_ProcessInput", RaisePacketError)
+        self.server.authfds=fd=[MockFd()]
+        MockPoll.results=[(0, select.POLLIN)]
+        self.assertRaises(MockFinished, self.server.Run)
 
 
+    def testRunIgnoresPacketErrors(self):
+        def RaisePacketError(self, fd):
+            raise PacketError
+        MockClassMethod(Server, "_ProcessInput", RaisePacketError)
+        self.server.authfds=fd=[MockFd()]
+        MockPoll.results=[(0, select.POLLIN)]
+        self.assertRaises(MockFinished, self.server.Run)
+
+
+    def testRunRunsProcessInput(self):
+        MockClassMethod(Server, "_ProcessInput")
+        self.server.authfds=fd=[MockFd()]
+        MockPoll.results=[(0, select.POLLIN)]
+        self.assertRaises(MockFinished, self.server.Run)
+        self.assertEqual(self.server.called, [("_ProcessInput", (fd[0],), {})])

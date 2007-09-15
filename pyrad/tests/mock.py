@@ -104,7 +104,7 @@ class MockPoll:
         raise MockFinished
 
 
-def MockClassMethod(klass, name):
+def MockClassMethod(klass, name, myfunc=None):
     def func(self, *args, **kwargs):
         if not hasattr(self, "called"):
             self.called=[]
@@ -113,7 +113,10 @@ def MockClassMethod(klass, name):
     if not hasattr(klass, "_originals"):
         klass._originals={}
     klass._originals[name]=getattr(klass, name)
-    setattr(klass, name, func)
+    if myfunc is None:
+        setattr(klass, name, func)
+    else:
+        setattr(klass, name, myfunc)
         
 
 def UnmockClassMethods(klass):
