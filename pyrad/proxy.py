@@ -1,4 +1,4 @@
-from pyrad.server import PacketError
+from pyrad.server import ServerPacketError
 from pyrad.server import Server
 from pyrad import packet
 import select
@@ -24,25 +24,23 @@ class Proxy(Server):
 		self._poll.register(self._proxyfd.fileno(), (select.POLLIN|select.POLLPRI|select.POLLERR))
 
 
-	def _HandleProxyPacket(self, fd, pkt):
+	def _HandleProxyPacket(self, pkt):
 		"""Process a packet received on the reply socket.
 
 		If this packet should be dropped instead of processed a
-		PacketError exception should be raised. The main loop will
-		drop the packet and log the reason.
+                ServerPacketError exception should be raised. The main loop
+                will drop the packet and log the reason.
 
-		@param  fd: socket to read packet from
-		@type   fd: socket class instance
 		@param pkt: packet to process
 		@type  pkt: Packet class instance
 		"""
 		if not self.hosts.has_key(pkt.source[0]):
-			raise PacketError, "Received packet from unknown host"
+			raise ServerPacketError, "Received packet from unknown host"
 
 		pkt.secret=self.hosts[pkt.source[0]].secret
 
 		if not pkt.code in [ packet.AccessAccept, packet.AccessReject, packet.AccountingResponse ]:
-			raise PacketError, "Received non-response on proxy socket"
+			raise ServerPacketError, "Received non-response on proxy socket"
 
 
 
@@ -50,8 +48,8 @@ class Proxy(Server):
 		"""Process available data.
 
 		If this packet should be dropped instead of processed a
-		PacketError exception should be raised. The main loop will
-		drop the packet and log the reason.
+                ServerPacketError exception should be raised. The main loop
+                will drop the packet and log the reason.
 
 		This function calls either HandleAuthPacket(),
 		HandleAcctPacket() or _HandleProxyPacket() depending on which
@@ -64,7 +62,7 @@ class Proxy(Server):
 		"""
 		if fd.fileno()==self._proxyfd.fileno():
 			pkt=self._GrabPacket(lambda data, s=self: s.CreatePacket(packet=data), fd)
-			self._HandleProxyPacket(fd, pkt)
+			self._HandleProxyPacket(pkt)
 		else:
 			Server._ProcessInput(self, fd)
 
