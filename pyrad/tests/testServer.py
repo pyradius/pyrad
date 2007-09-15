@@ -313,7 +313,7 @@ class ServerRunTests(unittest.TestCase):
         select.poll=MockPoll
 
     def tearDown(self):
-        MockPoll.ressults=[]
+        MockPoll.results=[]
         select.poll=self.origpoll
         UnmockClassMethods(Server)
 
