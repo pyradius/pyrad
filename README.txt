@@ -1,4 +1,4 @@
-pyrad 0.9
+pyrad 1.0
 =========
 
 pyrad is an implementation of a RADIUS client as described in RFC2865.
@@ -32,7 +32,7 @@ Here is an example of doing a authentication request::
 REQUIREMENTS & INSTALLATION
 ---------------------------
 
-pyrad requires Python 2.0 or later.
+pyrad requires Python 2.4 or later.
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::
@@ -49,7 +49,7 @@ Copyright and license information can be found in LICENSE.txt
 
 The current version and documentation can be found at its homepage:
 
-  http://www.wiggy.net/code/pyrad/
+  http://www.simplon.biz/software/pyrad
 
 Bugs and wishes can be submitted in the pyrad issue tracker:
 
