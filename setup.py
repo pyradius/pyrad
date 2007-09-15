@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-version = "1.0alpha1"
+version = "1.1"
 
 setup(	name		= "pyrad",
 	version		= version,
