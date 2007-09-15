@@ -1,6 +1,6 @@
 # host.py
 #
-# Copyright 2003 Wichert Akkerman <wichert@wiggy.net>
+# Copyright 2003,2007 Wichert Akkerman <wichert@wiggy.net>
 
 from pyrad import packet
 

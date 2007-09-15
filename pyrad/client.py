@@ -1,12 +1,12 @@
 # client.py
 #
-# Copyright 2002,2003,2004 Wichert Akkerman <wichert@wiggy.net>
+# Copyright 2002-2007 Wichert Akkerman <wichert@wiggy.net>
 
 """Generic RADIUS client"""
 
 __docformat__	= "epytext en"
 
-import md5, select, socket, time
+import select, socket, time
 from pyrad import host
 from pyrad import packet
 
@@ -69,6 +69,8 @@ class Client(host.Host):
 		if not self._socket:
 			self._socket=socket.socket(socket.AF_INET, 
 				socket.SOCK_DGRAM)
+                        self._socket.setsockopt(socket.SOL_SOCKET,
+                                socket.SO_REUSEADDR, 1)
 
 
 	def _CloseSocket(self):
@@ -146,6 +148,7 @@ class Client(host.Host):
 				except packet.PacketError:
 					pass
 
+                                now=time.time()
 
 		raise Timeout
 
