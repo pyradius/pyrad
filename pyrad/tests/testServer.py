@@ -6,6 +6,7 @@ from pyrad.server import RemoteHost
 from pyrad.server import Server
 from pyrad.server import ServerPacketError
 from pyrad.tests.mock import MockFinished
+from pyrad.tests.mock import MockFd
 from pyrad.tests.mock import MockPoll
 from pyrad.tests.mock import MockSocket
 from pyrad.tests.mock import MockClassMethod
@@ -16,22 +17,6 @@ from pyrad.packet import AccountingRequest
 
 class TrivialObject:
     """dummy object"""
-
-
-class MockFd:
-    data = object()
-    source = object()
-
-    def __init__(self, fd=0):
-        self.fd=fd
-
-    def fileno(self):
-        return self.fd
-
-    def recvfrom(self, size):
-        self.size=size
-        return (self.data, self.source)
-
 
 
 class RemoteHostTests(unittest.TestCase):
