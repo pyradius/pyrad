@@ -104,15 +104,20 @@ class MockPoll:
         raise MockFinished
 
 
+def origkey(klass):
+    return "_originals_" + klass.__name__
+
+
 def MockClassMethod(klass, name, myfunc=None):
     def func(self, *args, **kwargs):
         if not hasattr(self, "called"):
             self.called=[]
         self.called.append((name, args, kwargs))
 
-    if not hasattr(klass, "_originals"):
-        klass._originals={}
-    klass._originals[name]=getattr(klass, name)
+    key=origkey(klass)
+    if not hasattr(klass, key):
+        setattr(klass, key, {})
+    getattr(klass, key)[name]=getattr(klass, name)
     if myfunc is None:
         setattr(klass, name, func)
     else:
@@ -120,9 +125,28 @@ def MockClassMethod(klass, name, myfunc=None):
         
 
 def UnmockClassMethods(klass):
-    if not hasattr(klass, "_originals"):
+    key=origkey(klass)
+    if not hasattr(klass, key):
         return
-    for (name, func) in klass._originals.items():
+    for (name, func) in getattr(klass, key).items():
         setattr(klass, name, func)
-    del klass._originals
+
+    delattr(klass, key)
+
+
+class MockFd:
+    data = object()
+    source = object()
+
+    def __init__(self, fd=0):
+        self.fd=fd
+
+    def fileno(self):
+        return self.fd
+
+    def recvfrom(self, size):
+        self.size=size
+        return (self.data, self.source)
+
+
 
