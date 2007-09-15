@@ -259,7 +259,6 @@ class Server(host.Host):
 
 		while 1:
 			for (fd, event) in self._poll.poll():
-				fdo=self._fdmap[fd]
 				if event==select.POLLIN:
 					try:
 						fdo=self._fdmap[fd]
