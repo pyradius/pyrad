@@ -234,6 +234,10 @@ class OtherTests(unittest.TestCase):
         self.server=Server()
 
 
+    def tearDown(self):
+        UnmockClassMethods(Server)
+
+
     def testCreateReplyPacket(self):
         class TrivialPacket:
             source=object()
@@ -250,46 +254,29 @@ class OtherTests(unittest.TestCase):
 
 
     def testAuthProcessInput(self):
-        marker=object()
-        def MockGrabPacket(self, pktgen, fd):
-            self.grabbed=(pktgen, fd)
-            return marker
-        def MockHandleAuthPacket(self, pkt):
-            self.handled=pkt
-
         fd=MockFd(1)
         self.server._realauthfds=[1]
-        originals=(Server._GrabPacket, Server._HandleAuthPacket)
-        Server._GrabPacket=MockGrabPacket
-        Server._HandleAuthPacket=MockHandleAuthPacket
+        MockClassMethod(Server, "_GrabPacket")
+        MockClassMethod(Server, "_HandleAuthPacket")
 
         self.server._ProcessInput(fd)
-        self.failUnless(self.server.grabbed[1] is fd)
-        self.failUnless(self.server.handled is marker)
-
-        (Server._GrabPacket, Server._HandleAuthPacket)=originals
+        self.assertEqual([x[0] for x in self.server.called], 
+                ["_GrabPacket", "_HandleAuthPacket"])
+        self.assertEqual(self.server.called[0][1][1], fd)
 
 
     def testAcctProcessInput(self):
-        marker=object()
-        def MockGrabPacket(self, pktgen, fd):
-            self.grabbed=(pktgen, fd)
-            return marker
-        def MockHandleAcctPacket(self, pkt):
-            self.handled=pkt
-
         fd=MockFd(1)
         self.server._realauthfds=[]
         self.server._realacctfds=[1]
-        originals=(Server._GrabPacket, Server._HandleAcctPacket)
-        Server._GrabPacket=MockGrabPacket
-        Server._HandleAcctPacket=MockHandleAcctPacket
+        MockClassMethod(Server, "_GrabPacket")
+        MockClassMethod(Server, "_HandleAcctPacket")
 
         self.server._ProcessInput(fd)
-        self.failUnless(self.server.grabbed[1] is fd)
-        self.failUnless(self.server.handled is marker)
+        self.assertEqual([x[0] for x in self.server.called], 
+                ["_GrabPacket", "_HandleAcctPacket"])
+        self.assertEqual(self.server.called[0][1][1], fd)
 
-        (Server._GrabPacket, Server._HandleAcctPacket)=originals
 
 
 class ServerRunTests(unittest.TestCase):
