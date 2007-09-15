@@ -1,6 +1,6 @@
 # client.py
 #
-# Copyright 2002,2003,2004 Wichert Akkerman <wichert@wiggy.net>
+# Copyright 2002-2007 Wichert Akkerman <wichert@wiggy.net>
 
 """Generic RADIUS client"""
 

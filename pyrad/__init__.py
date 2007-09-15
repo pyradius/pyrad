@@ -40,7 +40,7 @@ __docformat__	= "epytext en"
 
 __author__	= "Wichert Akkerman <wichert@wiggy.net>"
 __url__		= "http://www.wiggy.net/code/pyrad.xhtml"
-__copyright__	= "Copyright 2002,2003 Wichert Akkerman"
+__copyright__	= "Copyright 2002-2007 Wichert Akkerman"
 
 __all__ = [ "client", "dictionary", "packet", "server", "tools" ]
 

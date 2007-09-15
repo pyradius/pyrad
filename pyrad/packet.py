@@ -1,6 +1,6 @@
 # packet.py
 # 
-# Copyright 2002-2005 Wichert Akkerman <wichert@wiggy.net>
+# Copyright 2002-2005,2007 Wichert Akkerman <wichert@wiggy.net>
 #
 # A RADIUS packet as defined in RFC 2138
 

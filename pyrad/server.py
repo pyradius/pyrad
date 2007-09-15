@@ -1,6 +1,6 @@
 # server.py
 #
-# Copyright 2003-2004 Wichert Akkerman <wichert@wiggy.net>
+# Copyright 2003-2004,2007 Wichert Akkerman <wichert@wiggy.net>
 
 """Generic RADIUS server and proxy
 """
