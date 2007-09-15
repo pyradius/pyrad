@@ -1,5 +1,5 @@
-pyrad 1.0
-=========
+Introduction
+============
 
 pyrad is an implementation of a RADIUS client as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
@@ -29,8 +29,8 @@ Here is an example of doing a authentication request::
       print "%s: %s" % (i, reply[i])
 
 
-REQUIREMENTS & INSTALLATION
----------------------------
+Requirements & Installation
+===========================
 
 pyrad requires Python 2.4 or later.
 
@@ -40,18 +40,17 @@ Python modules::
   python setup.py install
 
 
-AUTHOR, COPYRIGHT, AVAILABILITY
--------------------------------
+Author, copyright, availability
+===============================
 
 pyrad was written by Wichert Akkerman <wichert@wiggy.net>
 
 Copyright and license information can be found in LICENSE.txt
 
 The current version and documentation can be found at its homepage:
-
-  http://www.simplon.biz/software/pyrad
+http://www.simplon.biz/software/pyrad
 
 Bugs and wishes can be submitted in the pyrad issue tracker:
+https://code.wiggy.net/tracker/pyrad/
 
-  https://code.wiggy.net/tracker/pyrad/
 
