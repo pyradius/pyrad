@@ -6,7 +6,7 @@
 
 __docformat__	= "epytext en"
 
-import md5, select, socket, time
+import select, socket, time
 from pyrad import host
 from pyrad import packet
 
