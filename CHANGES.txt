@@ -1,6 +1,9 @@
 Pyrad 1.0
 =========
 
+* The proxy server has been moved out of the server module to a new
+  proxy module.
+
 * Fix several errors that prevented the proxy code from working.
 
 * Use the standard logging module instead of printing to stdout.
