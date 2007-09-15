@@ -37,10 +37,10 @@ class RemoteHost:
 		self.name=name
 
 
-class PacketError(Exception):
+class ServerPacketError(Exception):
 	"""Exception class for bogus packets
 	
-	PacketError exceptions are only used inside the Server class to 
+	ServerPacketError exceptions are only used inside the Server class to 
 	abort processing of a packet.
 	"""
 
@@ -139,19 +139,19 @@ class Server(host.Host):
 		"""Process a packet received on the authentication port
 
 		If this packet should be dropped instead of processed a
-		PacketError exception should be raised. The main loop will
+		ServerPacketError exception should be raised. The main loop will
 		drop the packet and log the reason.
 
 		@param pkt: packet to process
 		@type  pkt: Packet class instance
 		"""
 		if not self.hosts.has_key(pkt.source[0]):
-			raise PacketError, "Received packet from unknown host"
+			raise ServerPacketError, "Received packet from unknown host"
 
 		pkt.secret=self.hosts[pkt.source[0]].secret
 
 		if pkt.code!=packet.AccessRequest:
-			raise PacketError, "Received non-authentication packet on authentication port"
+			raise ServerPacketError, "Received non-authentication packet on authentication port"
 		
 		self.HandleAuthPacket(pkt)
 
@@ -160,20 +160,20 @@ class Server(host.Host):
 		"""Process a packet received on the accounting port
 
 		If this packet should be dropped instead of processed a
-		PacketError exception should be raised. The main loop will
+		ServerPacketError exception should be raised. The main loop will
 		drop the packet and log the reason.
 
 		@param pkt: packet to process
 		@type  pkt: Packet class instance
 		"""
 		if not self.hosts.has_key(pkt.source[0]):
-			raise PacketError, "Received packet from unknown host"
+			raise ServerPacketError, "Received packet from unknown host"
 
 		pkt.secret=self.hosts[pkt.source[0]].secret
 
 		if not pkt.code in [ packet.AccountingRequest,
 				packet.AccountingResponse ]:
-			raise PacketError, "Received non-accounting packet on accounting port"
+			raise ServerPacketError, "Received non-accounting packet on accounting port"
 
 		self.HandleAcctPacket(pkt)
 	
@@ -263,7 +263,7 @@ class Server(host.Host):
 					try:
 						fdo=self._fdmap[fd]
 						self._ProcessInput(fdo)
-					except PacketError, err:
+					except ServerPacketError, err:
                                                 logger.info("Dropping packet: " + str(err))
 					except packet.PacketError, err:
 						logger.info("Received a broken packet: " + str(err))
