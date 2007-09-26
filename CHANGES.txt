@@ -4,6 +4,10 @@ Pyrad 1.1 (unreleased)
 * Make Packet.has_key and __contains__ gracefully handle unknown attributes. 
   Based on a patch from Alexey V Michurun <am@rol.ru>.
 
+* Add a __delitem__ implementation to Packet. Based on a patch from
+  Alexey V Michurun <am@rol.ru>.
+
+
 Pyrad 1.0
 =========
 

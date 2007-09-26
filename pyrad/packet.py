@@ -181,6 +181,10 @@ class Packet(UserDict.UserDict):
 			return False
 
 
+        def __delitem__(self, key):
+                del self.data[self._EncodeKey(key)]
+
+
 	def __setitem__(self, key, item):
 		if type(key)==types.StringType:
 			(key,item)=self._EncodeKeyValues(key, [item])
