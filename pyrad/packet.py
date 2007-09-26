@@ -171,11 +171,14 @@ class Packet(UserDict.UserDict):
 
 	
         def __contains__(self, key):
-		return self.data.has_key(self._EncodeKey(key))
+		return self.has_key(key)
 
 
 	def has_key(self, key):
-		return self.data.has_key(self._EncodeKey(key))
+		try:
+			return self.data.has_key(self._EncodeKey(key))
+		except KeyError:
+			return False
 
 
 	def __setitem__(self, key, item):

@@ -118,6 +118,11 @@ class PacketTests(unittest.TestCase):
         self.assertEqual("Test-String" in self.packet, True)
 
 
+    def testHasKeyWithUnknownKey(self):
+        self.assertEqual(self.packet.has_key("Unknown-Attribute"), False)
+        self.assertEqual("Unknown-Attribute" in self.packet, False)
+
+
     def testKeys(self):
         self.assertEqual(self.packet.keys(), [])
         self.packet["Test-String"]="dummy"
