@@ -2,7 +2,7 @@
 
 from setuptools import setup, find_packages
 
-version = "1.0alpha1"
+version = "1.1"
 
 setup(	name		= "pyrad",
 	version		= version,
@@ -11,7 +11,7 @@ setup(	name		= "pyrad",
 	url		= "http://www.wiggy.net/code/pyrad/",
 	license		= "BSD",
 	description	= "RADIUS client tools",
-	long_description= open("README.txt").read(),
+	long_description= open("README.txt").read()+open("CHANGES.txt").read(),
         classifiers     = [
             "Intended Audience :: Developers",
             "License :: OSI Approved :: BSD License",

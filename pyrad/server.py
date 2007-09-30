@@ -1,6 +1,6 @@
 # server.py
 #
-# Copyright 2003-2004 Wichert Akkerman <wichert@wiggy.net>
+# Copyright 2003-2004,2007 Wichert Akkerman <wichert@wiggy.net>
 
 """Generic RADIUS server and proxy
 """
@@ -8,6 +8,9 @@
 import select, socket
 from pyrad import host
 from pyrad import packet
+import logging
+
+logger=logging.getLogger("pyrad")
 
 class RemoteHost:
 	"""Remote RADIUS capable host we can talk to.
@@ -34,10 +37,10 @@ class RemoteHost:
 		self.name=name
 
 
-class PacketError(Exception):
+class ServerPacketError(Exception):
 	"""Exception class for bogus packets
 	
-	PacketError exceptions are only used inside the Server class to 
+	ServerPacketError exceptions are only used inside the Server class to 
 	abort processing of a packet.
 	"""
 
@@ -61,7 +64,7 @@ class Server(host.Host):
 
 	MaxPacketSize	= 8192
 
-	def __init__(self, addresses=[], authport=1812, acctport=1813, hosts={}, dict=None):
+	def __init__(self, addresses=[], authport=1812, acctport=1813, hosts=None, dict=None):
 		"""Constructor.
 
 		@param addresses: IP addresses to listen on
@@ -76,7 +79,10 @@ class Server(host.Host):
 		@type       dict: Dictionary class instance
 		"""
 		host.Host.__init__(self, authport, acctport, dict)
-		self.hosts=hosts
+                if hosts is None:
+                    self.hosts={}
+                else:
+                    self.hosts=hosts
 
 		self.authfds=[]
 		self.acctfds=[]
@@ -94,9 +100,11 @@ class Server(host.Host):
 		@type  addr: string
 		"""
 		authfd=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                authfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		authfd.bind((addr, self.authport))
 
 		acctfd=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                acctfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		acctfd.bind((addr, self.acctport))
 
 		self.authfds.append(authfd)
@@ -113,7 +121,6 @@ class Server(host.Host):
 		@param pkt: packet to process
 		@type  pkt: Packet class instance
 		"""
-		pass
 
 
 	def HandleAcctPacket(self, pkt):
@@ -126,26 +133,25 @@ class Server(host.Host):
 		@param pkt: packet to process
 		@type  pkt: Packet class instance
 		"""
-		pass
 
 
 	def _HandleAuthPacket(self, pkt):
 		"""Process a packet received on the authentication port
 
 		If this packet should be dropped instead of processed a
-		PacketError exception should be raised. The main loop will
+		ServerPacketError exception should be raised. The main loop will
 		drop the packet and log the reason.
 
 		@param pkt: packet to process
 		@type  pkt: Packet class instance
 		"""
 		if not self.hosts.has_key(pkt.source[0]):
-			raise PacketError, "Received packet from unknown host"
+			raise ServerPacketError, "Received packet from unknown host"
 
 		pkt.secret=self.hosts[pkt.source[0]].secret
 
 		if pkt.code!=packet.AccessRequest:
-			raise PacketError, "Received non-authentication packet on authentication port"
+			raise ServerPacketError, "Received non-authentication packet on authentication port"
 		
 		self.HandleAuthPacket(pkt)
 
@@ -154,20 +160,20 @@ class Server(host.Host):
 		"""Process a packet received on the accounting port
 
 		If this packet should be dropped instead of processed a
-		PacketError exception should be raised. The main loop will
+		ServerPacketError exception should be raised. The main loop will
 		drop the packet and log the reason.
 
 		@param pkt: packet to process
 		@type  pkt: Packet class instance
 		"""
 		if not self.hosts.has_key(pkt.source[0]):
-			raise PacketError, "Received packet from unknown host"
+			raise ServerPacketError, "Received packet from unknown host"
 
 		pkt.secret=self.hosts[pkt.source[0]].secret
 
 		if not pkt.code in [ packet.AccountingRequest,
 				packet.AccountingResponse ]:
-			raise PacketError, "Received non-accounting packet on accounting port"
+			raise ServerPacketError, "Received non-accounting packet on accounting port"
 
 		self.HandleAcctPacket(pkt)
 	
@@ -253,80 +259,15 @@ class Server(host.Host):
 
 		while 1:
 			for (fd, event) in self._poll.poll():
-				fdo=self._fdmap[fd]
 				if event==select.POLLIN:
 					try:
 						fdo=self._fdmap[fd]
 						self._ProcessInput(fdo)
-					except PacketError, err:
-						print "Dropping packet: " + str(err)
+					except ServerPacketError, err:
+                                                logger.info("Dropping packet: " + str(err))
 					except packet.PacketError, err:
-						print "Received a broken packet: " + str(err)
+						logger.info("Received a broken packet: " + str(err))
 				else:
-					print "Unexpected event!"
-
-
-class Proxy(Server):
-	"""Base class for RADIUS proxies.
-
-	This class extends tha RADIUS server class with the capability to
-	handle communication with other RADIUS servers as well.
-
-	@ivar _proxyfd: network socket used to communicate with other servers
-	@type _proxyfd: socket class instance
-
-	"""
-
-	def _PrepareSockets(self):
-		Server._PrepareSockets(self)
-
-		self._proxyfd=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-		self._fdmap[proxyfd.fileno()]=proxyfd
-		self._poll.register(self._proxyfd.fileno(), (select.POLLIN|select.POLLPRI|select.POLLERR))
-
-
-	def _HandleProxyPacket(self, fd, pkt):
-		"""Process a packet received on the reply socket.
-
-		If this packet should be dropped instead of processed a
-		PacketError exception should be raised. The main loop will
-		drop the packet and log the reason.
-
-		@param  fd: socket to read packet from
-		@type   fd: socket class instance
-		@param pkt: packet to process
-		@type  pkt: Packet class instance
-		"""
-		if not self.hosts.has_key(pkt.source[0]):
-			raise PacketError, "Received packet from unknown host"
-
-		pkt.secret=self.hosts[pkt.source[0]].secret
-
-		if not pkt.code in [ client.AccessAccept, client.AccessReject, client.AccountingResponse ]:
-			raise PacketError, "Received non-response on proxy socket"
-
-
-
-	def _ProcessInput(self, fd):
-		"""Process available data.
-
-		If this packet should be dropped instead of processed a
-		PacketError exception should be raised. The main loop will
-		drop the packet and log the reason.
-
-		This function calls either HandleAuthPacket(),
-		HandleAcctPacket() or _HandleProxyPacket() depending on which
-		socket is being processed.
-
-		@param  fd: socket to read packet from
-		@type   fd: socket class instance
-		@param pkt: packet to process
-		@type  pkt: Packet class instance
-		"""
-		if fd.fileno()==self._proxyfd.fileno():
-			pkt=self._GrabPacket(lambda data, s=self: s.CreatePacket(packet=data), fd)
-			self._HandleProxyPacket(fd, pkt)
-		else:
-			Server._ProcessInput(self, fd)
+                                        logger.error("Unexpected event in server main loop")
 
 

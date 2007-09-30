@@ -1,6 +1,6 @@
 # packet.py
 # 
-# Copyright 2002-2005 Wichert Akkerman <wichert@wiggy.net>
+# Copyright 2002-2005,2007 Wichert Akkerman <wichert@wiggy.net>
 #
 # A RADIUS packet as defined in RFC 2138
 
@@ -171,11 +171,18 @@ class Packet(UserDict.UserDict):
 
 	
         def __contains__(self, key):
-		return self.data.has_key(self._EncodeKey(key))
+		return self.has_key(key)
 
 
 	def has_key(self, key):
-		return self.data.has_key(self._EncodeKey(key))
+		try:
+			return self.data.has_key(self._EncodeKey(key))
+		except KeyError:
+			return False
+
+
+        def __delitem__(self, key):
+                del self.data[self._EncodeKey(key)]
 
 
 	def __setitem__(self, key, item):
