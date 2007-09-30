@@ -1,5 +1,9 @@
-Pyrad 1.1 (unreleased)
+Pyrad 1.2 (unreleased)
 ======================
+
+
+Pyrad 1.1
+=========
 
 * Add the 'octets' datatype from FreeRADIUS. This is treated just like string;
   the only difference is how FreeRADIUS prints it.
