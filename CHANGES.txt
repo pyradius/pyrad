@@ -1,6 +1,9 @@
 Pyrad 1.1 (unreleased)
 ======================
 
+* Add the 'octets' datatype from FreeRADIUS. This is treated just like string;
+  the only difference is how FreeRADIUS prints it.
+
 * Check against unimplemented datatypes in EncodeData and DecodeData instead
   of assuming an identity transform works.
 

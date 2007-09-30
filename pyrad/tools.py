@@ -42,7 +42,7 @@ def DecodeDate(num):
 
 
 def EncodeAttr(datatype, value):
-	if datatype=="string":
+	if datatype in ("string", "octets"):
 		return EncodeString(value)
 	elif datatype=="ipaddr":
 		return EncodeAddress(value)
@@ -55,7 +55,7 @@ def EncodeAttr(datatype, value):
 	
 
 def DecodeAttr(datatype, value):
-	if datatype=="string":
+	if datatype in ("string", "octets"):
 		return DecodeString(value)
 	elif datatype=="ipaddr":
 		return DecodeAddress(value)

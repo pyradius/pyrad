@@ -51,6 +51,7 @@ class EncodingTests(unittest.TestCase):
     def testEncodeFunction(self):
         marker=[]
         self.assertEqual(tools.EncodeAttr("string", "string"), "string")
+        self.assertEqual(tools.EncodeAttr("octets", "string"), "string")
         self.assertEqual(tools.EncodeAttr("ipaddr", "192.168.0.255"), "\xc0\xa8\x00\xff")
         self.assertEqual(tools.EncodeAttr("integer", 0x01020304), "\x01\x02\x03\x04")
         self.assertEqual(tools.EncodeAttr("date", 0x01020304), "\x01\x02\x03\x04")
@@ -59,6 +60,7 @@ class EncodingTests(unittest.TestCase):
     def testDecodeFunction(self):
         marker=[]
         self.assertEqual(tools.DecodeAttr("string", "string"), "string")
+        self.assertEqual(tools.EncodeAttr("octets", "string"), "string")
         self.assertEqual(tools.DecodeAttr("ipaddr", "\xc0\xa8\x00\xff"), "192.168.0.255")
         self.assertEqual(tools.DecodeAttr("integer", "\x01\x02\x03\x04"), 0x01020304)
         self.assertEqual(tools.DecodeAttr("date", "\x01\x02\x03\x04"), 0x01020304)
