@@ -1,6 +1,9 @@
 Pyrad 1.1 (unreleased)
 ======================
 
+* Check against unimplemented datatypes in EncodeData and DecodeData instead
+  of assuming an identity transform works.
+
 * Make Packet.has_key and __contains__ gracefully handle unknown attributes. 
   Based on a patch from Alexey V Michurun <am@rol.ru>.
 

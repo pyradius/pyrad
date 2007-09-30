@@ -51,7 +51,7 @@ def EncodeAttr(datatype, value):
 	elif datatype=="date":
 		return EncodeDate(value)
 	else:
-		return value
+		raise ValueError, "Unknown attribute type %s" % datatype
 	
 
 def DecodeAttr(datatype, value):
@@ -64,6 +64,6 @@ def DecodeAttr(datatype, value):
 	elif datatype=="date":
 		return DecodeDate(value)
 	else:
-		return value
+		raise ValueError, "Unknown attribute type %s" % datatype
 	
 

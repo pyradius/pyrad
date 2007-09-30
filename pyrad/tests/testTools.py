@@ -40,9 +40,16 @@ class EncodingTests(unittest.TestCase):
         self.assertEqual(tools.DecodeDate("\x01\x02\x03\x04"), 0x01020304)
 
 
+    def testUnknownTypeEncoding(self):
+        self.assertRaises(ValueError, tools.EncodeAttr, "unknown", None)
+
+
+    def testUnknownTypeDecoding(self):
+        self.assertRaises(ValueError, tools.DecodeAttr, "unknown", None)
+
+
     def testEncodeFunction(self):
         marker=[]
-        self.failUnless(tools.EncodeAttr("unknown", marker) is marker)
         self.assertEqual(tools.EncodeAttr("string", "string"), "string")
         self.assertEqual(tools.EncodeAttr("ipaddr", "192.168.0.255"), "\xc0\xa8\x00\xff")
         self.assertEqual(tools.EncodeAttr("integer", 0x01020304), "\x01\x02\x03\x04")
@@ -51,7 +58,6 @@ class EncodingTests(unittest.TestCase):
 
     def testDecodeFunction(self):
         marker=[]
-        self.failUnless(tools.DecodeAttr("unknown", marker) is marker)
         self.assertEqual(tools.DecodeAttr("string", "string"), "string")
         self.assertEqual(tools.DecodeAttr("ipaddr", "\xc0\xa8\x00\xff"), "192.168.0.255")
         self.assertEqual(tools.DecodeAttr("integer", "\x01\x02\x03\x04"), 0x01020304)
