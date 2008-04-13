@@ -7,10 +7,18 @@ class EncodingTests(unittest.TestCase):
         self.assertEqual(tools.EncodeString("1234567890"), "1234567890")
 
 
+    def testInvalidStringEncodingRaisesTypeError(self):
+        self.assertRaises(TypeError, tools.EncodeString, 1)
+
+
     def testAddressEncoding(self):
         self.assertRaises(ValueError, tools.EncodeAddress, "123")
         self.assertEqual(tools.EncodeAddress("192.168.0.255"),
                             "\xc0\xa8\x00\xff")
+
+
+    def testInvalidAddressEncodingRaisesTypeError(self):
+        self.assertRaises(TypeError, tools.EncodeAddress, 1)
 
 
     def testIntegerEncoding(self):
@@ -18,9 +26,17 @@ class EncodingTests(unittest.TestCase):
                 "\x01\x02\x03\x04")
 
 
+    def testInvalidIntegerEncodingRaisesTypeError(self):
+        self.assertRaises(TypeError, tools.EncodeInteger, "1")
+
+
     def testDateEncoding(self):
         self.assertEqual(tools.EncodeDate(0x01020304),
                 "\x01\x02\x03\x04")
+
+
+    def testInvalidDataEncodingRaisesTypeError(self):
+        self.assertRaises(TypeError, tools.EncodeDate, "1")
 
 
     def testStringDecoding(self):

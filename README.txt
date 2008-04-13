@@ -43,14 +43,14 @@ Python modules::
 Author, copyright, availability
 ===============================
 
-pyrad was written by Wichert Akkerman <wichert@wiggy.net>
+pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is licensed
+under a BSD license. 
 
-Copyright and license information can be found in LICENSE.txt
+Copyright and license information can be found in the LICENSE.txt file.
 
 The current version and documentation can be found at its homepage:
 http://www.simplon.biz/software/pyrad
 
 Bugs and wishes can be submitted in the pyrad issue tracker:
 https://code.wiggy.net/tracker/pyrad/
-
 

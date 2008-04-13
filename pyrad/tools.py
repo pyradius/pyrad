@@ -13,15 +13,21 @@ def EncodeString(str):
 
 
 def EncodeAddress(addr):
+	if not isinstance(addr, basestring):
+		raise TypeError, "Address has to be a string"
 	(a,b,c,d)=map(int, addr.split("."))
 	return struct.pack("BBBB", a, b, c, d)
 
 
 def EncodeInteger(num):
+	if not isinstance(num, int):
+		raise TypeError, "Can not encode non-integer as integer"
 	return struct.pack("!I", num)
 
 
 def EncodeDate(num):
+	if not isinstance(num, int):
+		raise TypeError, "Can not encode non-integer as date"
 	return struct.pack("!I", num)
 
 

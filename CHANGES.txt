@@ -1,6 +1,9 @@
 Pyrad 1.2 (unreleased)
 ======================
 
+* Make sure all encoding utility methods raise a TypeError if a value of
+  the wrong type is passed in.
+
 
 Pyrad 1.1
 =========
