@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # Pyrad documentation build configuration file, created by
-# sphinx-quickstart on Fri Nov 14 23:32:06 2008.
+# sphinx-quickstart on Sat Nov 15 00:01:13 2008.
 #
 # This file is execfile()d with the current directory set to its containing dir.
 #
@@ -57,7 +57,7 @@ today_fmt = '%B %d, %Y'
 
 # List of directories, relative to source directories, that shouldn't be searched
 # for source files.
-exclude_trees = []
+exclude_trees = ['.build']
 
 # The reST default role (used for this markup: `text`) to use for all documents.
 #default_role = None
