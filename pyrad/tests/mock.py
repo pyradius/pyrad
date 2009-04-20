@@ -122,7 +122,7 @@ def MockClassMethod(klass, name, myfunc=None):
         setattr(klass, name, func)
     else:
         setattr(klass, name, myfunc)
-        
+
 
 def UnmockClassMethods(klass):
     key=origkey(klass)

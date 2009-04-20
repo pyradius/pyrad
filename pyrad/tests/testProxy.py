@@ -27,7 +27,7 @@ class SocketTests(unittest.TestCase):
     def tearDown(self):
         socket.socket=self.orgsocket
 
-    
+
     def testProxyFd(self):
         self.proxy._poll=MockPoll()
         self.proxy._PrepareSockets()
@@ -82,7 +82,7 @@ class OtherTests(unittest.TestCase):
         UnmockClassMethods(Proxy)
         UnmockClassMethods(Server)
 
-    
+
     def testProcessInputNonProxyPort(self):
         fd=MockFd(fd=111)
         MockClassMethod(Server, "_ProcessInput")

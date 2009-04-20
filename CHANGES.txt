@@ -1,6 +1,8 @@
 Pyrad 1.2 (unreleased)
 ======================
 
+* Standardize on 4 spaces for indents. Patch by Kristoffer Grönlund / Purplescout.
+
 * Make sure all encoding utility methods raise a TypeError if a value of
   the wrong type is passed in.
 

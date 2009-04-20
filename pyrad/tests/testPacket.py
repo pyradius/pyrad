@@ -123,7 +123,7 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet.has_key("Unknown-Attribute"), False)
         self.assertEqual("Unknown-Attribute" in self.packet, False)
 
-    
+
     def testDelItem(self):
         self.packet["Test-String"]="dummy"
         del self.packet["Test-String"]
@@ -373,8 +373,8 @@ class AuthPacketTests(unittest.TestCase):
 
 
     def testPwCryptPassword(self):
-        self.assertEqual(self.packet.PwCrypt("Simplon"), 
-                "\xd3U;\xb23\r\x11\xba\x07\xe3\xa8*\xa8x\x14\x01")
+        self.assertEqual(self.packet.PwCrypt("Simplon"),
+                         "\xd3U;\xb23\r\x11\xba\x07\xe3\xa8*\xa8x\x14\x01")
 
 
     def testPwCryptSetsAuthenticator(self):
@@ -390,7 +390,7 @@ class AuthPacketTests(unittest.TestCase):
     def testPwDecryptPassword(self):
         self.assertEqual(self.packet.PwDecrypt(
                 "\xd3U;\xb23\r\x11\xba\x07\xe3\xa8*\xa8x\x14\x01"),
-                "Simplon")
+                         "Simplon")
 
 
 

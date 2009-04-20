@@ -6,18 +6,18 @@ from pyrad.client import Client
 from pyrad.dictionary import Dictionary
 
 def SendPacket(srv, req):
-	try:
-		srv.SendPacket(req)
-	except pyrad.client.Timeout:
-		print "RADIUS server does not reply"
-		sys.exit(1)
-	except socket.error, error:
-		print "Network error: " + error[1]
-		sys.exit(1)
+    try:
+        srv.SendPacket(req)
+    except pyrad.client.Timeout:
+        print "RADIUS server does not reply"
+        sys.exit(1)
+    except socket.error, error:
+        print "Network error: " + error[1]
+        sys.exit(1)
 
 srv=Client(server="localhost",
-        secret="Kah3choteereethiejeimaeziecumi",
-	dict=Dictionary("dictionary"))
+           secret="Kah3choteereethiejeimaeziecumi",
+           dict=Dictionary("dictionary"))
 
 req=srv.CreateAcctPacket(User_Name="wichert")
 

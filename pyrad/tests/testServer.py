@@ -260,7 +260,7 @@ class OtherTests(unittest.TestCase):
         MockClassMethod(Server, "_HandleAuthPacket")
 
         self.server._ProcessInput(fd)
-        self.assertEqual([x[0] for x in self.server.called], 
+        self.assertEqual([x[0] for x in self.server.called],
                 ["_GrabPacket", "_HandleAuthPacket"])
         self.assertEqual(self.server.called[0][1][1], fd)
 
@@ -273,7 +273,7 @@ class OtherTests(unittest.TestCase):
         MockClassMethod(Server, "_HandleAcctPacket")
 
         self.server._ProcessInput(fd)
-        self.assertEqual([x[0] for x in self.server.called], 
+        self.assertEqual([x[0] for x in self.server.called],
                 ["_GrabPacket", "_HandleAcctPacket"])
         self.assertEqual(self.server.called[0][1][1], fd)
 

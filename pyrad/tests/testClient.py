@@ -40,8 +40,8 @@ class ConstructionTests(unittest.TestCase):
 
     def testNamedParameters(self):
         marker=object()
-        client=Client(server=self.server, authport=123, acctport=456, 
-                secret="secret", dict=marker)
+        client=Client(server=self.server, authport=123, acctport=456,
+                      secret="secret", dict=marker)
         self.failUnless(client.server is self.server)
         self.assertEqual(client.authport, 123)
         self.assertEqual(client.acctport, 456)

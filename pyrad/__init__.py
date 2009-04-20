@@ -2,7 +2,7 @@
 
 pyrad is an implementation of a RADIUS client as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
-them and decoding responses. 
+them and decoding responses.
 
 Here is an example of doing a authentication request::
 
@@ -11,10 +11,10 @@ Here is an example of doing a authentication request::
   from pyrad.dictionary import Dictionary
 
   srv=Client(server="radius.my.domain", secret="s3cr3t",
-  	dict=Dictionary("dicts/dictionary", "dictionary.acc"))
+    dict=Dictionary("dicts/dictionary", "dictionary.acc"))
 
   req=srv.CreatePacket(code=pyrad.packet.AccessRequest,
-  		User_Name="wichert", NAS_Identifier="localhost")
+        User_Name="wichert", NAS_Identifier="localhost")
   req["User-Password"]=req.PwCrypt("password")
 
   reply=srv.SendPacket(req)
@@ -36,11 +36,11 @@ This package contains four modules:
   - tools: utility functions
 """
 
-__docformat__	= "epytext en"
+__docformat__   = "epytext en"
 
-__author__	= "Wichert Akkerman <wichert@wiggy.net>"
-__url__		= "http://www.wiggy.net/code/pyrad.xhtml"
-__copyright__	= "Copyright 2002-2007 Wichert Akkerman"
+__author__  = "Wichert Akkerman <wichert@wiggy.net>"
+__url__     = "http://www.wiggy.net/code/pyrad.xhtml"
+__copyright__   = "Copyright 2002-2007 Wichert Akkerman"
 
 __all__ = [ "client", "dictionary", "packet", "server", "tools" ]
 
