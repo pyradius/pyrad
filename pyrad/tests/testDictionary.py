@@ -130,6 +130,19 @@ class DictionaryParsingTests(unittest.TestCase):
         else:
             self.fail()
 
+    def testAttributeOptions(self):
+        self.dict.ReadDictionary(StringIO("ATTRIBUTE Option-Type 1 string has_tag,encrypt=1"))
+        self.assertEqual(self.dict['Option-Type'].has_tag, True)
+        self.assertEqual(self.dict['Option-Type'].encrypt, 1)
+
+    def testAttributeEncryptionError(self):
+        try:
+            self.dict.ReadDictionary(StringIO("ATTRIBUTE Test-Type 1 string encrypt=4"))
+        except ParseError, e:
+            self.assertEqual("encrypt" in str(e), True)
+        else:
+            self.fail()
+
 
     def testValueTooFewColumnsError(self):
         try:

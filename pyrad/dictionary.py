@@ -32,12 +32,19 @@ The commands supported are::
 
 The datatypes currently supported are::
 
-  string   - ASCII string
-  ipaddr   - IPv4 address
-  integer  - 32 bits signed number
-  date     - 32 bits UNIX timestamp
-  octets   - arbitrary binary data
-  abinary  - ASCII encoded binary data
+  string     - ASCII string
+  ipaddr     - IPv4 address
+  integer    - 32 bits signed number
+  date       - 32 bits UNIX timestamp
+  octets     - arbitrary binary data
+
+These datatypes are parsed but not supported::
+  abinary    - ASCII encoded binary data
+  ifid       - 8 octets in network byte order
+  ipv6addr   - 16 octets in network byte order
+  ipv6prefix - 18 octets in network byte order
+  ether      - 6 octets of hh:hh:hh:hh:hh:hh
+               where 'h' is hex digits, upper or lowercase.
 """
 
 __docformat__   = "epytext en"
@@ -46,6 +53,10 @@ from pyrad import bidict
 from pyrad import tools
 from pyrad import dictfile
 from copy import copy
+
+DATATYPES = set(["string", "ipaddr", "integer", "date",
+                 "octets", "abinary", "ipv6addr",
+                 "ipv6prefix", "ifid", "ether"])
 
 class ParseError(Exception):
     """Dictionary parser exceptions.
@@ -77,14 +88,15 @@ class ParseError(Exception):
 
 
 class Attribute:
-    def __init__(self, name, code, datatype, vendor="", values={}):
-        if datatype not in ("string", "ipaddr", "integer", "date",
-                "octets", "abinary", "ipv6addr", "ifid"):
+    def __init__(self, name, code, datatype, vendor="", values={}, encrypt=0, has_tag=False):
+        if datatype not in DATATYPES:
             raise ValueError, "Invalid data type"
         self.name=name
         self.code=code
         self.type=datatype
         self.vendor=vendor
+        self.encrypt=encrypt
+        self.has_tag=has_tag
         self.values=bidict.BiDict()
         for (key,value) in values.items():
             self.values.Add(key, value)
@@ -147,21 +159,37 @@ class Dictionary:
                 name=state["file"],
                 line=state["line"])
 
-        if len(tokens)>=5 and tokens[4].find("=")==-1:
-            vendor=tokens[4]
-            if not self.vendors.HasForward(vendor):
-                raise ParseError("Unknown vendor " + vendor,
-                                 file = state["file"],
-                                 line = state["line"])
+        vendor=state["vendor"]
+        has_tag = False
+        encrypt = 0
+        if len(tokens)>=5:
+            def keyval(o):
+                kv = o.split('=')
+                if len(kv)==2:
+                    return (kv[0], kv[1])
+                else:
+                    return (kv[0], None)
+            options = [keyval(o) for o in tokens[4].split(',')]
+            for key,val in options:
+                if key == 'has_tag':
+                    has_tag = True
+                elif key == 'encrypt':
+                    if val not in ['1','2','3']:
+                        raise ParseError("Illegal attribute encryption: " + val,
+                                         file = state["file"],
+                                         line = state["line"])
+                    encrypt = int(val)
 
-        else:
-            vendor=state["vendor"]
+            if (not has_tag) and encrypt==0:
+                vendor=tokens[4]
+                if not self.vendors.HasForward(vendor):
+                    raise ParseError("Unknown vendor " + vendor,
+                                     file = state["file"],
+                                     line = state["line"])
 
         (attribute,code,datatype)=tokens[1:4]
-        code=int(code)
-        if not datatype in \
-            ("string", "ipaddr", "integer", "date",
-            "octets", "abinary", "ipv6addr", "ifid"):
+        code=int(code, 0)
+        if not datatype in DATATYPES:
             raise ParseError("Illegal type: " + datatype,
                              file = state["file"],
                              line = state["line"])
@@ -172,7 +200,8 @@ class Dictionary:
             key=code
 
         self.attrindex.Add(attribute, key)
-        self.attributes[attribute]=Attribute(attribute, code, datatype, vendor)
+        self.attributes[attribute]=Attribute(attribute, code, datatype, vendor,
+                                             encrypt=encrypt, has_tag=has_tag)
 
 
     def __ParseValue(self, state, tokens, defer):
@@ -194,7 +223,7 @@ class Dictionary:
                              line = state["line"])
 
         if adef.type=="integer":
-            value=int(value)
+            value=int(value, 0)
         value=tools.EncodeAttr(adef.type, value)
         self.attributes[attr].values.Add(key, value)
 
@@ -207,7 +236,7 @@ class Dictionary:
 
 
         (vendorname,vendor)=tokens[1:]
-        self.vendors.Add(vendorname, int(vendor))
+        self.vendors.Add(vendorname, int(vendor, 0))
 
 
     def __ParseBeginVendor(self, state, tokens):
