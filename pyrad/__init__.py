@@ -42,5 +42,5 @@ __author__  = "Wichert Akkerman <wichert@wiggy.net>"
 __url__     = "http://www.wiggy.net/code/pyrad.xhtml"
 __copyright__   = "Copyright 2002-2007 Wichert Akkerman"
 
-__all__ = [ "client", "dictionary", "packet", "server", "tools" ]
+__all__ = [ "client", "dictionary", "packet", "server", "tools", "dictfile" ]
 

@@ -7,6 +7,7 @@ from pyrad.dictionary import Attribute
 from pyrad.dictionary import Dictionary
 from pyrad.dictionary import ParseError
 from pyrad.tools import DecodeAttr
+from pyrad.dictfile import DictFile
 
 
 class AttributeTests(unittest.TestCase):
@@ -240,3 +241,32 @@ class DictionaryParsingTests(unittest.TestCase):
                         "ATTRIBUTE Test-Type 1 integer"))
         self.assertEquals(self.dict.attrindex["Test-Type"], 1)
 
+    def testInclude(self):
+        try:
+            self.dict.ReadDictionary(StringIO(
+                    "$INCLUDE this_file_does_not_exist\n"
+                    "VENDOR Simplon 42\n"
+                    "BEGIN-VENDOR Simplon\n"
+                    "END-VENDOR Simplon\n"
+                    "ATTRIBUTE Test-Type 1 integer"))
+        except IOError, e:
+            self.assertEqual("this_file_does_not_exist" in str(e), True)
+        else:
+            self.fail()
+
+    def testDictFilePostParse(self):
+        f = DictFile(StringIO(
+                "VENDOR Simplon 42\n"))
+        for _ in f:
+            pass
+        self.assertEquals(f.File(), '')
+        self.assertEquals(f.Line(), -1)
+
+    def testDictFileParseError(self):
+        tmpdict = Dictionary()
+        try:
+            tmpdict.ReadDictionary(os.path.join(self.path, "dictfiletest"))
+        except ParseError, e:
+            self.assertEquals('dictfiletest' in str(e), True)
+        else:
+            self.fail()
