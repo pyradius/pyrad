@@ -317,18 +317,20 @@ class Dictionary:
             if not tokens:
                 continue
 
-            if tokens[0]=="ATTRIBUTE":
+            key = tokens[0].upper()
+            if key=="ATTRIBUTE":
                 self.__ParseAttribute(state, tokens)
-            elif tokens[0]=="VALUE":
+            elif key=="VALUE":
                 self.__ParseValue(state, tokens, True)
-            elif tokens[0]=="VENDOR":
+            elif key=="VENDOR":
                 self.__ParseVendor(state, tokens)
-            elif tokens[0]=="BEGIN-VENDOR":
+            elif key=="BEGIN-VENDOR":
                 self.__ParseBeginVendor(state, tokens)
-            elif tokens[0]=="END-VENDOR":
+            elif key=="END-VENDOR":
                 self.__ParseEndVendor(state, tokens)
 
         for state, tokens in self.defer_parse:
-            if tokens[0]=="VALUE":
+            key = tokens[0].upper()
+            if key=="VALUE":
                 self.__ParseValue(state, tokens, False)
         self.defer_parse = []
