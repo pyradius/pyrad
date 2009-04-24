@@ -45,6 +45,7 @@ __docformat__   = "epytext en"
 from pyrad import bidict
 from pyrad import tools
 from pyrad import dictfile
+from copy import copy
 
 class ParseError(Exception):
     """Dictionary parser exceptions.
@@ -114,6 +115,7 @@ class Dictionary:
         self.vendors.Add("", 0)
         self.attrindex=bidict.BiDict()
         self.attributes={}
+        self.defer_parse = []
 
         if dict:
             self.ReadDictionary(dict)
@@ -173,7 +175,7 @@ class Dictionary:
         self.attributes[attribute]=Attribute(attribute, code, datatype, vendor)
 
 
-    def __ParseValue(self, state, tokens):
+    def __ParseValue(self, state, tokens, defer):
         if len(tokens)!=4:
             raise ParseError("Incorrect number of tokens for value definition",
                              file = state["file"],
@@ -184,6 +186,9 @@ class Dictionary:
         try:
             adef=self.attributes[attr]
         except KeyError:
+            if defer:
+                self.defer_parse.append((copy(state), copy(tokens)))
+                return
             raise ParseError("Value defined for unknown attribute " + attr,
                              file = state["file"],
                              line = state["line"])
@@ -253,6 +258,7 @@ class Dictionary:
         state={}
         state["vendor"]=""
 
+        self.defer_parse = []
         for line in fil:
             state["file"]=fil.File()
             state["line"]=fil.Line()
@@ -265,7 +271,7 @@ class Dictionary:
             if tokens[0]=="ATTRIBUTE":
                 self.__ParseAttribute(state, tokens)
             elif tokens[0]=="VALUE":
-                self.__ParseValue(state, tokens)
+                self.__ParseValue(state, tokens, True)
             elif tokens[0]=="VENDOR":
                 self.__ParseVendor(state, tokens)
             elif tokens[0]=="BEGIN-VENDOR":
@@ -273,3 +279,7 @@ class Dictionary:
             elif tokens[0]=="END-VENDOR":
                 self.__ParseEndVendor(state, tokens)
 
+        for state, tokens in self.defer_parse:
+            if tokens[0]=="VALUE":
+                self.__ParseValue(state, tokens, False)
+        self.defer_parse = []
