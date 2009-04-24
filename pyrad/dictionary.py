@@ -54,9 +54,9 @@ from pyrad import tools
 from pyrad import dictfile
 from copy import copy
 
-DATATYPES = set(["string", "ipaddr", "integer", "date",
-                 "octets", "abinary", "ipv6addr",
-                 "ipv6prefix", "ifid", "ether"])
+DATATYPES = frozenset(["string", "ipaddr", "integer", "date",
+                       "octets", "abinary", "ipv6addr",
+                       "ipv6prefix", "ifid", "ether"])
 
 class ParseError(Exception):
     """Dictionary parser exceptions.
