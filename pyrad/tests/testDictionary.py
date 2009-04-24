@@ -198,6 +198,35 @@ class DictionaryParsingTests(unittest.TestCase):
                         "ATTRIBUTE Test-Type 1 integer Simplon"))
         self.assertEquals(self.dict.attrindex["Test-Type"], (42, 1))
 
+    def testVendorOptionError(self):
+        self.assertRaises(ParseError, self.dict.ReadDictionary,
+                StringIO("ATTRIBUTE Test-Type 1 integer Simplon"))
+        try:
+            self.dict.ReadDictionary(StringIO("VENDOR Simplon 42 badoption"))
+        except ParseError, e:
+            self.assertEqual("option" in str(e), True)
+        else:
+            self.fail()
+
+    def testVendorFormatError(self):
+        self.assertRaises(ParseError, self.dict.ReadDictionary,
+                StringIO("ATTRIBUTE Test-Type 1 integer Simplon"))
+        try:
+            self.dict.ReadDictionary(StringIO("VENDOR Simplon 42 format=5,4"))
+        except ParseError, e:
+            self.assertEqual("format" in str(e), True)
+        else:
+            self.fail()
+
+    def testVendorFormatSyntaxError(self):
+        self.assertRaises(ParseError, self.dict.ReadDictionary,
+                StringIO("ATTRIBUTE Test-Type 1 integer Simplon"))
+        try:
+            self.dict.ReadDictionary(StringIO("VENDOR Simplon 42 format=a,1"))
+        except ParseError, e:
+            self.assertEqual("Syntax" in str(e), True)
+        else:
+            self.fail()
 
     def testBeginVendorTooFewColumns(self):
         try:

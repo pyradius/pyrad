@@ -229,13 +229,33 @@ class Dictionary:
 
 
     def __ParseVendor(self, state, tokens):
-        if len(tokens)!=3:
+        if len(tokens) not in [3, 4]:
             raise ParseError("Incorrect number of tokens for vendor definition",
                              file = state["file"],
                              line = state["line"])
 
+        # Parse format specification, but do
+        # nothing about it for now
+        format = (1, 1)
+        if len(tokens) == 4:
+            fmt = tokens[3].split('=')
+            if fmt[0] != 'format':
+                raise ParseError("Unknown option '%s' for vendor definition" % (fmt[0]),
+                                 file = state["file"],
+                                 line = state["line"])
+            try:
+                t,l = tuple(int(a) for a in fmt[1].split(','))
+                format = (t,l)
+                if t not in [1, 2, 4] or l not in [0, 1, 2]:
+                    raise ParseError("Unknown vendor format specification '%s" % (fmt[1]),
+                                     file = state["file"],
+                                     line = state["line"])
+            except ValueError:
+                raise ParseError("Syntax error in vendor specification",
+                                 file = state["file"],
+                                 line = state["line"])
 
-        (vendorname,vendor)=tokens[1:]
+        (vendorname,vendor)=tokens[1:3]
         self.vendors.Add(vendorname, int(vendor, 0))
 
 
