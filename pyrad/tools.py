@@ -20,7 +20,7 @@ def EncodeAddress(addr):
 
 
 def EncodeInteger(num):
-    if not isinstance(num, int):
+    if not isinstance(num, (int,long)):
         raise TypeError, "Can not encode non-integer as integer"
     return struct.pack("!I", num)
 

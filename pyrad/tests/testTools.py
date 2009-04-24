@@ -25,6 +25,9 @@ class EncodingTests(unittest.TestCase):
         self.assertEqual(tools.EncodeInteger(0x01020304),
                 "\x01\x02\x03\x04")
 
+    def testUnsignedIntegerEncoding(self):
+        self.assertEqual(tools.EncodeInteger(0xFFFFFFFF),
+                "\xff\xff\xff\xff")
 
     def testInvalidIntegerEncodingRaisesTypeError(self):
         self.assertRaises(TypeError, tools.EncodeInteger, "1")
