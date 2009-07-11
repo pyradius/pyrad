@@ -13,13 +13,11 @@ import socket
 
 class Proxy(Server):
     """Base class for RADIUS proxies.
-
     This class extends tha RADIUS server class with the capability to
     handle communication with other RADIUS servers as well.
 
-    @ivar _proxyfd: network socket used to communicate with other servers
-    @type _proxyfd: socket class instance
-
+    :ivar _proxyfd: network socket used to communicate with other servers
+    :type _proxyfd: socket class instance
     """
 
     def _PrepareSockets(self):
@@ -32,13 +30,12 @@ class Proxy(Server):
 
     def _HandleProxyPacket(self, pkt):
         """Process a packet received on the reply socket.
-
         If this packet should be dropped instead of processed a
-                ServerPacketError exception should be raised. The main loop
-                will drop the packet and log the reason.
+        :obj:`ServerPacketError` exception should be raised. The main loop
+        will drop the packet and log the reason.
 
-        @param pkt: packet to process
-        @type  pkt: Packet class instance
+        :param pkt: packet to process
+        :type  pkt: Packet class instance
         """
         if not self.hosts.has_key(pkt.source[0]):
             raise ServerPacketError, "Received packet from unknown host"
@@ -52,19 +49,18 @@ class Proxy(Server):
 
     def _ProcessInput(self, fd):
         """Process available data.
-
         If this packet should be dropped instead of processed a
-                ServerPacketError exception should be raised. The main loop
-                will drop the packet and log the reason.
+        `ServerPacketError` exception should be raised. The main loop
+        will drop the packet and log the reason.
 
-        This function calls either HandleAuthPacket(),
-        HandleAcctPacket() or _HandleProxyPacket() depending on which
-        socket is being processed.
+        This function calls either :obj:`HandleAuthPacket`,
+        :obj:`HandleAcctPacket` or :obj:`_HandleProxyPacket` depending on
+        which socket is being processed.
 
-        @param  fd: socket to read packet from
-        @type   fd: socket class instance
-        @param pkt: packet to process
-        @type  pkt: Packet class instance
+        :param  fd: socket to read packet from
+        :type   fd: socket class instance
+        :param pkt: packet to process
+        :type  pkt: Packet class instance
         """
         if fd.fileno()==self._proxyfd.fileno():
             pkt=self._GrabPacket(lambda data, s=self: s.CreatePacket(packet=data), fd)

@@ -7,10 +7,10 @@ version = "1.2"
 setup(name                 = "pyrad",
       version              = version,
       author               = "Wichert Akkerman",
-      author_email         = "wichert@simplon.biz",
+      author_email         = "wichert@wiggy.net",
       url                  = "http://www.wiggy.net/code/pyrad/",
       license              = "BSD",
-      description          = "RADIUS client tools",
+      description          = "RADIUS tools",
       long_description     = open("README.txt").read() + "\n" +
                              open("CHANGES.txt").read(),
       classifiers          = [

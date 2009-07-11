@@ -2,8 +2,7 @@
 #
 # Copyright 2002,2005,2007 Wichert Akkerman <wichert@wiggy.net>
 
-"""RADIUS dictionary
-
+"""
 RADIUS uses dictionaries to define the attributes that can
 be used in packets. The Dictionary class stores the attribute
 definitions from one or more dictionary files.
@@ -30,21 +29,35 @@ The commands supported are::
   end definition of vendor attributes
 
 
-The datatypes currently supported are::
+The datatypes currently supported are:
 
-  string     - ASCII string
-  ipaddr     - IPv4 address
-  integer    - 32 bits signed number
-  date       - 32 bits UNIX timestamp
-  octets     - arbitrary binary data
+=======   ======================
+type      description
+=======   ======================
+string    ASCII string
+ipaddr    IPv4 address
+integer   32 bits signed number
+date      32 bits UNIX timestamp
+octets    arbitrary binary data
+=======   ======================
 
-These datatypes are parsed but not supported::
-  abinary    - ASCII encoded binary data
-  ifid       - 8 octets in network byte order
-  ipv6addr   - 16 octets in network byte order
-  ipv6prefix - 18 octets in network byte order
-  ether      - 6 octets of hh:hh:hh:hh:hh:hh
-               where 'h' is hex digits, upper or lowercase.
+These datatypes are parsed but not supported:
+
++------------+----------------------------------------------+
+| type       | description                                  |
++============+==============================================+
+| abinary    | ASCII encoded binary data                    |
++------------+----------------------------------------------+
+| ifid       | 8 octets in network byte order               |
++------------+----------------------------------------------+
+| ipv6addr   | 16 octets in network byte order              |
++------------+----------------------------------------------+
+| ipv6prefix | 18 octets in network byte order              |
++------------+----------------------------------------------+
+| ether      | 6 octets of hh:hh:hh:hh:hh:hh                |
+|            | where 'h' is hex digits, upper or lowercase. |
++------------+----------------------------------------------+
+
 """
 
 __docformat__   = "epytext en"
@@ -61,10 +74,10 @@ DATATYPES = frozenset(["string", "ipaddr", "integer", "date",
 class ParseError(Exception):
     """Dictionary parser exceptions.
 
-    @ivar msg:        Error message
-    @type msg:        string
-    @ivar linenumber: Line number on which the error occured
-    @type linenumber: integer
+    :ivar msg:        Error message
+    :type msg:        string
+    :ivar linenumber: Line number on which the error occured
+    :type linenumber: integer
     """
 
     def __init__(self, msg=None, **data):
@@ -103,25 +116,24 @@ class Attribute:
 
 
 class Dictionary:
-    """RADIUS dictionary class
-
+    """RADIUS dictionary class.
     This class stores all information about vendors, attributes and their
     values as defined in RADIUS dictionary files.
 
-    @ivar vendors:    bidict mapping vendor name to vendor code
-    @type vendors:    bidict
-    @ivar attrindex:  bidict mapping
-    @type attrindex:  bidict
-    @ivar attributes: bidict mapping attribute name to attribute class
-    @type attributes: bidict
+    :ivar vendors:    bidict mapping vendor name to vendor code
+    :type vendors:    bidict
+    :ivar attrindex:  bidict mapping
+    :type attrindex:  bidict
+    :ivar attributes: bidict mapping attribute name to attribute class
+    :type attributes: bidict
     """
 
     def __init__(self, dict=None, *dicts):
         """
-        @param dict:  path of dictionary file or file-like object to read
-        @type dict:   string or file
-        @param dicts: list of dictionaries
-        @type dicts:  sequence of strings or files
+        :param dict:  path of dictionary file or file-like object to read
+        :type dict:   string or file
+        :param dicts: list of dictionaries
+        :type dicts:  sequence of strings or files
         """
         self.vendors=bidict.BiDict()
         self.vendors.Add("", 0)
@@ -293,13 +305,12 @@ class Dictionary:
         state["vendor"]=""
 
     def ReadDictionary(self, file):
-        """Parse a dictionary file
-
+        """Parse a dictionary file.
         Reads a RADIUS dictionary file and merges its contents into the
         class instance.
 
-        @param file: Name of dictionary file to parse or a file-like object
-        @type file:  string or file-like object
+        :param file: Name of dictionary file to parse or a file-like object
+        :type file:  string or file-like object
         """
 
         fil = dictfile.DictFile(file)
@@ -334,3 +345,4 @@ class Dictionary:
             if key=="VALUE":
                 self.__ParseValue(state, tokens, False)
         self.defer_parse = []
+
