@@ -13,7 +13,3 @@
   .. autoclass:: Server
     :members:
 
-  .. autoclass:: PacketError
-    :members:
-
-

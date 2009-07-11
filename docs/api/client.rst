@@ -4,6 +4,9 @@
 
 .. automodule:: pyrad.client
 
+  .. autoclass:: Timeout
+    :members:
+
   .. autoclass:: Client
     :members:
 
