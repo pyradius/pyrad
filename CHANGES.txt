@@ -1,5 +1,5 @@
-Pyrad 1.2 (unreleased)
-======================
+Pyrad 1.2
+=========
 
 * Setup sphinx based documentation.
 
