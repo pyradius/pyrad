@@ -501,8 +501,8 @@ class AcctPacket(Packet):
         @rtype: boolean
         """
         assert(self.raw_packet)
-                hash=md5_constructor(self.raw_packet[0:4] + 16*"\x00" + 
-                     self.raw_packet[20:] + self.secret).digest()
+        hash=md5_constructor(self.raw_packet[0:4] + 16*"\x00" + 
+                self.raw_packet[20:] + self.secret).digest()
 
         return hash==self.authenticator
 
