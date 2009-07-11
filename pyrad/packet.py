@@ -11,7 +11,14 @@ RADIUS packet
 
 __docformat__   = "epytext en"
 
-import md5, struct, types, random, UserDict
+import struct, types, random, UserDict
+try:
+    import hashlib
+    md5_constructor = hashlib.md5
+except ImportError:
+    # BBB for python 2.4
+    import md5
+    md5_constructor = md5.new
 from pyrad import tools
 
 # Packet codes
@@ -249,7 +256,7 @@ class Packet(UserDict.UserDict):
         attr=self._PktEncodeAttributes()
         header=struct.pack("!BBH", self.code, self.id, (20+len(attr)))
 
-        authenticator=md5.new(header[0:4] + self.authenticator
+        authenticator=md5_constructor(header[0:4] + self.authenticator
                               + attr + self.secret).digest()
 
         return header + authenticator + attr
@@ -262,7 +269,7 @@ class Packet(UserDict.UserDict):
         if rawreply is None:
             rawreply=reply.ReplyPacket()
 
-        hash=md5.new(rawreply[0:4] + self.authenticator +
+        hash=md5_constructor(rawreply[0:4] + self.authenticator + 
                      rawreply[20:] + self.secret).digest()
 
         if hash!=rawreply[4:20]:
@@ -413,7 +420,7 @@ class AuthPacket(Packet):
 
         last=self.authenticator
         while buf:
-            hash=md5.new(self.secret+last).digest()
+            hash=md5_constructor(self.secret+last).digest()
             for i in range(16):
                 pw+=chr(ord(hash[i]) ^ ord(buf[i]))
 
@@ -447,12 +454,12 @@ class AuthPacket(Packet):
         if len(password)%16!=0:
             buf+="\x00" * (16-(len(password)%16))
 
-        hash=md5.new(self.secret+self.authenticator).digest()
+        hash=md5_constructor(self.secret+self.authenticator).digest()
         result=""
 
         last=self.authenticator
         while buf:
-            hash=md5.new(self.secret+last).digest()
+            hash=md5_constructor(self.secret+last).digest()
             for i in range(16):
                 result+=chr(ord(hash[i]) ^ ord(buf[i]))
 
@@ -494,7 +501,7 @@ class AcctPacket(Packet):
         @rtype: boolean
         """
         assert(self.raw_packet)
-        hash=md5.new(self.raw_packet[0:4] + 16*"\x00" +
+                hash=md5_constructor(self.raw_packet[0:4] + 16*"\x00" + 
                      self.raw_packet[20:] + self.secret).digest()
 
         return hash==self.authenticator
@@ -517,7 +524,7 @@ class AcctPacket(Packet):
 
         header=struct.pack("!BBH", self.code, self.id, (20+len(attr)))
 
-        self.authenticator=md5.new(header[0:4] + 16 * "\x00" + attr
+        self.authenticator=md5_constructor(header[0:4] + 16 * "\x00" + attr
             + self.secret).digest()
 
         return header + self.authenticator + attr
