@@ -309,7 +309,7 @@ class ServerRunTests(unittest.TestCase):
         def RaisePacketError(self, fd):
             raise ServerPacketError
         MockClassMethod(Server, "_ProcessInput", RaisePacketError)
-        self.server.authfds=fd=[MockFd()]
+        self.server.authfds=[MockFd()]
         MockPoll.results=[(0, select.POLLIN)]
         self.assertRaises(MockFinished, self.server.Run)
 
@@ -318,7 +318,7 @@ class ServerRunTests(unittest.TestCase):
         def RaisePacketError(self, fd):
             raise PacketError
         MockClassMethod(Server, "_ProcessInput", RaisePacketError)
-        self.server.authfds=fd=[MockFd()]
+        self.server.authfds=[MockFd()]
         MockPoll.results=[(0, select.POLLIN)]
         self.assertRaises(MockFinished, self.server.Run)
 

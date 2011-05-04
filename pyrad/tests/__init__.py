@@ -1,4 +1,5 @@
 import pyrad
 import sys
 
-home=sys.modules["pyrad"].__path__[0]
+pyrad  # keep pyflakes happy
+home = sys.modules["pyrad"].__path__[0]
