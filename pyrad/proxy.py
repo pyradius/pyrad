@@ -38,12 +38,12 @@ class Proxy(Server):
         :type  pkt: Packet class instance
         """
         if not self.hosts.has_key(pkt.source[0]):
-            raise ServerPacketError, "Received packet from unknown host"
+            raise ServerPacketError("Received packet from unknown host")
 
         pkt.secret=self.hosts[pkt.source[0]].secret
 
         if not pkt.code in [ packet.AccessAccept, packet.AccessReject, packet.AccountingResponse ]:
-            raise ServerPacketError, "Received non-response on proxy socket"
+            raise ServerPacketError("Received non-response on proxy socket")
 
 
 

@@ -138,12 +138,12 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
         if not self.hosts.has_key(pkt.source[0]):
-            raise ServerPacketError, "Received packet from unknown host"
+            raise ServerPacketError("Received packet from unknown host")
 
         pkt.secret=self.hosts[pkt.source[0]].secret
 
         if pkt.code!=packet.AccessRequest:
-            raise ServerPacketError, "Received non-authentication packet on authentication port"
+            raise ServerPacketError("Received non-authentication packet on authentication port")
 
         self.HandleAuthPacket(pkt)
 
@@ -158,13 +158,13 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
         if not self.hosts.has_key(pkt.source[0]):
-            raise ServerPacketError, "Received packet from unknown host"
+            raise ServerPacketError("Received packet from unknown host")
 
         pkt.secret=self.hosts[pkt.source[0]].secret
 
         if not pkt.code in [ packet.AccountingRequest,
                 packet.AccountingResponse ]:
-            raise ServerPacketError, "Received non-accounting packet on accounting port"
+            raise ServerPacketError("Received non-accounting packet on accounting port")
 
         self.HandleAcctPacket(pkt)
 

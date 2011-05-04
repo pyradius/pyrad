@@ -7,27 +7,27 @@ import struct
 
 def EncodeString(str):
     if len(str)>253:
-        raise ValueError, "Can only encode strings of <= 253 characters"
+        raise ValueError("Can only encode strings of <= 253 characters")
 
     return str
 
 
 def EncodeAddress(addr):
     if not isinstance(addr, basestring):
-        raise TypeError, "Address has to be a string"
+        raise TypeError("Address has to be a string")
     (a,b,c,d)=map(int, addr.split("."))
     return struct.pack("BBBB", a, b, c, d)
 
 
 def EncodeInteger(num):
     if not isinstance(num, (int,long)):
-        raise TypeError, "Can not encode non-integer as integer"
+        raise TypeError("Can not encode non-integer as integer")
     return struct.pack("!I", num)
 
 
 def EncodeDate(num):
     if not isinstance(num, int):
-        raise TypeError, "Can not encode non-integer as date"
+        raise TypeError("Can not encode non-integer as date")
     return struct.pack("!I", num)
 
 
@@ -57,7 +57,7 @@ def EncodeAttr(datatype, value):
     elif datatype=="date":
         return EncodeDate(value)
     else:
-        raise ValueError, "Unknown attribute type %s" % datatype
+        raise ValueError("Unknown attribute type %s" % datatype)
 
 
 def DecodeAttr(datatype, value):
@@ -70,6 +70,6 @@ def DecodeAttr(datatype, value):
     elif datatype=="date":
         return DecodeDate(value)
     else:
-        raise ValueError, "Unknown attribute type %s" % datatype
+        raise ValueError("Unknown attribute type %s" % datatype)
 
 

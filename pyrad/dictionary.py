@@ -103,7 +103,7 @@ class ParseError(Exception):
 class Attribute:
     def __init__(self, name, code, datatype, vendor="", values={}, encrypt=0, has_tag=False):
         if datatype not in DATATYPES:
-            raise ValueError, "Invalid data type"
+            raise ValueError("Invalid data type")
         self.name=name
         self.code=code
         self.type=datatype

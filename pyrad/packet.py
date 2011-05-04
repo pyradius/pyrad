@@ -316,11 +316,11 @@ class Packet(UserDict.UserDict):
         try:
             (self.code, self.id, length, self.authenticator)=struct.unpack("!BBH16s", packet[0:20])
         except struct.error:
-            raise PacketError, "Packet header is corrupt"
+            raise PacketError("Packet header is corrupt")
         if len(packet)!=length:
-            raise PacketError, "Packet has invalid length"
+            raise PacketError("Packet has invalid length")
         if length>8192:
-            raise PacketError, "Packet length is too long (%d)" % length
+            raise PacketError("Packet length is too long (%d)" % length)
 
         self.clear()
 
@@ -329,10 +329,10 @@ class Packet(UserDict.UserDict):
             try:
                 (key, attrlen)=struct.unpack("!BB", packet[0:2])
             except struct.error:
-                raise PacketError, "Attribute header is corrupt"
+                raise PacketError("Attribute header is corrupt")
 
             if attrlen<2:
-                raise PacketError, "Attribute length is too small (%d)" % attrlen
+                raise PacketError("Attribute length is too small (%d)" % attrlen)
 
             value=packet[2:attrlen]
             if key==26:
