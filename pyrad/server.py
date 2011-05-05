@@ -141,7 +141,7 @@ class Server(host.Host):
             raise ServerPacketError('Received packet from unknown host')
 
         pkt.secret = self.hosts[pkt.source[0]].secret
-        if pkt.code! = packet.AccessRequest:
+        if pkt.code != packet.AccessRequest:
             raise ServerPacketError(
                 'Received non-authentication packet on authentication port')
         self.HandleAuthPacket(pkt)
@@ -236,7 +236,7 @@ class Server(host.Host):
 
         while 1:
             for (fd, event) in self._poll.poll():
-                if event = =select.POLLIN:
+                if event == select.POLLIN:
                     try:
                         fdo = self._fdmap[fd]
                         self._ProcessInput(fdo)

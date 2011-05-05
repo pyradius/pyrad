@@ -70,9 +70,10 @@ class SocketTests(unittest.TestCase):
                 [(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)])
 
     def testBindClosesSocket(self):
-        self.client._socket = MockSocket(socket.AF_INET, socket.SOCK_DGRAM)
+        s = MockSocket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.client._socket = s
         self.client.bind((BIND_IP, BIND_PORT))
-        self.assertEqual(self.client._socket.closed, True)
+        self.assertEqual(s.closed, True)
 
     def testSendPacket(self):
         def MockSend(self, pkt, port):

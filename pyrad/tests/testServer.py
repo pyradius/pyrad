@@ -16,7 +16,7 @@ from pyrad.packet import AccountingRequest
 
 
 class TrivialObject:
-    """dummy objec"""'
+    """dummy objec"""
 
 
 class RemoteHostTests(unittest.TestCase):

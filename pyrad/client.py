@@ -113,7 +113,7 @@ class Client(host.Host):
         self._SocketOpen()
 
         for attempt in range(self.retries):
-            if attempt and pkt.code = =packet.AccountingRequest:
+            if attempt and pkt.code == packet.AccountingRequest:
                 if "Acct-Delay-Time" in pkt:
                     pkt["Acct-Delay-Time"] = \
                             pkt["Acct-Delay-Time"][0] + self.timeout

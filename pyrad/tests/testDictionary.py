@@ -123,14 +123,14 @@ class DictionaryParsingTests(unittest.TestCase):
 
     def testAttributeOptions(self):
         self.dict.ReadDictionary(StringIO(
-            'ATTRIBUTE Option-Type 1 string has_tag,encrypt = 1'))
+            'ATTRIBUTE Option-Type 1 string has_tag,encrypt=1'))
         self.assertEqual(self.dict['Option-Type'].has_tag, True)
         self.assertEqual(self.dict['Option-Type'].encrypt, 1)
 
     def testAttributeEncryptionError(self):
         try:
             self.dict.ReadDictionary(StringIO(
-                'ATTRIBUTE Test-Type 1 string encrypt = 4'))
+                'ATTRIBUTE Test-Type 1 string encrypt=4'))
         except ParseError, e:
             self.assertEqual('encrypt' in str(e), True)
         else:
@@ -204,7 +204,7 @@ class DictionaryParsingTests(unittest.TestCase):
                 StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
         try:
             self.dict.ReadDictionary(StringIO(
-                'VENDOR Simplon 42 format = 5,4'))
+                'VENDOR Simplon 42 format=5,4'))
         except ParseError, e:
             self.assertEqual('format' in str(e), True)
         else:
@@ -215,7 +215,7 @@ class DictionaryParsingTests(unittest.TestCase):
                 StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
         try:
             self.dict.ReadDictionary(StringIO(
-                'VENDOR Simplon 42 format = a,1'))
+                'VENDOR Simplon 42 format=a,1'))
         except ParseError, e:
             self.assertEqual('Syntax' in str(e), True)
         else:
