@@ -22,11 +22,10 @@ class Proxy(Server):
 
     def _PrepareSockets(self):
         Server._PrepareSockets(self)
-
-        self._proxyfd=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._fdmap[self._proxyfd.fileno()]=self._proxyfd
-        self._poll.register(self._proxyfd.fileno(), (select.POLLIN|select.POLLPRI|select.POLLERR))
-
+        self._proxyfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self._fdmap[self._proxyfd.fileno()] = self._proxyfd
+        self._poll.register(self._proxyfd.fileno(),
+                (select.POLLIN | select.POLLPRI | select.POLLERR))
 
     def _HandleProxyPacket(self, pkt):
         """Process a packet received on the reply socket.
@@ -37,15 +36,13 @@ class Proxy(Server):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if not self.hosts.has_key(pkt.source[0]):
-            raise ServerPacketError("Received packet from unknown host")
+        if pkt.source[0] not in self.hosts:
+            raise ServerPacketError('Received packet from unknown host')
+        pkt.secret = self.hosts[pkt.source[0]].secret
 
-        pkt.secret=self.hosts[pkt.source[0]].secret
-
-        if not pkt.code in [ packet.AccessAccept, packet.AccessReject, packet.AccountingResponse ]:
-            raise ServerPacketError("Received non-response on proxy socket")
-
-
+        if pkt.code not in [packet.AccessAccept, packet.AccessReject,
+                packet.AccountingResponse]:
+            raise ServerPacketError('Received non-response on proxy socket')
 
     def _ProcessInput(self, fd):
         """Process available data.
@@ -62,10 +59,9 @@ class Proxy(Server):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if fd.fileno()==self._proxyfd.fileno():
-            pkt=self._GrabPacket(lambda data, s=self: s.CreatePacket(packet=data), fd)
+        if fd.fileno() == self._proxyfd.fileno():
+            pkt = self._GrabPacket(
+                lambda data, s=self: s.CreatePacket(packet=data), fd)
             self._HandleProxyPacket(pkt)
         else:
             Server._ProcessInput(self, fd)
-
-

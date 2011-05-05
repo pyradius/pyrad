@@ -10,6 +10,7 @@ RADIUS $INCLUDE directives behind the scene.
 
 import os
 
+
 class _Node(object):
     """Dictionary file node
 
@@ -23,13 +24,17 @@ class _Node(object):
         self.current = 0
         self.name = os.path.basename(name)
         path = os.path.dirname(name)
-        self.dir = os.path.isabs(path) and path or os.path.join(parentdir, path)
+        if os.path.isabs(path):
+            self.dir = path
+        else:
+            self.dir = os.path.join(parentdir, path)
 
     def Next(self):
         if self.current >= self.length:
             return None
         self.current += 1
-        return self.lines[self.current-1]
+        return self.lines[self.current - 1]
+
 
 class DictFile(object):
     """Dictionary file class
@@ -70,8 +75,8 @@ class DictFile(object):
             return os.path.realpath(os.curdir)
 
     def __GetInclude(self, line):
-        line=line.split("#", 1)[0].strip()
-        tokens=line.split()
+        line = line.split("#", 1)[0].strip()
+        tokens = line.split()
         if tokens and tokens[0].upper() == '$INCLUDE':
             return " ".join(tokens[1:])
         else:

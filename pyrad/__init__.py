@@ -10,15 +10,15 @@ Here is an example of doing a authentication request::
   from pyrad.client import Client
   from pyrad.dictionary import Dictionary
 
-  srv=Client(server="radius.my.domain", secret="s3cr3t",
-    dict=Dictionary("dicts/dictionary", "dictionary.acc"))
+  srv = Client(server="radius.my.domain", secret="s3cr3t",
+    dict = Dictionary("dicts/dictionary", "dictionary.acc"))
 
-  req=srv.CreatePacket(code=pyrad.packet.AccessRequest,
-        User_Name="wichert", NAS_Identifier="localhost")
-  req["User-Password"]=req.PwCrypt("password")
+  req = srv.CreatePacket(code=pyrad.packet.AccessRequest,
+        User_Name = "wichert", NAS_Identifier="localhost")
+  req["User-Password"] = req.PwCrypt("password")
 
-  reply=srv.SendPacket(req)
-  if reply.code==pyrad.packet.AccessAccept:
+  reply = srv.SendPacket(req)
+  if reply.code = =pyrad.packet.AccessAccept:
       print "access accepted"
   else:
       print "access denied"
@@ -36,11 +36,10 @@ This package contains four modules:
   - tools: utility functions
 """
 
-__docformat__   = "epytext en"
+__docformat__ = 'epytext en'
 
-__author__  = "Wichert Akkerman <wichert@wiggy.net>"
-__url__     = "http://www.wiggy.net/code/pyrad.xhtml"
-__copyright__   = "Copyright 2002-2007 Wichert Akkerman"
+__author__ = 'Wichert Akkerman <wichert@wiggy.net>'
+__url__ = 'http://www.wiggy.net/code/pyrad.xhtml'
+__copyright__ = 'Copyright 2002-2007 Wichert Akkerman'
 
-__all__ = [ "client", "dictionary", "packet", "server", "tools", "dictfile" ]
-
+__all__ = ['client', 'dictionary', 'packet', 'server', 'tools', 'dictfile']

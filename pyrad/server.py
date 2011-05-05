@@ -2,13 +2,15 @@
 #
 # Copyright 2003-2004,2007 Wichert Akkerman <wichert@wiggy.net>
 
-
-import select, socket
+import select
+import socket
 from pyrad import host
 from pyrad import packet
 import logging
 
-logger=logging.getLogger("pyrad")
+
+logger = logging.getLogger('pyrad')
+
 
 class RemoteHost:
     """Remote RADIUS capable host we can talk to.
@@ -28,11 +30,11 @@ class RemoteHost:
         :param  acctport: port used for accounting packets
         :type   acctport: integer
         """
-        self.address=address
-        self.secret=secret
-        self.authport=authport
-        self.acctport=acctport
-        self.name=name
+        self.address = address
+        self.secret = secret
+        self.authport = authport
+        self.acctport = acctport
+        self.name = name
 
 
 class ServerPacketError(Exception):
@@ -40,6 +42,7 @@ class ServerPacketError(Exception):
     ServerPacketError exceptions are only used inside the Server class to
     abort processing of a packet.
     """
+
 
 class Server(host.Host):
     """Basic RADIUS server.
@@ -58,9 +61,10 @@ class Server(host.Host):
     :type MaxPacketSize: integer
     """
 
-    MaxPacketSize   = 8192
+    MaxPacketSize = 8192
 
-    def __init__(self, addresses=[], authport=1812, acctport=1813, hosts=None, dict=None):
+    def __init__(self, addresses=[], authport=1812, acctport=1813, hosts=None,
+            dict=None):
         """Constructor.
 
         :param addresses: IP addresses to listen on
@@ -76,16 +80,15 @@ class Server(host.Host):
         """
         host.Host.__init__(self, authport, acctport, dict)
         if hosts is None:
-            self.hosts={}
+            self.hosts = {}
         else:
-            self.hosts=hosts
+            self.hosts = hosts
 
-        self.authfds=[]
-        self.acctfds=[]
+        self.authfds = []
+        self.acctfds = []
 
         for addr in addresses:
             self.BindToAddress(addr)
-
 
     def BindToAddress(self, addr):
         """Add an address to listen to.
@@ -94,17 +97,16 @@ class Server(host.Host):
         :param addr: IP address to listen on
         :type  addr: string
         """
-        authfd=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        authfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         authfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         authfd.bind((addr, self.authport))
 
-        acctfd=socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        acctfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         acctfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         acctfd.bind((addr, self.acctport))
 
         self.authfds.append(authfd)
         self.acctfds.append(acctfd)
-
 
     def HandleAuthPacket(self, pkt):
         """Authentication packet handler.
@@ -116,7 +118,6 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
 
-
     def HandleAcctPacket(self, pkt):
         """Accounting packet handler.
         This is an empty function that is called when a valid
@@ -127,7 +128,6 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
 
-
     def _HandleAuthPacket(self, pkt):
         """Process a packet received on the authentication port.
         If this packet should be dropped instead of processed a
@@ -137,16 +137,14 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if not self.hosts.has_key(pkt.source[0]):
-            raise ServerPacketError("Received packet from unknown host")
+        if pkt.source[0] not in self.hosts:
+            raise ServerPacketError('Received packet from unknown host')
 
-        pkt.secret=self.hosts[pkt.source[0]].secret
-
-        if pkt.code!=packet.AccessRequest:
-            raise ServerPacketError("Received non-authentication packet on authentication port")
-
+        pkt.secret = self.hosts[pkt.source[0]].secret
+        if pkt.code! = packet.AccessRequest:
+            raise ServerPacketError(
+                'Received non-authentication packet on authentication port')
         self.HandleAuthPacket(pkt)
-
 
     def _HandleAcctPacket(self, pkt):
         """Process a packet received on the accounting port.
@@ -157,17 +155,15 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if not self.hosts.has_key(pkt.source[0]):
-            raise ServerPacketError("Received packet from unknown host")
+        if pkt.source[0] not in self.hosts:
+            raise ServerPacketError('Received packet from unknown host')
 
-        pkt.secret=self.hosts[pkt.source[0]].secret
-
-        if not pkt.code in [ packet.AccountingRequest,
-                packet.AccountingResponse ]:
-            raise ServerPacketError("Received non-accounting packet on accounting port")
-
+        pkt.secret = self.hosts[pkt.source[0]].secret
+        if not pkt.code in [packet.AccountingRequest,
+                packet.AccountingResponse]:
+            raise ServerPacketError(
+                    'Received non-accounting packet on accounting port')
         self.HandleAcctPacket(pkt)
-
 
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.
@@ -178,24 +174,21 @@ class Server(host.Host):
         :return: RADIUS packet
         :rtype:  Packet class instance
         """
-        (data,source)=fd.recvfrom(self.MaxPacketSize)
-        pkt=pktgen(data)
-        pkt.source=source
-        pkt.fd=fd
-
+        (data, source) = fd.recvfrom(self.MaxPacketSize)
+        pkt = pktgen(data)
+        pkt.source = source
+        pkt.fd = fd
         return pkt
-
 
     def _PrepareSockets(self):
         """Prepare all sockets to receive packets.
         """
         for fd in self.authfds + self.acctfds:
-            self._fdmap[fd.fileno()]=fd
-            self._poll.register(fd.fileno(), select.POLLIN|select.POLLPRI|select.POLLERR)
-
-        self._realauthfds=map(lambda x: x.fileno(), self.authfds)
-        self._realacctfds=map(lambda x: x.fileno(), self.acctfds)
-
+            self._fdmap[fd.fileno()] = fd
+            self._poll.register(fd.fileno(),
+                    select.POLLIN | select.POLLPRI | select.POLLERR)
+        self._realauthfds = map(lambda x: x.fileno(), self.authfds)
+        self._realacctfds = map(lambda x: x.fileno(), self.acctfds)
 
     def CreateReplyPacket(self, pkt, **attributes):
         """Create a reply packet.
@@ -205,12 +198,9 @@ class Server(host.Host):
         :param pkt:   original packet
         :type pkt:    Packet instance
         """
-
-        reply=pkt.CreateReply(**attributes)
-        reply.source=pkt.source
-
+        reply = pkt.CreateReply(**attributes)
+        reply.source = pkt.source
         return reply
-
 
     def _ProcessInput(self, fd):
         """Process available data.
@@ -226,13 +216,13 @@ class Server(host.Host):
         :type   fd: socket class instance
         """
         if fd.fileno() in self._realauthfds:
-            pkt=self._GrabPacket(lambda data, s=self: s.CreateAuthPacket(packet=data), fd)
+            pkt = self._GrabPacket(lambda data, s=self:
+                    s.CreateAuthPacket(packet=data), fd)
             self._HandleAuthPacket(pkt)
         else:
-            pkt=self._GrabPacket(lambda data, s=self: s.CreateAcctPacket(packet=data), fd)
+            pkt = self._GrabPacket(lambda data, s=self:
+                    s.CreateAcctPacket(packet=data), fd)
             self._HandleAcctPacket(pkt)
-
-
 
     def Run(self):
         """Main loop.
@@ -240,21 +230,19 @@ class Server(host.Host):
         for packets to arrive via the network and calls other methods
         to process them.
         """
-        self._poll=select.poll()
-        self._fdmap={}
+        self._poll = select.poll()
+        self._fdmap = {}
         self._PrepareSockets()
 
         while 1:
             for (fd, event) in self._poll.poll():
-                if event==select.POLLIN:
+                if event = =select.POLLIN:
                     try:
-                        fdo=self._fdmap[fd]
+                        fdo = self._fdmap[fd]
                         self._ProcessInput(fdo)
                     except ServerPacketError, err:
-                        logger.info("Dropping packet: " + str(err))
+                        logger.info('Dropping packet: ' + str(err))
                     except packet.PacketError, err:
-                        logger.info("Received a broken packet: " + str(err))
+                        logger.info('Received a broken packet: ' + str(err))
                 else:
-                    logger.error("Unexpected event in server main loop")
-
-
+                    logger.error('Unexpected event in server main loop')

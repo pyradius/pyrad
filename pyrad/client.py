@@ -2,11 +2,14 @@
 #
 # Copyright 2002-2007 Wichert Akkerman <wichert@wiggy.net>
 
-__docformat__   = "epytext en"
+__docformat__ = "epytext en"
 
-import select, socket, time
+import select
+import socket
+import time
 from pyrad import host
 from pyrad import packet
+
 
 class Timeout(Exception):
     """Simple exception class which is raised when a timeout occurs
@@ -24,7 +27,9 @@ class Client(host.Host):
     :ivar timeout: number of seconds to wait for an answer
     :type timeout: integer
     """
-    def __init__(self, server, authport=1812, acctport=1813, secret="", dict=None):
+    def __init__(self, server, authport=1812, acctport=1813,
+            secret='', dict=None):
+
         """Constructor.
 
         :param   server: hostname or IP address of RADIUS server
@@ -40,12 +45,11 @@ class Client(host.Host):
         """
         host.Host.__init__(self, authport, acctport, dict)
 
-        self.server=server
-        self.secret=secret
-        self._socket=None
-        self.retries=3
-        self.timeout=5
-
+        self.server = server
+        self.secret = secret
+        self._socket = None
+        self.retries = 3
+        self.timeout = 5
 
     def bind(self, addr):
         """Bind socket to an address.
@@ -59,20 +63,17 @@ class Client(host.Host):
         self._SocketOpen()
         self._socket.bind(addr)
 
-
     def _SocketOpen(self):
         if not self._socket:
-            self._socket=socket.socket(socket.AF_INET,
+            self._socket = socket.socket(socket.AF_INET,
                                        socket.SOCK_DGRAM)
             self._socket.setsockopt(socket.SOL_SOCKET,
                                     socket.SO_REUSEADDR, 1)
 
-
     def _CloseSocket(self):
         if self._socket:
             self._socket.close()
-            self._socket=None
-
+            self._socket = None
 
     def CreateAuthPacket(self, **args):
         """Create a new RADIUS packet.
@@ -86,7 +87,6 @@ class Client(host.Host):
         """
         return host.Host.CreateAuthPacket(self, secret=self.secret, **args)
 
-
     def CreateAcctPacket(self, **args):
         """Create a new RADIUS packet.
         This utility function creates a new RADIUS packet which can
@@ -99,7 +99,6 @@ class Client(host.Host):
         """
         return host.Host.CreateAcctPacket(self, secret=self.secret, **args)
 
-
     def _SendPacket(self, pkt, port):
         """Send a packet to a RADIUS server.
 
@@ -111,40 +110,40 @@ class Client(host.Host):
         :rtype:      pyrad.packet.Packet
         :raise Timeout: RADIUS server does not reply
         """
-
         self._SocketOpen()
 
         for attempt in range(self.retries):
-            if attempt and pkt.code==packet.AccountingRequest:
-                if pkt.has_key("Acct-Delay-Time"):
-                    pkt["Acct-Delay-Time"]=pkt["Acct-Delay-Time"][0]+self.timeout
+            if attempt and pkt.code = =packet.AccountingRequest:
+                if "Acct-Delay-Time" in pkt:
+                    pkt["Acct-Delay-Time"] = \
+                            pkt["Acct-Delay-Time"][0] + self.timeout
                 else:
-                    pkt["Acct-Delay-Time"]=self.timeout
+                    pkt["Acct-Delay-Time"] = self.timeout
             self._socket.sendto(pkt.RequestPacket(), (self.server, port))
 
-            now=time.time()
-            waitto=now+self.timeout
+            now = time.time()
+            waitto = now + self.timeout
 
-            while now<waitto:
-                ready=select.select([self._socket], [], [],
-                                    (waitto-now))
+            while now < waitto:
+                ready = select.select([self._socket], [], [],
+                                    (waitto - now))
+
                 if ready[0]:
-                    rawreply=self._socket.recv(4096)
+                    rawreply = self._socket.recv(4096)
                 else:
-                    now=time.time()
+                    now = time.time()
                     continue
 
                 try:
-                    reply=pkt.CreateReply(packet=rawreply)
+                    reply = pkt.CreateReply(packet=rawreply)
                     if pkt.VerifyReply(reply, rawreply):
                         return reply
                 except packet.PacketError:
                     pass
 
-                now=time.time()
+                now = time.time()
 
         raise Timeout
-
 
     def SendPacket(self, pkt):
         """Send a packet to a RADIUS server.
@@ -159,4 +158,3 @@ class Client(host.Host):
             return self._SendPacket(pkt, self.authport)
         else:
             return self._SendPacket(pkt, self.acctport)
-

@@ -4,6 +4,7 @@
 
 from pyrad import packet
 
+
 class Host:
     """Generic RADIUS capable host.
 
@@ -24,10 +25,9 @@ class Host:
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
         """
-        self.dict=dict
-        self.authport=authport
-        self.acctport=acctport
-
+        self.dict = dict
+        self.authport = authport
+        self.acctport = acctport
 
     def CreatePacket(self, **args):
         """Create a new RADIUS packet.
@@ -41,7 +41,6 @@ class Host:
         """
         return packet.Packet(dict=self.dict, **args)
 
-
     def CreateAuthPacket(self, **args):
         """Create a new authentication RADIUS packet.
         This utility function creates a new RADIUS authentication
@@ -53,7 +52,6 @@ class Host:
         :rtype:  pyrad.packet.AuthPacket
         """
         return packet.AuthPacket(dict=self.dict, **args)
-
 
     def CreateAcctPacket(self, **args):
         """Create a new accounting RADIUS packet.
@@ -67,7 +65,6 @@ class Host:
         """
         return packet.AcctPacket(dict=self.dict, **args)
 
-
     def SendPacket(self, fd, pkt):
         """Send a packet.
 
@@ -78,7 +75,6 @@ class Host:
         """
         fd.sendto(pkt.Packet(), pkt.source)
 
-
     def SendReplyPacket(self, fd, pkt):
         """Send a packet.
 
@@ -88,4 +84,3 @@ class Host:
         :type  pkt: Packet class instance
         """
         fd.sendto(pkt.ReplyPacket(), pkt.source)
-
