@@ -381,25 +381,29 @@ class AuthPacket(Packet):
         and RADIUS secret. This function reverses the obfuscation process.
 
         :param password: obfuscated form of password
-        :type password:  string
+        :type password:  binary string
         :return:         plaintext password
-        :rtype:          string
+        :rtype:          unicode string
         """
         buf = password
-        pw = ''
+        pw = six.b('')
 
         last = self.authenticator
         while buf:
             hash = md5_constructor(self.secret + last).digest()
-            for i in range(16):
-                pw += chr(ord(hash[i]) ^ ord(buf[i]))
+            if six.PY3:
+                for i in range(16):
+                    pw += bytes((hash[i] ^ buf[i],))
+            else:
+                for i in range(16):
+                    pw += chr(ord(hash[i]) ^ ord(buf[i]))
 
             (last, buf) = (buf[:16], buf[16:])
 
-        while pw.endswith('\x00'):
+        while pw.endswith(six.b('\x00')):
             pw = pw[:-1]
 
-        return pw
+        return pw.decode('utf-8')
 
     def PwCrypt(self, password):
         """Obfuscate password.
@@ -411,25 +415,32 @@ class AuthPacket(Packet):
         will not work.
 
         :param password: plaintext password
-        :type password:  string
+        :type password:  unicode stringn
         :return:         obfuscated version of the password
-        :rtype:          string
+        :rtype:          binary string
         """
         if self.authenticator is None:
             self.authenticator = self.CreateAuthenticator()
 
+        if isinstance(password, six.text_type):
+            password = password.encode('utf-8')
+
         buf = password
         if len(password) % 16 != 0:
-            buf += '\x00' * (16 - (len(password) % 16))
+            buf += six.b('\x00') * (16 - (len(password) % 16))
 
         hash = md5_constructor(self.secret + self.authenticator).digest()
-        result = ''
+        result = six.b('')
 
         last = self.authenticator
         while buf:
             hash = md5_constructor(self.secret + last).digest()
-            for i in range(16):
-                result += chr(ord(hash[i]) ^ ord(buf[i]))
+            if six.PY3:
+                for i in range(16):
+                    result += bytes((hash[i] ^ buf[i],))
+            else:
+                for i in range(16):
+                    result += chr(ord(hash[i]) ^ ord(buf[i]))
 
             last = result[-16:]
             buf = buf[16:]

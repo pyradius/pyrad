@@ -8,6 +8,15 @@ import six
 def EncodeString(str):
     if len(str) > 253:
         raise ValueError('Can only encode strings of <= 253 characters')
+    if isinstance(str, six.text_type):
+        return str.encode('utf-8')
+    else:
+        return str
+
+
+def EncodeOctets(str):
+    if len(str) > 253:
+        raise ValueError('Can only encode strings of <= 253 characters')
     return str
 
 
@@ -31,6 +40,10 @@ def EncodeDate(num):
 
 
 def DecodeString(str):
+    return str.decode('utf-8')
+
+
+def DecodeOctets(str):
     return str
 
 
@@ -47,8 +60,10 @@ def DecodeDate(num):
 
 
 def EncodeAttr(datatype, value):
-    if datatype in ('string', 'octets'):
+    if datatype == 'string':
         return EncodeString(value)
+    elif datatype == 'octets':
+        return EncodeOctets(value)
     elif datatype == 'ipaddr':
         return EncodeAddress(value)
     elif datatype == 'integer':
@@ -60,8 +75,10 @@ def EncodeAttr(datatype, value):
 
 
 def DecodeAttr(datatype, value):
-    if datatype in ('string', 'octets'):
+    if datatype == 'string':
         return DecodeString(value)
+    elif datatype == 'octets':
+        return DecodeOctets(value)
     elif datatype == 'ipaddr':
         return DecodeAddress(value)
     elif datatype == 'integer':

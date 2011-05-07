@@ -6,15 +6,18 @@ from pyrad import tools
 class EncodingTests(unittest.TestCase):
     def testStringEncoding(self):
         self.assertRaises(ValueError, tools.EncodeString, 'x' * 254)
-        self.assertEqual(tools.EncodeString('1234567890'), '1234567890')
+        self.assertEqual(
+                tools.EncodeString('1234567890'),
+                six.b('1234567890'))
 
     def testInvalidStringEncodingRaisesTypeError(self):
         self.assertRaises(TypeError, tools.EncodeString, 1)
 
     def testAddressEncoding(self):
         self.assertRaises(ValueError, tools.EncodeAddress, '123')
-        self.assertEqual(tools.EncodeAddress('192.168.0.255'),
-                            six.b('\xc0\xa8\x00\xff'))
+        self.assertEqual(
+                tools.EncodeAddress('192.168.0.255'),
+                six.b('\xc0\xa8\x00\xff'))
 
     def testInvalidAddressEncodingRaisesTypeError(self):
         self.assertRaises(TypeError, tools.EncodeAddress, 1)
@@ -64,8 +67,12 @@ class EncodingTests(unittest.TestCase):
         self.assertRaises(ValueError, tools.DecodeAttr, 'unknown', None)
 
     def testEncodeFunction(self):
-        self.assertEqual(tools.EncodeAttr('string', 'string'), 'string')
-        self.assertEqual(tools.EncodeAttr('octets', 'string'), 'string')
+        self.assertEqual(
+                tools.EncodeAttr('string', six.u('string')),
+                six.b('string'))
+        self.assertEqual(
+                tools.EncodeAttr('octets', six.b('string')),
+                six.b('string'))
         self.assertEqual(
                 tools.EncodeAttr('ipaddr', '192.168.0.255'),
                 six.b('\xc0\xa8\x00\xff'))
@@ -77,8 +84,12 @@ class EncodingTests(unittest.TestCase):
                 six.b('\x01\x02\x03\x04'))
 
     def testDecodeFunction(self):
-        self.assertEqual(tools.DecodeAttr('string', 'string'), 'string')
-        self.assertEqual(tools.EncodeAttr('octets', 'string'), 'string')
+        self.assertEqual(
+                tools.DecodeAttr('string', six.b('string')),
+                six.u('string'))
+        self.assertEqual(
+                tools.EncodeAttr('octets', six.b('string')),
+                six.b('string'))
         self.assertEqual(
                 tools.DecodeAttr('ipaddr', six.b('\xc0\xa8\x00\xff')),
                 '192.168.0.255')
