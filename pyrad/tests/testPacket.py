@@ -25,16 +25,16 @@ class PacketConstructionTests(unittest.TestCase):
         pkt = self.klass()
         self.failUnless(isinstance(pkt.code, int))
         self.failUnless(isinstance(pkt.id, int))
-        self.failUnless(isinstance(pkt.secret, str))
+        self.failUnless(isinstance(pkt.secret, six.binary_type))
 
     def testNamedConstructor(self):
-        pkt = self.klass(code=26, id=38, secret='secret',
-                authenticator='authenticator',
+        pkt = self.klass(code=26, id=38, secret=six.b('secret'),
+                authenticator=six.b('authenticator'),
                 dict='fakedict')
         self.assertEqual(pkt.code, 26)
         self.assertEqual(pkt.id, 38)
-        self.assertEqual(pkt.secret, 'secret')
-        self.assertEqual(pkt.authenticator, 'authenticator')
+        self.assertEqual(pkt.secret, six.b('secret'))
+        self.assertEqual(pkt.authenticator, six.b('authenticator'))
         self.assertEqual(pkt.dict, 'fakedict')
 
     def testConstructWithDictionary(self):
@@ -46,6 +46,9 @@ class PacketConstructionTests(unittest.TestCase):
         pkt = self.klass(fd=marker)
         self.failIf(getattr(pkt, 'fd', None) is marker)
 
+    def testSecretMustBeBytestring(self):
+        self.assertRaises(TypeError, self.klass, secret=six.u('secret'))
+
     def testConstructorWithAttributes(self):
         pkt = self.klass(dict=self.dict, Test_String='this works')
         self.assertEqual(pkt['Test-String'], ['this works'])
@@ -55,8 +58,8 @@ class PacketTests(unittest.TestCase):
     def setUp(self):
         self.path = os.path.join(home, 'tests', 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
-        self.packet = packet.Packet(id=0, secret='secret',
-                authenticator='01234567890ABCDEF', dict=self.dict)
+        self.packet = packet.Packet(id=0, secret=six.b('secret'),
+                authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
 
     def testCreateReply(self):
         reply = self.packet.CreateReply(Test_Integer=10)
@@ -129,7 +132,7 @@ class PacketTests(unittest.TestCase):
 
     def testCreateAuthenticator(self):
         a = packet.Packet.CreateAuthenticator()
-        self.failUnless(isinstance(a, str))
+        self.failUnless(isinstance(a, six.binary_type))
         self.assertEqual(len(a), 16)
 
         b = packet.Packet.CreateAuthenticator()
@@ -174,23 +177,23 @@ class PacketTests(unittest.TestCase):
     def testPktEncodeAttributes(self):
         self.packet[1] = ['value']
         self.assertEqual(self.packet._PktEncodeAttributes(),
-                '\x01\x07value')
+                six.b('\x01\x07value'))
 
         self.packet.clear()
         self.packet[(1, 2)] = ['value']
         self.assertEqual(self.packet._PktEncodeAttributes(),
-                '\x1a\x0d\x00\x00\x00\x01\x02\x07value')
+                six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value'))
 
         self.packet.clear()
         self.packet[1] = ['one', 'two', 'three']
         self.assertEqual(self.packet._PktEncodeAttributes(),
-                '\x01\x05one\x01\x05two\x01\x07three')
+                six.b('\x01\x05one\x01\x05two\x01\x07three'))
 
         self.packet.clear()
         self.packet[1] = ['value']
         self.packet[(1, 2)] = ['value']
         self.assertEqual(self.packet._PktEncodeAttributes(),
-                '\x1a\x0d\x00\x00\x00\x01\x02\x07value\x01\x07value')
+                six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value\x01\x07value'))
 
     def testPktDecodeVendorAttribute(self):
         decode = self.packet._PktDecodeVendorAttribute
@@ -309,8 +312,8 @@ class AuthPacketTests(unittest.TestCase):
     def setUp(self):
         self.path = os.path.join(home, 'tests', 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
-        self.packet = packet.AuthPacket(id=0, secret='secret',
-                authenticator='01234567890ABCDEF', dict=self.dict)
+        self.packet = packet.AuthPacket(id=0, secret=six.b('secret'),
+                authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
 
     def testCreateReply(self):
         reply = self.packet.CreateReply(Test_Integer=10)
@@ -363,8 +366,8 @@ class AcctPacketConstructionTests(PacketConstructionTests):
         self.assertEqual(pkt.code, packet.AccountingRequest)
 
     def testConstructorRawPacket(self):
-        raw = '\x00\x00\x00\x14\xb0\x5e\x4b\xfb\xcc\x1c' \
-            '\x8c\x8e\xc4\x72\xac\xea\x87\x45\x63\xa7'
+        raw = six.b('\x00\x00\x00\x14\xb0\x5e\x4b\xfb\xcc\x1c' \
+                    '\x8c\x8e\xc4\x72\xac\xea\x87\x45\x63\xa7')
         pkt = self.klass(packet=raw)
         self.assertEqual(pkt.raw_packet, raw)
 
@@ -373,8 +376,8 @@ class AcctPacketTests(unittest.TestCase):
     def setUp(self):
         self.path = os.path.join(home, 'tests', 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
-        self.packet = packet.AcctPacket(id=0, secret='secret',
-                authenticator='01234567890ABCDEF', dict=self.dict)
+        self.packet = packet.AcctPacket(id=0, secret=six.b('secret'),
+                authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
 
     def testCreateReply(self):
         reply = self.packet.CreateReply(Test_Integer=10)
@@ -386,19 +389,19 @@ class AcctPacketTests(unittest.TestCase):
 
     def testVerifyAcctRequest(self):
         rawpacket = self.packet.RequestPacket()
-        pkt = packet.AcctPacket(secret='secret', packet=rawpacket)
+        pkt = packet.AcctPacket(secret=six.b('secret'), packet=rawpacket)
         self.assertEqual(pkt.VerifyAcctRequest(), True)
 
-        pkt.secret = 'different'
+        pkt.secret = six.b('different')
         self.assertEqual(pkt.VerifyAcctRequest(), False)
-        pkt.secret = 'secret'
+        pkt.secret = six.b('secret')
 
-        pkt.raw_packet = 'X' + pkt.raw_packet[1:]
+        pkt.raw_packet = six.b('X') + pkt.raw_packet[1:]
         self.assertEqual(pkt.VerifyAcctRequest(), False)
 
     def testRequestPacket(self):
         self.assertEqual(self.packet.RequestPacket(),
-            '\x04\x00\x00\x14\x95\xdf\x90\xccbn\xfb\x15G!\x13\xea\xfa>6\x0f')
+            six.b('\x04\x00\x00\x14\x95\xdf\x90\xccbn\xfb\x15G!\x13\xea\xfa>6\x0f'))
 
     def testRequestPacketSetsId(self):
         self.packet.id = None

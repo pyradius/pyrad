@@ -7,6 +7,7 @@ __docformat__ = "epytext en"
 import select
 import socket
 import time
+import six
 from pyrad import host
 from pyrad import packet
 
@@ -28,7 +29,7 @@ class Client(host.Host):
     :type timeout: integer
     """
     def __init__(self, server, authport=1812, acctport=1813,
-            secret='', dict=None):
+            secret=six.b(''), dict=None):
 
         """Constructor.
 

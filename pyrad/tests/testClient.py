@@ -1,5 +1,6 @@
 import socket
 import unittest
+import six
 from pyrad.client import Client
 from pyrad.client import Timeout
 from pyrad.packet import AuthPacket
@@ -22,7 +23,7 @@ class ConstructionTests(unittest.TestCase):
         self.failUnless(client.server is self.server)
         self.assertEqual(client.authport, 1812)
         self.assertEqual(client.acctport, 1813)
-        self.assertEqual(client.secret, "")
+        self.assertEqual(client.secret, six.b(''))
         self.assertEqual(client.retries, 3)
         self.assertEqual(client.timeout, 5)
         self.failUnless(client.dict is None)
@@ -136,14 +137,14 @@ class SocketTests(unittest.TestCase):
     def testIgnorePacketError(self):
         self.client.retries = 1
         self.client.timeout = 1
-        self.client._socket = MockSocket(1, 2, "valid reply")
+        self.client._socket = MockSocket(1, 2, six.b("valid reply"))
         packet = MockPacket(AccountingRequest, verify=True, error=True)
         self.assertRaises(Timeout, self.client._SendPacket, packet, 432)
 
     def testValidReply(self):
         self.client.retries = 1
         self.client.timeout = 1
-        self.client._socket = MockSocket(1, 2, "valid reply")
+        self.client._socket = MockSocket(1, 2, six.b("valid reply"))
         packet = MockPacket(AccountingRequest, verify=True)
         reply = self.client._SendPacket(packet, 432)
         self.failUnless(reply is packet.reply)
@@ -151,7 +152,7 @@ class SocketTests(unittest.TestCase):
     def testInvalidReply(self):
         self.client.retries = 1
         self.client.timeout = 1
-        self.client._socket = MockSocket(1, 2, "invalid reply")
+        self.client._socket = MockSocket(1, 2, six.b("invalid reply"))
         packet = MockPacket(AccountingRequest, verify=False)
         self.assertRaises(Timeout, self.client._SendPacket, packet, 432)
 
@@ -159,18 +160,18 @@ class SocketTests(unittest.TestCase):
 class OtherTests(unittest.TestCase):
     def setUp(self):
         self.server = object()
-        self.client = Client(self.server, secret="zeer geheim")
+        self.client = Client(self.server, secret=six.b('zeer geheim'))
 
     def testCreateAuthPacket(self):
         packet = self.client.CreateAuthPacket(id=15)
         self.failUnless(isinstance(packet, AuthPacket))
         self.failUnless(packet.dict is self.client.dict)
         self.assertEqual(packet.id, 15)
-        self.assertEqual(packet.secret, "zeer geheim")
+        self.assertEqual(packet.secret, six.b('zeer geheim'))
 
     def testCreateAcctPacket(self):
         packet = self.client.CreateAcctPacket(id=15)
         self.failUnless(isinstance(packet, AcctPacket))
         self.failUnless(packet.dict is self.client.dict)
         self.assertEqual(packet.id, 15)
-        self.assertEqual(packet.secret, "zeer geheim")
+        self.assertEqual(packet.secret, six.b('zeer geheim'))
