@@ -1,5 +1,6 @@
 import os
 import unittest
+import six
 from pyrad import packet
 from pyrad.tests import home
 from pyrad.dictionary import Dictionary
@@ -195,29 +196,31 @@ class PacketTests(unittest.TestCase):
         decode = self.packet._PktDecodeVendorAttribute
 
         # Non-RFC2865 recommended form
-        self.assertEqual(decode(''), (26, ''))
-        self.assertEqual(decode('12345'), (26, '12345'))
+        self.assertEqual(decode(six.b('')), (26, ''))
+        self.assertEqual(decode(six.b('12345')), (26, '12345'))
 
         # Almost RFC2865 recommended form: bad length value
-        self.assertEqual(decode('\x00\x00\x00\x01\x02\x06value'),
+        self.assertEqual(
+                decode(six.b('\x00\x00\x00\x01\x02\x06value')),
                 (26, '\x00\x00\x00\x01\x02\x06value'))
 
         # Proper RFC2865 recommended form
-        self.assertEqual(decode('\x00\x00\x00\x01\x02\x07value'),
-                ((1L, 2), 'value'))
+        self.assertEqual(
+                decode(six.b('\x00\x00\x00\x01\x02\x07value')),
+                ((1, 2), 'value'))
 
     def testDecodePacketWithEmptyPacket(self):
         try:
             self.packet.DecodePacket('')
-        except packet.PacketError, e:
+        except packet.PacketError as e:
             self.failUnless('header is corrupt' in str(e))
         else:
             self.fail()
 
     def testDecodePacketWithInvalidLength(self):
         try:
-            self.packet.DecodePacket('\x00\x00\x00\x001234567890123456')
-        except packet.PacketError, e:
+            self.packet.DecodePacket(six.b('\x00\x00\x00\x001234567890123456'))
+        except packet.PacketError as e:
             self.failUnless('invalid length' in str(e))
         else:
             self.fail()
@@ -225,21 +228,22 @@ class PacketTests(unittest.TestCase):
     def testDecodePacketWithTooBigPacket(self):
         try:
             self.packet.DecodePacket('\x00\x00\x24\x00' + (0x2400 - 4) * 'X')
-        except packet.PacketError, e:
+        except packet.PacketError as e:
             self.failUnless('too long' in str(e))
         else:
             self.fail()
 
     def testDecodePacketWithPartialAttributes(self):
         try:
-            self.packet.DecodePacket('\x01\x02\x00\x151234567890123456\x00')
-        except packet.PacketError, e:
+            self.packet.DecodePacket(
+                    six.b('\x01\x02\x00\x151234567890123456\x00'))
+        except packet.PacketError as e:
             self.failUnless('header is corrupt' in str(e))
         else:
             self.fail()
 
     def testDecodePacketWithoutAttributes(self):
-        self.packet.DecodePacket('\x01\x02\x00\x141234567890123456')
+        self.packet.DecodePacket(six.b('\x01\x02\x00\x141234567890123456'))
         self.assertEqual(self.packet.code, 1)
         self.assertEqual(self.packet.id, 2)
         self.assertEqual(self.packet.authenticator, '1234567890123456')
@@ -248,35 +252,36 @@ class PacketTests(unittest.TestCase):
     def testDecodePacketWithBadAttribute(self):
         try:
             self.packet.DecodePacket(
-                    '\x01\x02\x00\x161234567890123456\x00\x01')
-        except packet.PacketError, e:
+                    six.b('\x01\x02\x00\x161234567890123456\x00\x01'))
+        except packet.PacketError as e:
             self.failUnless('too small' in str(e))
         else:
             self.fail()
 
     def testDecodePacketWithEmptyAttribute(self):
-        self.packet.DecodePacket('\x01\x02\x00\x161234567890123456\x00\x02')
+        self.packet.DecodePacket(
+                six.b('\x01\x02\x00\x161234567890123456\x00\x02'))
         self.assertEqual(self.packet[0], [''])
 
     def testDecodePacketWithAttribute(self):
         self.packet.DecodePacket(
-                '\x01\x02\x00\x1b1234567890123456\x00\x07value')
+            six.b('\x01\x02\x00\x1b1234567890123456\x00\x07value'))
         self.assertEqual(self.packet[0], ['value'])
 
     def testDecodePacketWithMultiValuedAttribute(self):
         self.packet.DecodePacket(
-                '\x01\x02\x00\x1e1234567890123456\x00\x05one\x00\x05two')
+            six.b('\x01\x02\x00\x1e1234567890123456\x00\x05one\x00\x05two'))
         self.assertEqual(self.packet[0], ['one', 'two'])
 
     def testDecodePacketWithTwoAttributes(self):
         self.packet.DecodePacket(
-                '\x01\x02\x00\x1e1234567890123456\x00\x05one\x01\x05two')
+            six.b('\x01\x02\x00\x1e1234567890123456\x00\x05one\x01\x05two'))
         self.assertEqual(self.packet[0], ['one'])
         self.assertEqual(self.packet[1], ['two'])
 
     def testDecodePacketWithVendorAttribute(self):
         self.packet.DecodePacket(
-                '\x01\x02\x00\x1b1234567890123456\x1a\x07value')
+                six.b('\x01\x02\x00\x1b1234567890123456\x1a\x07value'))
         self.assertEqual(self.packet[26], ['value'])
 
     def testEncodeKeyValues(self):

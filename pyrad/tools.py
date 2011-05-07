@@ -2,6 +2,7 @@
 #
 # Utility functions
 import struct
+import six
 
 
 def EncodeString(str):
@@ -11,14 +12,14 @@ def EncodeString(str):
 
 
 def EncodeAddress(addr):
-    if not isinstance(addr, basestring):
+    if not isinstance(addr, six.string_types):
         raise TypeError('Address has to be a string')
     (a, b, c, d) = map(int, addr.split('.'))
     return struct.pack('BBBB', a, b, c, d)
 
 
 def EncodeInteger(num):
-    if not isinstance(num, (int, long)):
+    if not isinstance(num, six.integer_types):
         raise TypeError('Can not encode non-integer as integer')
     return struct.pack('!I', num)
 

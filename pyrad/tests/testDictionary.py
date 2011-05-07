@@ -1,7 +1,7 @@
 import unittest
 import operator
 import os
-from StringIO import StringIO
+from six import StringIO
 from pyrad.tests import home
 from pyrad.dictionary import Attribute
 from pyrad.dictionary import Dictionary
@@ -100,7 +100,7 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(
                     StringIO('ATTRIBUTE Oops-Too-Few-Columns'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('attribute' in str(e), True)
         else:
             self.fail()
@@ -108,7 +108,7 @@ class DictionaryParsingTests(unittest.TestCase):
     def testAttributeUnknownTypeError(self):
         try:
             self.dict.ReadDictionary(StringIO('ATTRIBUTE Test-Type 1 dummy'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('dummy' in str(e), True)
         else:
             self.fail()
@@ -116,7 +116,7 @@ class DictionaryParsingTests(unittest.TestCase):
     def testAttributeUnknownVendorError(self):
         try:
             self.dict.ReadDictionary(StringIO('ATTRIBUTE Test-Type 1 Simplon'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('Simplon' in str(e), True)
         else:
             self.fail()
@@ -131,7 +131,7 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO(
                 'ATTRIBUTE Test-Type 1 string encrypt=4'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('encrypt' in str(e), True)
         else:
             self.fail()
@@ -139,7 +139,7 @@ class DictionaryParsingTests(unittest.TestCase):
     def testValueTooFewColumnsError(self):
         try:
             self.dict.ReadDictionary(StringIO('VALUE Oops-Too-Few-Columns'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('value' in str(e), True)
         else:
             self.fail()
@@ -148,7 +148,7 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO(
                 'VALUE Test-Attribute Test-Text 1'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('unknown attribute' in str(e), True)
         else:
             self.fail()
@@ -175,7 +175,7 @@ class DictionaryParsingTests(unittest.TestCase):
     def testVenderTooFewColumnsError(self):
         try:
             self.dict.ReadDictionary(StringIO('VENDOR Simplon'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('vendor' in str(e), True)
         else:
             self.fail()
@@ -194,7 +194,7 @@ class DictionaryParsingTests(unittest.TestCase):
                 StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
         try:
             self.dict.ReadDictionary(StringIO('VENDOR Simplon 42 badoption'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('option' in str(e), True)
         else:
             self.fail()
@@ -205,7 +205,7 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO(
                 'VENDOR Simplon 42 format=5,4'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('format' in str(e), True)
         else:
             self.fail()
@@ -216,7 +216,7 @@ class DictionaryParsingTests(unittest.TestCase):
         try:
             self.dict.ReadDictionary(StringIO(
                 'VENDOR Simplon 42 format=a,1'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('Syntax' in str(e), True)
         else:
             self.fail()
@@ -224,7 +224,7 @@ class DictionaryParsingTests(unittest.TestCase):
     def testBeginVendorTooFewColumns(self):
         try:
             self.dict.ReadDictionary(StringIO('BEGIN-VENDOR'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('begin-vendor' in str(e), True)
         else:
             self.fail()
@@ -232,7 +232,7 @@ class DictionaryParsingTests(unittest.TestCase):
     def testBeginVendorUnknownVendor(self):
         try:
             self.dict.ReadDictionary(StringIO('BEGIN-VENDOR Simplon'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('Simplon' in str(e), True)
         else:
             self.fail()
@@ -247,7 +247,7 @@ class DictionaryParsingTests(unittest.TestCase):
     def testEndVendorUnknownVendor(self):
         try:
             self.dict.ReadDictionary(StringIO('END-VENDOR'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('end-vendor' in str(e), True)
         else:
             self.fail()
@@ -258,7 +258,7 @@ class DictionaryParsingTests(unittest.TestCase):
                             'VENDOR Simplon 42\n'
                             'BEGIN-VENDOR Simplon\n'
                             'END-VENDOR Oops\n'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEqual('Oops' in str(e), True)
         else:
             self.fail()
@@ -279,7 +279,7 @@ class DictionaryParsingTests(unittest.TestCase):
                     'BEGIN-VENDOR Simplon\n'
                     'END-VENDOR Simplon\n'
                     'ATTRIBUTE Test-Type 1 integer'))
-        except IOError, e:
+        except IOError as e:
             self.assertEqual('this_file_does_not_exist' in str(e), True)
         else:
             self.fail()
@@ -296,7 +296,7 @@ class DictionaryParsingTests(unittest.TestCase):
         tmpdict = Dictionary()
         try:
             tmpdict.ReadDictionary(os.path.join(self.path, 'dictfiletest'))
-        except ParseError, e:
+        except ParseError as e:
             self.assertEquals('dictfiletest' in str(e), True)
         else:
             self.fail()

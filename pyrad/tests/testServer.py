@@ -146,7 +146,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
         self.packet.source = ('stranger', 'port')
         try:
             self.server._HandleAuthPacket(self.packet)
-        except ServerPacketError, e:
+        except ServerPacketError as e:
             self.failUnless('unknown host' in str(e))
         else:
             self.fail()
@@ -155,7 +155,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
         self.packet.code = AccountingRequest
         try:
             self.server._HandleAuthPacket(self.packet)
-        except ServerPacketError, e:
+        except ServerPacketError as e:
             self.failUnless('port' in str(e))
         else:
             self.fail()
@@ -185,7 +185,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
         self.packet.source = ('stranger', 'port')
         try:
             self.server._HandleAcctPacket(self.packet)
-        except ServerPacketError, e:
+        except ServerPacketError as e:
             self.failUnless('unknown host' in str(e))
         else:
             self.fail()
@@ -194,7 +194,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
         self.packet.code = AccessRequest
         try:
             self.server._HandleAcctPacket(self.packet)
-        except ServerPacketError, e:
+        except ServerPacketError as e:
             self.failUnless('port' in str(e))
         else:
             self.fail()

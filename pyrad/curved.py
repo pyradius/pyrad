@@ -38,7 +38,7 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
     def datagramReceived(self, datagram, (host, port)):
         try:
             pkt = self.CreatePacket(packet=datagram)
-        except packet.PacketError, err:
+        except packet.PacketError as err:
             log.msg('Dropping invalid packet: ' + str(err))
             return
 
@@ -49,7 +49,7 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
         pkt.source = (host, port)
         try:
             self.processPacket(pkt)
-        except PacketError, err:
+        except PacketError as err:
             log.msg('Dropping packet from %s: %s' % (host, str(err)))
 
 

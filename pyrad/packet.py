@@ -14,6 +14,7 @@ except ImportError:
     # BBB for python 2.4
     import md5
     md5_constructor = md5.new
+import six
 from pyrad import tools
 
 # Packet codes
@@ -157,7 +158,7 @@ class Packet(dict):
         self.setdefault(key, []).append(value)
 
     def __getitem__(self, key):
-        if not isinstance(key, basestring):
+        if not isinstance(key, six.string_types):
             return dict.__getitem__(self, key)
 
         values = dict.__getitem__(self, self._EncodeKey(key))
@@ -179,7 +180,7 @@ class Packet(dict):
         dict.__delitem__(self, self._EncodeKey(key))
 
     def __setitem__(self, key, item):
-        if isinstance(key, basestring):
+        if isinstance(key, six.string_types):
             (key, item) = self._EncodeKeyValues(key, [item])
             dict.__setitem__(self, key, item)
         else:

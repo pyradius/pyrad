@@ -49,7 +49,7 @@ class ProxyPacketHandlingTests(unittest.TestCase):
         self.packet.source = ('stranger', 'port')
         try:
             self.proxy._HandleProxyPacket(self.packet)
-        except ServerPacketError, e:
+        except ServerPacketError as e:
             self.failUnless('unknown host' in str(e))
         else:
             self.fail()
@@ -62,7 +62,7 @@ class ProxyPacketHandlingTests(unittest.TestCase):
         self.packet.code = AccessRequest
         try:
             self.proxy._HandleProxyPacket(self.packet)
-        except ServerPacketError, e:
+        except ServerPacketError as e:
             self.failUnless('non-response' in str(e))
         else:
             self.fail()

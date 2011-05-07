@@ -1,5 +1,12 @@
-Pyrad 1.3 (unreleased)
+Pyrad 2.0 (unreleased)
 ======================
+
+* Start moving codebase to PEP8 compatible coding style.
+
+* Several code cleanups. As a side effect Python versions before 2.6
+  are unfortunatley no longer supported. If you use Python 2.5 or older
+  Pyrad 1.2 will still work for you.
+
 
 Pyrad 1.2
 =========

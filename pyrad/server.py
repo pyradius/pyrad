@@ -240,9 +240,9 @@ class Server(host.Host):
                     try:
                         fdo = self._fdmap[fd]
                         self._ProcessInput(fdo)
-                    except ServerPacketError, err:
+                    except ServerPacketError as err:
                         logger.info('Dropping packet: ' + str(err))
-                    except packet.PacketError, err:
+                    except packet.PacketError as err:
                         logger.info('Received a broken packet: ' + str(err))
                 else:
                     logger.error('Unexpected event in server main loop')
