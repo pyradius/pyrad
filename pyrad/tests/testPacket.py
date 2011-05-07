@@ -122,7 +122,7 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet.keys(), ['Test-String'])
         self.packet['Test-Integer'] = 10
         self.assertEqual(self.packet.keys(), ['Test-String', 'Test-Integer'])
-        self.packet.data[12345] = None
+        dict.__setitem__(self.packet, 12345, None)
         self.assertEqual(self.packet.keys(),
                         ['Test-String', 'Test-Integer', 12345])
 
@@ -287,9 +287,9 @@ class PacketTests(unittest.TestCase):
 
     def testAddAttribute(self):
         self.packet.AddAttribute(1, 1)
-        self.assertEqual(self.packet.data[1], [1])
+        self.assertEqual(dict.__getitem__(self.packet, 1), [1])
         self.packet.AddAttribute(1, 1)
-        self.assertEqual(self.packet.data[1], [1, 1])
+        self.assertEqual(dict.__getitem__(self.packet, 1), [1, 1])
 
 
 class AuthPacketConstructionTests(PacketConstructionTests):

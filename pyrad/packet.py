@@ -6,9 +6,7 @@
 
 
 import struct
-import types
 import random
-import UserDict
 try:
     import hashlib
     md5_constructor = hashlib.md5
@@ -42,7 +40,7 @@ class PacketError(Exception):
     pass
 
 
-class Packet(UserDict.UserDict):
+class Packet(dict):
     """Packet acts like a standard python map to provide simple access
     to the RADIUS attributes. Since RADIUS allows for repeated
     attributes the value will always be a sequence. pyrad makes sure
@@ -73,7 +71,7 @@ class Packet(UserDict.UserDict):
         :param packet: raw packet to decode
         :type packet:  string
         """
-        UserDict.UserDict.__init__(self)
+        dict.__init__(self)
         self.code = code
         if id is not None:
             self.id = id
@@ -156,16 +154,13 @@ class Packet(UserDict.UserDict):
         (key, value) = self._EncodeKeyValues(key, [value])
         value = value[0]
 
-        if key in self.data:
-            self.data[key].append(value)
-        else:
-            self.data[key] = [value]
+        self.setdefault(key, []).append(value)
 
     def __getitem__(self, key):
-        if type(key) != types.StringType:
-            return self.data[key]
+        if not isinstance(key, basestring):
+            return dict.__getitem__(self, key)
 
-        values = self.data[self._EncodeKey(key)]
+        values = dict.__getitem__(self, self._EncodeKey(key))
         attr = self.dict.attributes[key]
         res = []
         for v in values:
@@ -174,25 +169,25 @@ class Packet(UserDict.UserDict):
 
     def __contains__(self, key):
         try:
-            return self._EncodeKey(key) in self.data
+            return dict.__contains__(self, self._EncodeKey(key))
         except KeyError:
             return False
 
     has_key = __contains__
 
     def __delitem__(self, key):
-        del self.data[self._EncodeKey(key)]
+        dict.__delitem__(self, self._EncodeKey(key))
 
     def __setitem__(self, key, item):
-        if type(key) == types.StringType:
+        if isinstance(key, basestring):
             (key, item) = self._EncodeKeyValues(key, [item])
-            self.data[key] = item
+            dict.__setitem__(self, key, item)
         else:
             assert isinstance(item, list)
-            self.data[key] = item
+            dict.__setitem__(self, key, item)
 
     def keys(self):
-        return [self._DecodeKey(key) for key in self.data.keys()]
+        return [self._DecodeKey(key) for key in dict.keys(self)]
 
     def CreateAuthenticator():
         """Create a packet autenticator. All RADIUS packets contain a sixteen
@@ -256,7 +251,7 @@ class Packet(UserDict.UserDict):
         return True
 
     def _PktEncodeAttribute(self, key, value):
-        if type(key) == types.TupleType:
+        if isinstance(key, tuple):
             value = struct.pack('!L', key[0]) + \
                 self._PktEncodeAttribute(key[1], value)
             key = 26
@@ -318,11 +313,7 @@ class Packet(UserDict.UserDict):
             if key == 26:
                 (key, value) = self._PktDecodeVendorAttribute(value)
 
-            if key in self.data:
-                self.data[key].append(value)
-            else:
-                self.data[key] = [value]
-
+            self.setdefault(key, []).append(value)
             packet = packet[attrlen:]
 
 
