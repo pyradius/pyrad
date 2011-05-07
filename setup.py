@@ -2,15 +2,8 @@
 
 from setuptools import setup, find_packages
 
+
 version = "1.3"
-
-
-def read(fn):
-    try:
-        return open(fn, encoding='utf-8').read()
-    except TypeError:
-        # BBB for python <3.0
-        return open(fn).read()
 
 
 setup(name="pyrad",
@@ -20,7 +13,7 @@ setup(name="pyrad",
       url="http://www.wiggy.net/code/pyrad/",
       license="BSD",
       description="RADIUS tools",
-      long_description=read("README.txt") + "\n" + read("CHANGES.txt"),
+      long_description=open("README.txt").read(),
       classifiers=[
        "Intended Audience :: Developers",
        "License :: OSI Approved :: BSD License",
