@@ -90,3 +90,7 @@ class OtherTests(unittest.TestCase):
         self.proxy._ProcessInput(self.proxy._proxyfd)
         self.assertEqual([x[0] for x in self.proxy.called],
                 ['_GrabPacket', '_HandleProxyPacket'])
+
+
+if not hasattr(select, 'poll'):
+    del SocketTests

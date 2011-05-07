@@ -302,3 +302,7 @@ class ServerRunTests(unittest.TestCase):
         MockPoll.results = [(0, select.POLLIN)]
         self.assertRaises(MockFinished, self.server.Run)
         self.assertEqual(self.server.called, [('_ProcessInput', (fd[0],), {})])
+
+if not hasattr(select, 'poll'):
+    del SocketTests
+    del ServerRunTests
