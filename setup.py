@@ -13,7 +13,7 @@ setup(name="pyrad",
       url="http://www.wiggy.net/code/pyrad/",
       license="BSD",
       description="RADIUS tools",
-      long_description=open("README.txt").read(),
+      long_description=open("README.rst").read(),
       classifiers=[
        "Intended Audience :: Developers",
        "License :: OSI Approved :: BSD License",

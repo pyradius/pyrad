@@ -8,7 +8,6 @@
 :Version: |version|
 
 .. module:: pyrad
-  :synopsis: Euphorie content types
 
 Introduction
 ============
@@ -44,7 +43,7 @@ Here is an example of doing a authentication request::
 Requirements & Installation
 ===========================
 
-pyrad requires Python 2.4 or later.
+pyrad requires Python 2.6 or later, or Python 3.2 or later
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::
