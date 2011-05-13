@@ -92,11 +92,9 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet[(16, 1)], [six.b('\x00\x00\x00\x04')])
 
     def testRawAttributeAccess(self):
-        marker = ['']
+        marker = [six.b('')]
         self.packet[1] = marker
         self.failUnless(self.packet[1] is marker)
-        self.assertEqual(self.packet['Test-String'], marker)
-
         self.packet[(16, 1)] = marker
         self.failUnless(self.packet[(16, 1)] is marker)
 
