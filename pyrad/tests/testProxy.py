@@ -31,7 +31,7 @@ class SocketTests(unittest.TestCase):
         self.proxy._poll = MockPoll()
         self.proxy._PrepareSockets()
         self.failUnless(isinstance(self.proxy._proxyfd, MockSocket))
-        self.assertEqual(self.proxy._fdmap.keys(), [1])
+        self.assertEqual(list(self.proxy._fdmap.keys()), [1])
         self.assertEqual(self.proxy._poll.registry,
                 [(1, select.POLLIN | select.POLLPRI | select.POLLERR)])
 

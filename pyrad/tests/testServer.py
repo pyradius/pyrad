@@ -116,7 +116,7 @@ class SocketTests(unittest.TestCase):
         self.server.authfds = [MockFd(12), MockFd(14)]
         self.server._PrepareSockets()
 
-        self.assertEqual(self.server._fdmap.keys(), [12, 14])
+        self.assertEqual(list(self.server._fdmap.keys()), [12, 14])
         self.assertEqual(self.server._poll.registry,
                 [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
                  (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
@@ -127,7 +127,7 @@ class SocketTests(unittest.TestCase):
         self.server.acctfds = [MockFd(12), MockFd(14)]
         self.server._PrepareSockets()
 
-        self.assertEqual(self.server._fdmap.keys(), [12, 14])
+        self.assertEqual(list(self.server._fdmap.keys()), [12, 14])
         self.assertEqual(self.server._poll.registry,
                 [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
                  (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
