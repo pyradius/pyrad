@@ -32,7 +32,7 @@ Here is an example of doing a authentication request::
 Requirements & Installation
 ===========================
 
-pyrad requires Python 2.4 or later.
+pyrad requires Python 2.6 or later, or Python 3.2 or later
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::
@@ -48,9 +48,8 @@ under a BSD license.
 
 Copyright and license information can be found in the LICENSE.txt file.
 
-The current version and documentation can be found at its homepage:
-http://www.simplon.biz/software/pyrad
+The current version and documentation can be found on pypi:
+http://pypi.python.org/pypi/pyrad
 
-Bugs and wishes can be submitted in the pyrad issue tracker:
-https://code.wiggy.net/tracker/pyrad/
-
+Bugs and wishes can be submitted in the pyrad issue tracker on github:
+https://github.com/wichert/pyrad/issues
