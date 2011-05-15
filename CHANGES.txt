@@ -1,5 +1,8 @@
-Pyrad 2.0 (unreleased)
-======================
+Changelog
+=========
+
+2.0 - May 15, 2011
+------------------
 
 * Start moving codebase to PEP8 compatible coding style.
 
@@ -10,8 +13,8 @@ Pyrad 2.0 (unreleased)
   Pyrad 1.2 will still work for you.
 
 
-Pyrad 1.2
-=========
+1.2 - July 12, 2009
+-------------------
 
 * Setup sphinx based documentation.
 
@@ -31,8 +34,8 @@ Pyrad 1.2
   the wrong type is passed in.
 
 
-Pyrad 1.1
-=========
+1.1 - September 30, 2007
+------------------------
 
 * Add the 'octets' datatype from FreeRADIUS. This is treated just like string;
   the only difference is how FreeRADIUS prints it.
@@ -47,8 +50,8 @@ Pyrad 1.1
   Alexey V Michurun <am@rol.ru>.
 
 
-Pyrad 1.0
-=========
+1.0 - September 16, 2007
+------------------------
 
 * Add unit tests. Pyrad now has 100% test coverage!
 
@@ -76,8 +79,8 @@ Pyrad 1.0
   restarts.
 
 
-Version 0.9
-===========
+0.9 - April 25, 2007
+------------------------
 
 * Start using trac to manage the project: http://code.wiggy.net/tracker/pyrad/
 
@@ -94,8 +97,8 @@ Version 0.9
 * [bug 8] Packet.CreateAuthenticator is now a static method.
 
 
-Version 0.8
-===========
+0.8
+---
 
 * Fix time-handling in the client packet sending code: it would loop
   forever since the now time was updated at the wrong moment. Fix from
@@ -104,8 +107,8 @@ Version 0.8
 * Fix passing of dict parameter when creating reply packets
 	  
 	
-Version 0.7
-===========
+0.7
+---
 
 * add HandleAuthPacket and HandleAcctPacket hooks to Server class.
   Request from Thomas Boettcher.
@@ -117,8 +120,8 @@ Version 0.7
   Server.CreateReplyPacket. Requested by Thomas Boettcher.
 
 
-Version 0.6
-===========
+0.6
+---
 
 * packet.VerifyReply() had a syntax error when not called with a raw packet.
 
@@ -137,8 +140,8 @@ Version 0.6
 * protect against packets with bogus lengths (from Farshad Khoshkhui).
 
 
-Version 0.5
-===========
+0.5
+---
 
 * Fix typo in server class which broke handling of accounting packets.
 
@@ -159,8 +162,8 @@ Version 0.5
 * Add example for sending account packets.
 
 
-Version 0.4
-===========
+0.4
+---
 
 * Fix last case of bogus exception usage.
 
@@ -172,8 +175,8 @@ Version 0.4
 * Add basic RADIUS server and proxy implementation.
 
 
-Version 0.3
-===========
+0.3
+---
 
 * client.Timeout is now derived from Exception.
 
@@ -182,8 +185,8 @@ Version 0.3
 * Include example dictionaries and authentication script.
 
 
-Version 0.2
-===========
+0.2
+---
 
 * Use proper exceptions.
 
@@ -199,7 +202,7 @@ Version 0.2
 * No longer use obsolete python interfaces like whrandom.
 
 
-Version 0.1
-===========
+0.1
+---
 
 * First release

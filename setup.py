@@ -3,31 +3,32 @@
 from setuptools import setup, find_packages
 
 
-version = "2.0dev"
+version = '2.0dev'
 
 
-setup(name="pyrad",
+setup(name='pyrad',
       version=version,
-      author="Wichert Akkerman",
-      author_email="wichert@wiggy.net",
-      url="http://www.wiggy.net/code/pyrad/",
-      license="BSD",
-      description="RADIUS tools",
-      long_description=open("README.rst").read(),
+      author='Wichert Akkerman',
+      author_email='wichert@wiggy.net',
+      url='http://www.wiggy.net/code/pyrad/',
+      license='BSD',
+      description='RADIUS tools',
+      long_description=open('README.rst').read(),
       classifiers=[
-       "Intended Audience :: Developers",
-       "License :: OSI Approved :: BSD License",
-       "Programming Language :: Python :: 2.6",
-       "Programming Language :: Python :: 2.7",
-       "Programming Language :: Python :: 3.2",
-       "Topic :: Software Development :: Libraries :: Python Modules",
-       "Topic :: System :: Systems Administration :: Authentication/Directory",
+       'Development Status :: 6 - Mature',
+       'Intended Audience :: Developers',
+       'License :: OSI Approved :: BSD License',
+       'Programming Language :: Python :: 2.6',
+       'Programming Language :: Python :: 2.7',
+       'Programming Language :: Python :: 3.2',
+       'Topic :: Software Development :: Libraries :: Python Modules',
+       'Topic :: System :: Systems Administration :: Authentication/Directory',
        ],
       packages=find_packages(exclude=['tests']),
-      keywords=["radius", "authentication"],
+      keywords=['radius', 'authentication'],
       zip_safe=True,
       include_package_data=True,
       install_requires=['six'],
-      tests_require="nose>=0.10.0b1",
-      test_suite="nose.collector",
+      tests_require='nose>=0.10.0b1',
+      test_suite='nose.collector',
       )
