@@ -3,14 +3,14 @@
 from setuptools import setup, find_packages
 
 
-version = '2.0dev'
+version = '2.0'
 
 
 setup(name='pyrad',
       version=version,
       author='Wichert Akkerman',
       author_email='wichert@wiggy.net',
-      url='http://www.wiggy.net/code/pyrad/',
+      url='https://github.com/wichert/pyrad',
       license='BSD',
       description='RADIUS tools',
       long_description=open('README.rst').read(),
