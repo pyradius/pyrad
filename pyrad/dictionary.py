@@ -268,7 +268,8 @@ class Dictionary(object):
                         file=state['file'],
                         line=state['line'])
             except ValueError:
-                raise ParseError(
+                if fmt[1] != '1,1,c':
+                    raise ParseError(
                         'Syntax error in vendor specification',
                         file=state['file'],
                         line=state['line'])
