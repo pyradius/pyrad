@@ -36,6 +36,7 @@ type      description
 =======   ======================
 string    ASCII string
 ipaddr    IPv4 address
+signed    32 bits signed number
 integer   32 bits unsigned number
 short     16 bits unsigned number
 byte      8 bits unsigned number
@@ -71,7 +72,7 @@ from pyrad import tools
 from pyrad import dictfile
 from copy import copy
 
-DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date',
+DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'signed', 'date',
                        'octets', 'abinary', 'tlv', 'ipv6addr',
                        'ipv6prefix', 'ifid', 'ether', 'short', 'byte'])
 
@@ -238,7 +239,7 @@ class Dictionary(object):
                              file=state['file'],
                              line=state['line'])
 
-        if adef.type in ['integer','short','byte']:
+        if adef.type in ['integer','signed','short','byte']:
             value = int(value, 0)
         value = tools.EncodeAttr(adef.type, value)
         self.attributes[attr].values.Add(key, value)

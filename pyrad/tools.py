@@ -68,6 +68,8 @@ def EncodeAttr(datatype, value):
         return EncodeAddress(value)
     elif datatype == 'integer':
         return EncodeInteger(value)
+    elif datatype == 'signed':
+        return EncodeInteger(value, '!i')
     elif datatype == 'short':
         return EncodeInteger(value, '!H')
     elif datatype == 'byte':
@@ -87,6 +89,8 @@ def DecodeAttr(datatype, value):
         return DecodeAddress(value)
     elif datatype == 'integer':
         return DecodeInteger(value)
+    elif datatype == 'signed':
+        return DecodeInteger(value, '!i')
     elif datatype == 'short':
         return DecodeInteger(value, '!H')
     elif datatype == 'byte':
