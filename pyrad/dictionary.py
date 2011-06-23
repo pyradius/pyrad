@@ -73,7 +73,7 @@ from pyrad import dictfile
 from copy import copy
 
 DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'signed', 'date',
-                       'octets', 'abinary', 'tlv', 'ipv6addr',
+                       'octets', 'abinary', 'tlv', 'ipv6addr', 'combo-ip',
                        'ipv6prefix', 'ifid', 'ether', 'short', 'byte'])
 
 
