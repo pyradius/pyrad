@@ -36,7 +36,9 @@ type      description
 =======   ======================
 string    ASCII string
 ipaddr    IPv4 address
-integer   32 bits signed number
+integer   32 bits unsigned number
+short     16 bits unsigned number
+byte      8 bits unsigned number
 date      32 bits UNIX timestamp
 octets    arbitrary binary data
 =======   ======================
@@ -69,7 +71,7 @@ from copy import copy
 
 DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date',
                        'octets', 'abinary', 'ipv6addr',
-                       'ipv6prefix', 'ifid', 'ether'])
+                       'ipv6prefix', 'ifid', 'ether', 'short', 'byte'])
 
 
 class ParseError(Exception):
@@ -230,7 +232,7 @@ class Dictionary(object):
                              file=state['file'],
                              line=state['line'])
 
-        if adef.type == 'integer':
+        if adef.type in ['integer','short','byte']:
             value = int(value, 0)
         value = tools.EncodeAttr(adef.type, value)
         self.attributes[attr].values.Add(key, value)
