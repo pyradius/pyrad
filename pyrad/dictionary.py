@@ -50,6 +50,8 @@ These datatypes are parsed but not supported:
 +============+==============================================+
 | abinary    | ASCII encoded binary data                    |
 +------------+----------------------------------------------+
+| tlv        | Nested tag-length-value                      |
++------------+----------------------------------------------+
 | ifid       | 8 octets in network byte order               |
 +------------+----------------------------------------------+
 | ipv6addr   | 16 octets in network byte order              |
@@ -70,7 +72,7 @@ from pyrad import dictfile
 from copy import copy
 
 DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date',
-                       'octets', 'abinary', 'ipv6addr',
+                       'octets', 'abinary', 'tlv', 'ipv6addr',
                        'ipv6prefix', 'ifid', 'ether', 'short', 'byte'])
 
 
