@@ -18,3 +18,10 @@ Add Change of Authorization packet type.
 
 - use UDP port 3799 as default destination port
 - CoA packets have same format as Access packets
+
+
+Dictionary handing
+==================
+
+- Add support for has_tag and encrypt attributes
+- Add short data type
