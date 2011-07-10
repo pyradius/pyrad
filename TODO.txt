@@ -1,0 +1,20 @@
+RFC2868
+=======
+github ticket #5
+
+Two parts:
+
+1. a new tag octet following the packet length which is used to group
+   attributes
+2. a new password obfuscation algorithm
+
+
+RFC5176
+=======
+github ticket #2
+github ticket #3
+
+Add Change of Authorization packet type.
+
+- use UDP port 3799 as default destination port
+- CoA packets have same format as Access packets
