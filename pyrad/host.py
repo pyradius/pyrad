@@ -15,19 +15,22 @@ class Host:
     :ivar acctport: port to listen on for accounting packets
     :type acctport: integer
     """
-    def __init__(self, authport=1812, acctport=1813, dict=None):
+    def __init__(self, authport=1812, acctport=1813, discport=1700, dict=None):
         """Constructor
 
         :param authport: port to listen on for authentication packets
         :type  authport: integer
         :param acctport: port to listen on for accounting packets
         :type  acctport: integer
+        :param discport: port to listen on for accounting packets
+        :type  discport: integer
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
         """
         self.dict = dict
         self.authport = authport
         self.acctport = acctport
+        self.discport = discport
 
     def CreatePacket(self, **args):
         """Create a new RADIUS packet.
