@@ -65,6 +65,18 @@ class Host:
         """
         return packet.AcctPacket(dict=self.dict, **args)
 
+    def CreateAcctPacket(self, **args):
+        """Create a new accounting RADIUS packet.
+        This utility function creates a new accouting RADIUS packet
+        which can be used to communicate with the RADIUS server this
+        client talks to. This is initializing the new packet with the
+        dictionary and secret used for the client.
+
+        :return: a new empty packet instance
+        :rtype:  pyrad.packet.AcctPacket
+        """
+        return packet.DiscPacket(dict=self.dict, **args)
+
     def SendPacket(self, fd, pkt):
         """Send a packet.
 
