@@ -65,7 +65,7 @@ class Host:
         """
         return packet.AcctPacket(dict=self.dict, **args)
 
-    def CreateAcctPacket(self, **args):
+    def CreateDiscPacket(self, **args):
         """Create a new accounting RADIUS packet.
         This utility function creates a new accouting RADIUS packet
         which can be used to communicate with the RADIUS server this
