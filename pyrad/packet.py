@@ -512,8 +512,8 @@ class AcctPacket(Packet):
         return header + self.authenticator + attr
 
 class DiscPacket(Packet):
-    """RADIUS accounting packets. This class is a specialization
-    of the generic :obj:`Packet` class for accounting packets.
+    """RADIUS disconnect packets. This class is a specialization
+    of the generic :obj:`Packet` class for disconnect packets.
     """
 
     def __init__(self, code=DisconnectRequest, id=None, secret=six.b(''),
@@ -536,16 +536,14 @@ class DiscPacket(Packet):
             self.raw_packet = attributes['packet']
 
     def CreateReply(self, **attributes):
-        """Create a new packet as a reply to this one. This method
-        makes sure the authenticator and secret are copied over
-        to the new instance.
+        """Create a new packet as a reply to this one.
         """
         return DiscPacket(DisconnectACK , self.id,
             self.secret, self.authenticator, dict=self.dict,
             **attributes)
 
     def VerifyDiscRequest(self):
-        """Verify request authenticator.
+        """Verify disconnect request
 
         :return: True if verification failed else False
         :rtype: boolean

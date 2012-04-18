@@ -69,8 +69,8 @@ class Host:
         return packet.AcctPacket(dict=self.dict, **args)
 
     def CreateDiscPacket(self, **args):
-        """Create a new accounting RADIUS packet.
-        This utility function creates a new accouting RADIUS packet
+        """Create a new disconnect RADIUS packet.
+        This utility function creates a new disconnect RADIUS packet
         which can be used to communicate with the RADIUS server this
         client talks to. This is initializing the new packet with the
         dictionary and secret used for the client.
