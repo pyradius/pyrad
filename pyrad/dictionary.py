@@ -36,7 +36,10 @@ type      description
 =======   ======================
 string    ASCII string
 ipaddr    IPv4 address
-integer   32 bits signed number
+signed    32 bits signed number
+integer   32 bits unsigned number
+short     16 bits unsigned number
+byte      8 bits unsigned number
 date      32 bits UNIX timestamp
 octets    arbitrary binary data
 =======   ======================
@@ -47,6 +50,8 @@ These datatypes are parsed but not supported:
 | type       | description                                  |
 +============+==============================================+
 | abinary    | ASCII encoded binary data                    |
++------------+----------------------------------------------+
+| tlv        | Nested tag-length-value                      |
 +------------+----------------------------------------------+
 | ifid       | 8 octets in network byte order               |
 +------------+----------------------------------------------+
@@ -67,9 +72,9 @@ from pyrad import tools
 from pyrad import dictfile
 from copy import copy
 
-DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date',
-                       'octets', 'abinary', 'ipv6addr',
-                       'ipv6prefix', 'ifid', 'ether'])
+DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'signed', 'date',
+                       'octets', 'abinary', 'tlv', 'ipv6addr', 'combo-ip',
+                       'ipv6prefix', 'ifid', 'ether', 'short', 'byte'])
 
 
 class ParseError(Exception):
@@ -103,7 +108,7 @@ class ParseError(Exception):
 
 class Attribute:
     def __init__(self, name, code, datatype, vendor='', values={},
-            encrypt=0, has_tag=False):
+            encrypt=0, has_tag=False, has_array=False):
         if datatype not in DATATYPES:
             raise ValueError('Invalid data type')
         self.name = name
@@ -112,6 +117,7 @@ class Attribute:
         self.vendor = vendor
         self.encrypt = encrypt
         self.has_tag = has_tag
+        self.has_array = has_array
         self.values = bidict.BiDict()
         for (key, value) in values.items():
             self.values.Add(key, value)
@@ -169,6 +175,7 @@ class Dictionary(object):
 
         vendor = state['vendor']
         has_tag = False
+        has_array = False
         encrypt = 0
         if len(tokens) >= 5:
             def keyval(o):
@@ -181,6 +188,8 @@ class Dictionary(object):
             for (key, val) in options:
                 if key == 'has_tag':
                     has_tag = True
+                elif key == 'array':
+                    has_array = True
                 elif key == 'encrypt':
                     if val not in ['1', '2', '3']:
                         raise ParseError(
@@ -189,7 +198,7 @@ class Dictionary(object):
                                 line=state['line'])
                     encrypt = int(val)
 
-            if (not has_tag) and encrypt == 0:
+            if (not has_tag) and (not has_array) and encrypt == 0:
                 vendor = tokens[4]
                 if not self.vendors.HasForward(vendor):
                     raise ParseError('Unknown vendor ' + vendor,
@@ -210,7 +219,7 @@ class Dictionary(object):
 
         self.attrindex.Add(attribute, key)
         self.attributes[attribute] = Attribute(attribute, code, datatype,
-                vendor, encrypt=encrypt, has_tag=has_tag)
+                vendor, encrypt=encrypt, has_tag=has_tag, has_array=has_array)
 
     def __ParseValue(self, state, tokens, defer):
         if len(tokens) != 4:
@@ -230,7 +239,7 @@ class Dictionary(object):
                              file=state['file'],
                              line=state['line'])
 
-        if adef.type == 'integer':
+        if adef.type in ['integer','signed','short','byte']:
             value = int(value, 0)
         value = tools.EncodeAttr(adef.type, value)
         self.attributes[attr].values.Add(key, value)
@@ -259,7 +268,8 @@ class Dictionary(object):
                         file=state['file'],
                         line=state['line'])
             except ValueError:
-                raise ParseError(
+                if fmt[1] != '1,1,c':
+                    raise ParseError(
                         'Syntax error in vendor specification',
                         file=state['file'],
                         line=state['line'])
