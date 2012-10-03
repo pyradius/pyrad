@@ -157,10 +157,12 @@ class Packet(dict):
         :param value: value
         :type value:  depends on type of attribute
         """
-        (key, value) = self._EncodeKeyValues(key, [value])
-        value = value[0]
-
-        self.setdefault(key, []).append(value)
+        if isinstance(value, list):
+            values = value
+        else:
+            values = [value]
+        (key, values) = self._EncodeKeyValues(key, values)
+        self.setdefault(key, []).extend(values)
 
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
