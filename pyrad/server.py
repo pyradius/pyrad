@@ -16,7 +16,7 @@ class RemoteHost:
     """Remote RADIUS capable host we can talk to.
     """
 
-    def __init__(self, address, secret, name, authport=1812, acctport=1813):
+    def __init__(self, address, secret, name, authport=1812, acctport=1813, coaport=3799):
         """Constructor.
 
         :param   address: IP address
@@ -29,11 +29,14 @@ class RemoteHost:
         :type   authport: integer
         :param  acctport: port used for accounting packets
         :type   acctport: integer
+        :param  coaport: port used for CoA packets
+        :type   acctport: integer
         """
         self.address = address
         self.secret = secret
         self.authport = authport
         self.acctport = acctport
+        self.coaport = coaport
         self.name = name
 
 
@@ -63,8 +66,8 @@ class Server(host.Host):
 
     MaxPacketSize = 8192
 
-    def __init__(self, addresses=[], authport=1812, acctport=1813, hosts=None,
-            dict=None):
+    def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=3799,
+                hosts=None, dict=None):
         """Constructor.
 
         :param addresses: IP addresses to listen on
@@ -73,12 +76,14 @@ class Server(host.Host):
         :type   authport: integer
         :param  acctport: port to listen on for accounting packets
         :type   acctport: integer
+        :param  coaport: port to listen on for CoA packets
+        :type   coaport: integer
         :param     hosts: hosts who we can talk to
         :type      hosts: dictionary mapping IP to RemoteHost class instances
         :param      dict: RADIUS dictionary to use
         :type       dict: Dictionary class instance
         """
-        host.Host.__init__(self, authport, acctport, dict)
+        host.Host.__init__(self, authport, acctport, coaport, dict)
         if hosts is None:
             self.hosts = {}
         else:
