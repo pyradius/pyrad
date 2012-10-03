@@ -21,22 +21,23 @@ class TrivialObject:
 
 class RemoteHostTests(unittest.TestCase):
     def testSimpleConstruction(self):
-        host = RemoteHost('address', 'secret', 'name', 'authport', 'acctport')
+        host = RemoteHost('address', 'secret', 'name', 'authport', 'acctport', 'coaport')
         self.assertEqual(host.address, 'address')
         self.assertEqual(host.secret, 'secret')
         self.assertEqual(host.name, 'name')
         self.assertEqual(host.authport, 'authport')
         self.assertEqual(host.acctport, 'acctport')
+        self.assertEqual(host.coaport, 'coaport')
 
     def testNamedConstruction(self):
         host = RemoteHost(address='address', secret='secret', name='name',
-               authport='authport', acctport='acctport')
+               authport='authport', acctport='acctport', coaport='coaport')
         self.assertEqual(host.address, 'address')
         self.assertEqual(host.secret, 'secret')
         self.assertEqual(host.name, 'name')
         self.assertEqual(host.authport, 'authport')
         self.assertEqual(host.acctport, 'acctport')
-
+        self.assertEqual(host.coaport, 'coaport')
 
 class ServerConstructiontests(unittest.TestCase):
     def testSimpleConstruction(self):
@@ -45,14 +46,16 @@ class ServerConstructiontests(unittest.TestCase):
         self.assertEqual(server.acctfds, [])
         self.assertEqual(server.authport, 1812)
         self.assertEqual(server.acctport, 1813)
+        self.assertEqual(server.coaport, 3799)
         self.assertEqual(server.hosts, {})
 
     def testParameterOrder(self):
-        server = Server([], 'authport', 'acctport', 'hosts', 'dict')
+        server = Server([], 'authport', 'acctport', 'coaport','hosts', 'dict')
         self.assertEqual(server.authfds, [])
         self.assertEqual(server.acctfds, [])
         self.assertEqual(server.authport, 'authport')
         self.assertEqual(server.acctport, 'acctport')
+        self.assertEqual(server.coaport, 'coaport')
         self.assertEqual(server.dict, 'dict')
 
     def testBindDuringConstruction(self):
