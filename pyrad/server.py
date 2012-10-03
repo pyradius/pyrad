@@ -28,8 +28,8 @@ class RemoteHost:
         :type   authport: integer
         :param  acctport: port used for accounting packets
         :type   acctport: integer
-        :param  coaport: port used for CoA packets
-        :type   acctport: integer
+        :param   coaport: port used for CoA packets
+        :type    coaport: integer
         """
         self.address = address
         self.secret = secret
@@ -75,8 +75,8 @@ class Server(host.Host):
         :type   authport: integer
         :param  acctport: port to listen on for accounting packets
         :type   acctport: integer
-        :param  coaport: port to listen on for CoA packets
-        :type   coaport: integer
+        :param   coaport: port to listen on for CoA packets
+        :type    coaport: integer
         :param     hosts: hosts who we can talk to
         :type      hosts: dictionary mapping IP to RemoteHost class instances
         :param      dict: RADIUS dictionary to use
