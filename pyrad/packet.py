@@ -33,8 +33,11 @@ CoARequest = 43
 CoAACK = 44
 CoANAK = 45
 
+# Use cryptographic-safe random generator as provided by the OS.
+random_generator = random.SystemRandom()
+
 # Current ID
-CurrentID = random.randrange(1, 255)
+CurrentID = random_generator.randrange(1, 255)
 
 
 class PacketError(Exception):
@@ -208,7 +211,7 @@ class Packet(dict):
 
         data = []
         for i in range(16):
-            data.append(random.randrange(0, 256))
+            data.append(random_generator.randrange(0, 256))
         if six.PY3:
             return bytes(data)
         else:
@@ -223,7 +226,7 @@ class Packet(dict):
         :rtype:  integer
 
         """
-        return random.randrange(0, 256)
+        return random_generator.randrange(0, 256)
 
     def ReplyPacket(self):
         """Create a ready-to-transmit authentication reply packet.
