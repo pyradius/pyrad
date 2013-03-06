@@ -238,7 +238,7 @@ class Packet(dict):
         :rtype:  string
         """
         assert(self.authenticator)
-        assert(self.secret)
+        assert(self.secret is not None)
 
         attr = self._PktEncodeAttributes()
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
