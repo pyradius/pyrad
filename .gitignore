@@ -1,0 +1,4 @@
+build/
+dist/
+docs/.build/
+pyrad.egg-info/
