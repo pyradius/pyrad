@@ -16,6 +16,7 @@ except ImportError:
     md5_constructor = md5.new
 import six
 from pyrad import tools
+import collections
 
 # Packet codes
 AccessRequest = 1
@@ -44,7 +45,7 @@ class PacketError(Exception):
     pass
 
 
-class Packet(dict):
+class Packet(collections.OrderedDict):
     """Packet acts like a standard python map to provide simple access
     to the RADIUS attributes. Since RADIUS allows for repeated
     attributes the value will always be a sequence. pyrad makes sure
@@ -75,7 +76,7 @@ class Packet(dict):
         :param packet: raw packet to decode
         :type packet:  string
         """
-        dict.__init__(self)
+        collections.OrderedDict.__init__(self)
         self.code = code
         if id is not None:
             self.id = id
@@ -167,9 +168,9 @@ class Packet(dict):
 
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
-            return dict.__getitem__(self, key)
+            return collections.OrderedDict.__getitem__(self, key)
 
-        values = dict.__getitem__(self, self._EncodeKey(key))
+        values = collections.OrderedDict.__getitem__(self, self._EncodeKey(key))
         attr = self.dict.attributes[key]
         res = []
         for v in values:
@@ -178,25 +179,25 @@ class Packet(dict):
 
     def __contains__(self, key):
         try:
-            return dict.__contains__(self, self._EncodeKey(key))
+            return collections.OrderedDict.__contains__(self, self._EncodeKey(key))
         except KeyError:
             return False
 
     has_key = __contains__
 
     def __delitem__(self, key):
-        dict.__delitem__(self, self._EncodeKey(key))
+        collections.OrderedDict.__delitem__(self, self._EncodeKey(key))
 
     def __setitem__(self, key, item):
         if isinstance(key, six.string_types):
             (key, item) = self._EncodeKeyValues(key, [item])
-            dict.__setitem__(self, key, item)
+            collections.OrderedDict.__setitem__(self, key, item)
         else:
             assert isinstance(item, list)
-            dict.__setitem__(self, key, item)
+            collections.OrderedDict.__setitem__(self, key, item)
 
     def keys(self):
-        return [self._DecodeKey(key) for key in dict.keys(self)]
+        return [self._DecodeKey(key) for key in collections.OrderedDict.keys(self)]
 
     @staticmethod
     def CreateAuthenticator():
