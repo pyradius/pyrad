@@ -1,4 +1,5 @@
 build/
 dist/
 docs/.build/
-pyrad.egg-info/
+*.pyc
+*.egg-info
