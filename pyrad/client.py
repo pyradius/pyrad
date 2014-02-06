@@ -29,7 +29,7 @@ class Client(host.Host):
     :type timeout: integer
     """
     def __init__(self, server, authport=1812, acctport=1813,
-            secret=six.b(''), dict=None):
+            coaport=3799, secret=six.b(''), dict=None):
 
         """Constructor.
 
@@ -39,12 +39,14 @@ class Client(host.Host):
         :type  authport: integer
         :param acctport: port to use for accounting packets
         :type  acctport: integer
+        :param coaport: port to use for CoA packets
+        :type  coaport: integer
         :param   secret: RADIUS secret
         :type    secret: string
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
         """
-        host.Host.__init__(self, authport, acctport, dict)
+        host.Host.__init__(self, authport, acctport, coaport, dict)
 
         self.server = server
         self.secret = secret
@@ -99,6 +101,18 @@ class Client(host.Host):
         :rtype:  pyrad.packet.Packet
         """
         return host.Host.CreateAcctPacket(self, secret=self.secret, **args)
+        
+    def CreateCoAPacket(self, **args):
+        """Create a new RADIUS packet.
+        This utility function creates a new RADIUS packet which can
+        be used to communicate with the RADIUS server this client
+        talks to. This is initializing the new packet with the
+        dictionary and secret used for the client.
+
+        :return: a new empty packet instance
+        :rtype:  pyrad.packet.Packet
+        """
+        return host.Host.CreateCoAPacket(self, secret=self.secret, **args)
 
     def _SendPacket(self, pkt, port):
         """Send a packet to a RADIUS server.
@@ -157,5 +171,7 @@ class Client(host.Host):
         """
         if isinstance(pkt, packet.AuthPacket):
             return self._SendPacket(pkt, self.authport)
+        elif isinstance(pkt, packet.CoAPacket):
+            return self._SendPacket(pkt, self.coaport)
         else:
             return self._SendPacket(pkt, self.acctport)

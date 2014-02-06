@@ -301,6 +301,8 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(dict.__getitem__(self.packet, 1), [1])
         self.packet.AddAttribute(1, 1)
         self.assertEqual(dict.__getitem__(self.packet, 1), [1, 1])
+        self.packet.AddAttribute(1, [2, 3])
+        self.assertEqual(dict.__getitem__(self.packet, 1), [1, 1, 2, 3])
 
 
 class AuthPacketConstructionTests(PacketConstructionTests):
