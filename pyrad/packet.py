@@ -278,17 +278,39 @@ class Packet(dict):
         return result
 
     def _PktDecodeVendorAttribute(self, data):
+        """ Decode the Vendor-Specific Attribute.
+
+            'data' should include the 4-byte Vendor-Id, and should
+            be limited in size to contain no more than the Vendor-Specific
+            attribute 'string'.
+
+            Sub-attributes are 1-byte type, 1-byte length, and 'length' bytes
+            of data.  There may be multiple sub-attributes contained within
+            this single Vendor-Specific attribute.
+
+            Returns a tuple of the vendor ID, followed by a list of tuples of
+            (sub-attribute type, sub-attribute data).
+        """
         # Check if this packet is long enough to be in the
         # RFC2865 recommended form
         if len(data) < 6:
-            return (26, data)
+            return (None, [(26, data)])
 
-        (vendor, type, length) = struct.unpack('!LBB', data[:6])[0:3]
-        # Another sanity check
-        if len(data) != length + 4:
-            return (26, data)
+        (vendor,) = struct.unpack('!L', data[:4])
+        # Advance data past the vendor identifier
+        data = data[4:]
 
-        return ((vendor, type), data[6:])
+        subattrs = []
+        while len(data) > 2:
+            (type_, length) = struct.unpack('!BB', data[:2])
+            if len(data) < length or length < 3:
+                # Malformed packet
+                raise PacketError('SubAttribute has invalid length: {0}, actual={1}'.format(
+                    (vendor,type_,length), len(data)))
+            subattrs.append((type_, data[2:length]))
+            data = data[length:]
+
+        return (vendor, subattrs)
 
     def DecodePacket(self, packet):
         """Initialize the object from raw packet data.  Decode a packet as
@@ -322,9 +344,16 @@ class Packet(dict):
 
             value = packet[2:attrlen]
             if key == 26:
-                (key, value) = self._PktDecodeVendorAttribute(value)
+                # 26 is the Vendor-Specific attribute
+                (vendor, subattrs) = self._PktDecodeVendorAttribute(value)
+                if vendor is None:
+                    self.setdefault(key, []).append(value)
+                else:
+                    for (k, v) in subattrs:
+                        self.setdefault((vendor, k), []).append(v)
+            else:
+                self.setdefault(key, []).append(value)
 
-            self.setdefault(key, []).append(value)
             packet = packet[attrlen:]
 
 
