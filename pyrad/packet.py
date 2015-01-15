@@ -450,6 +450,35 @@ class AuthPacket(Packet):
 
         return result
 
+    def VerifyChapPasswd(self,userpwd):
+        """ Verify RADIUS ChapPasswd
+
+        :param userpwd: plaintext password
+        """
+
+        if not self.authenticator:
+            self.authenticator = self.CreateAuthenticator()
+
+        if isinstance(userpwd, six.text_type):
+            userpwd = userpwd.strip().encode('utf-8')   
+
+        chap_password = tools.DecodeOctets(self.get(3)[0])
+        if len(chap_password) != 17:
+            return False
+
+        chapid = chap_password[0]
+        password = chap_password[1:]
+
+        challenge = self.authenticator
+        if 'CHAP-Challenge' in self:
+            challenge = self['CHAP-Challenge'][0] 
+
+        _pwd =  md5_constructor("%s%s%s"%(chapid,userpwd,challenge)).digest()
+        for i in range(16):
+            if password[i] != _pwd[i]:
+                return False
+        return True         
+
 
 class AcctPacket(Packet):
     """RADIUS accounting packets. This class is a specialization
