@@ -454,8 +454,11 @@ class AuthPacket(Packet):
         """ Verify RADIUS ChapPasswd
 
         :param userpwd: plaintext password
+        :type userpwd:  str
+        :return:        is verify ok
+        :rtype:         bool
         """
-
+        
         if not self.authenticator:
             self.authenticator = self.CreateAuthenticator()
 
@@ -473,11 +476,7 @@ class AuthPacket(Packet):
         if 'CHAP-Challenge' in self:
             challenge = self['CHAP-Challenge'][0] 
 
-        _pwd =  md5_constructor("%s%s%s"%(chapid,userpwd,challenge)).digest()
-        for i in range(16):
-            if password[i] != _pwd[i]:
-                return False
-        return True         
+        return password == md5_constructor("%s%s%s"%(chapid,userpwd,challenge)).digest()        
 
 
 class AcctPacket(Packet):
