@@ -126,13 +126,19 @@ class Packet(dict):
         if not isinstance(key, str):
             return (key, values)
 
+        key, _, tag = key.partition(":")
+
         attr = self.dict.attributes[key]
         if attr.vendor:
             key = (self.dict.vendors.GetForward(attr.vendor), attr.code)
         else:
             key = attr.code
 
-        return (key, [self._EncodeValue(attr, v) for v in values])
+        if tag:
+            tag = struckt.pack('B', int(tag))
+            return (key, [tag + self._EncodeValue(attr, v) for v in values])
+        else:
+            return (key, [self._EncodeValue(attr, v) for v in values])
 
     def _EncodeKey(self, key):
         if not isinstance(key, str):
