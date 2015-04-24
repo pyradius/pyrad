@@ -3,6 +3,7 @@
 # Utility functions
 import struct
 import six
+from netaddr import *
 
 
 def EncodeString(str):
@@ -23,8 +24,14 @@ def EncodeOctets(str):
 def EncodeAddress(addr):
     if not isinstance(addr, six.string_types):
         raise TypeError('Address has to be a string')
-    (a, b, c, d) = map(int, addr.split('.'))
-    return struct.pack('BBBB', a, b, c, d)
+    return IPAddress(addr).packed
+
+
+def EncodeIPv6Prefix(addr):
+    if not isinstance(addr, six.string_types):
+        raise TypeError('IPv6 Prefix has to be a string')
+    ip = IPNetwork(addr)
+    return struct.pack('2B', *[0, ip.prefixlen ]) + ip.ip.packed
 
 
 def EncodeInteger(num):
@@ -40,8 +47,10 @@ def EncodeDate(num):
 
 
 def DecodeString(str):
-    return str.decode('utf-8')
-
+    try:
+        return str.decode('utf-8')
+    except:
+        return str
 
 def DecodeOctets(str):
     return str
@@ -49,6 +58,13 @@ def DecodeOctets(str):
 
 def DecodeAddress(addr):
     return '.'.join(map(str, struct.unpack('BBBB', addr)))
+
+
+def DecodeIPv6Prefix(addr):
+    addr = addr + '\x00' * (18-len(addr))
+    _, length, prefix = ':'.join(map('{:x}'.format, \
+        struct.unpack('!BB'+'H'*8, addr))).split(":", 2)
+    return str(IPNetwork("%s/%s" % (prefix, length)))
 
 
 def DecodeInteger(num):
@@ -66,6 +82,8 @@ def EncodeAttr(datatype, value):
         return EncodeOctets(value)
     elif datatype == 'ipaddr':
         return EncodeAddress(value)
+    elif datatype == 'ipv6prefix':
+        return EncodeIPv6Prefix(value)
     elif datatype == 'integer':
         return EncodeInteger(value)
     elif datatype == 'date':
@@ -81,6 +99,8 @@ def DecodeAttr(datatype, value):
         return DecodeOctets(value)
     elif datatype == 'ipaddr':
         return DecodeAddress(value)
+    elif datatype == 'ipv6prefix':
+        return DecodeIPv6Prefix(value)
     elif datatype == 'integer':
         return DecodeInteger(value)
     elif datatype == 'date':
