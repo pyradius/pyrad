@@ -8,6 +8,8 @@ from pyrad import host
 from pyrad import packet
 import logging
 
+from multiprocessing import Process
+import os
 
 logger = logging.getLogger('pyrad')
 
@@ -90,6 +92,7 @@ class Server(host.Host):
         for addr in addresses:
             self.BindToAddress(addr)
 
+
     def BindToAddress(self, addr):
         """Add an address to listen to.
         An empty string indicated you want to listen on all addresses.
@@ -108,6 +111,7 @@ class Server(host.Host):
         self.authfds.append(authfd)
         self.acctfds.append(acctfd)
 
+
     def HandleAuthPacket(self, pkt):
         """Authentication packet handler.
         This is an empty function that is called when a valid
@@ -118,6 +122,7 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
 
+
     def HandleAcctPacket(self, pkt):
         """Accounting packet handler.
         This is an empty function that is called when a valid
@@ -127,6 +132,7 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
+
 
     def _HandleAuthPacket(self, pkt):
         """Process a packet received on the authentication port.
@@ -145,6 +151,7 @@ class Server(host.Host):
             raise ServerPacketError(
                 'Received non-authentication packet on authentication port')
         self.HandleAuthPacket(pkt)
+
 
     def _HandleAcctPacket(self, pkt):
         """Process a packet received on the accounting port.
@@ -165,6 +172,7 @@ class Server(host.Host):
                     'Received non-accounting packet on accounting port')
         self.HandleAcctPacket(pkt)
 
+
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.
         This method assumes there is data waiting for to be read.
@@ -180,6 +188,7 @@ class Server(host.Host):
         pkt.fd = fd
         return pkt
 
+
     def _PrepareSockets(self):
         """Prepare all sockets to receive packets.
         """
@@ -189,6 +198,7 @@ class Server(host.Host):
                     select.POLLIN | select.POLLPRI | select.POLLERR)
         self._realauthfds = list(map(lambda x: x.fileno(), self.authfds))
         self._realacctfds = list(map(lambda x: x.fileno(), self.acctfds))
+
 
     def CreateReplyPacket(self, pkt, **attributes):
         """Create a reply packet.
@@ -201,6 +211,7 @@ class Server(host.Host):
         reply = pkt.CreateReply(**attributes)
         reply.source = pkt.source
         return reply
+
 
     def _ProcessInput(self, fd):
         """Process available data.
@@ -224,16 +235,14 @@ class Server(host.Host):
                     s.CreateAcctPacket(packet=data), fd)
             self._HandleAcctPacket(pkt)
 
-    def Run(self):
+
+    def _run(self, x):
         """Main loop.
         This method is the main loop for a RADIUS server. It waits
         for packets to arrive via the network and calls other methods
         to process them.
         """
-        self._poll = select.poll()
-        self._fdmap = {}
-        self._PrepareSockets()
-
+        logging.info("start process %s with pid %s" % (x, os.getpid()))
         while 1:
             for (fd, event) in self._poll.poll():
                 if event == select.POLLIN:
@@ -246,3 +255,25 @@ class Server(host.Host):
                         logger.info('Received a broken packet: ' + str(err))
                 else:
                     logger.error('Unexpected event in server main loop')
+
+
+    def Run(self, processes = 4):
+        """Main loop.
+        This method is the main loop for a RADIUS server. It waits
+        for packets to arrive via the network and calls other methods
+        to process them.
+        """
+        self._poll = select.poll()
+        self._fdmap = {}
+        self._PrepareSockets()
+
+        self._processes = []
+
+        # start processes
+        for x in range(processes):
+            p = Process(target=self._run, args=(x,))
+            p.start()
+            self._processes.append(p)
+
+        for p in self._processes:
+            p.join()
