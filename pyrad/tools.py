@@ -64,7 +64,7 @@ def DecodeIPv6Prefix(addr):
     addr = addr + '\x00' * (18-len(addr))
     _, length, prefix = ':'.join(map('{:x}'.format, \
         struct.unpack('!BB'+'H'*8, addr))).split(":", 2)
-    return str(IPNetwork("%s/%s" % (prefix, length)))
+    return str(IPNetwork("%s/%s" % (prefix, int(length, 16))))
 
 
 def DecodeInteger(num):
