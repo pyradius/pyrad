@@ -11,8 +11,6 @@ import logging
 from multiprocessing import Process
 import os
 
-logger = logging.getLogger('pyrad')
-
 
 class RemoteHost:
     """Remote RADIUS capable host we can talk to.
@@ -213,7 +211,7 @@ class Server(host.Host):
         return reply
 
 
-    def _ProcessInput(self, fd):
+    def _ProcessInput(self, fd, x):
         """Process available data.
         If this packet should be dropped instead of processed a
         PacketError exception should be raised. The main loop will
@@ -229,11 +227,11 @@ class Server(host.Host):
         if fd.fileno() in self._realauthfds:
             pkt = self._GrabPacket(lambda data, s=self:
                     s.CreateAuthPacket(packet=data), fd)
-            self._HandleAuthPacket(pkt)
+            self._HandleAuthPacket(pkt, x)
         else:
             pkt = self._GrabPacket(lambda data, s=self:
                     s.CreateAcctPacket(packet=data), fd)
-            self._HandleAcctPacket(pkt)
+            self._HandleAcctPacket(pkt, x)
 
 
     def _run(self, x):
@@ -248,13 +246,13 @@ class Server(host.Host):
                 if event == select.POLLIN:
                     try:
                         fdo = self._fdmap[fd]
-                        self._ProcessInput(fdo)
+                        self._ProcessInput(fdo, x)
                     except ServerPacketError as err:
-                        logger.info('Dropping packet: ' + str(err))
+                        logging.info('Dropping packet: ' + str(err))
                     except packet.PacketError as err:
-                        logger.info('Received a broken packet: ' + str(err))
+                        logging.info('Received a broken packet: ' + str(err))
                 else:
-                    logger.error('Unexpected event in server main loop')
+                    logging.error('Unexpected event in server main loop')
 
 
     def Run(self, processes = 4):
