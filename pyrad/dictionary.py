@@ -31,33 +31,31 @@ The commands supported are::
 
 The datatypes currently supported are:
 
-=======   ======================
-type      description
-=======   ======================
-string    ASCII string
-ipaddr    IPv4 address
-integer   32 bits signed number
-date      32 bits UNIX timestamp
-octets    arbitrary binary data
-=======   ======================
+=======     ======================
+type        description
+=======     ======================
+string      ASCII string
+ipaddr      IPv4 address
+date        32 bits UNIX timestamp
+octets      arbitrary binary data
+abinary     ASCII encoded binary data
+ipv6addr    16 octets in network byte order
+ipv6prefix  18 octets in network byte order
+integer     32 bits unsigned number
+short       16 bits unsigned number
+byte        8 bits unsigned number
+=======     ======================
 
 These datatypes are parsed but not supported:
 
-+------------+----------------------------------------------+
-| type       | description                                  |
-+============+==============================================+
-| abinary    | ASCII encoded binary data                    |
-+------------+----------------------------------------------+
-| ifid       | 8 octets in network byte order               |
-+------------+----------------------------------------------+
-| ipv6addr   | 16 octets in network byte order              |
-+------------+----------------------------------------------+
-| ipv6prefix | 18 octets in network byte order              |
-+------------+----------------------------------------------+
-| ether      | 6 octets of hh:hh:hh:hh:hh:hh                |
-|            | where 'h' is hex digits, upper or lowercase. |
-+------------+----------------------------------------------+
-
++---------------+----------------------------------------------+
+| type          | description                                  |
++===============+==============================================+
+| ifid          | 8 octets in network byte order               |
++---------------+----------------------------------------------+
+| ether         | 6 octets of hh:hh:hh:hh:hh:hh                |
+|               | where 'h' is hex digits, upper or lowercase. |
++---------------+----------------------------------------------+
 """
 
 __docformat__ = 'epytext en'
@@ -66,10 +64,12 @@ from pyrad import bidict
 from pyrad import tools
 from pyrad import dictfile
 from copy import copy
+import logging
 
-DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date',
-                       'octets', 'abinary', 'ipv6addr',
-                       'ipv6prefix', 'ifid', 'ether'])
+
+DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date', 'octets',
+                       'abinary', 'ipv6addr', 'ipv6prefix', 'short', 'byte',
+                       'ifid', 'ether'])
 
 
 class ParseError(Exception):
@@ -192,16 +192,34 @@ class Dictionary(object):
             if (not has_tag) and encrypt == 0:
                 vendor = tokens[4]
                 if not self.vendors.HasForward(vendor):
-                    raise ParseError('Unknown vendor ' + vendor,
+                    if vendor == "concat":
+                        # ignore attributes with concat (freeradius compat.)
+                        return None
+                    else:
+                        raise ParseError('Unknown vendor ' + vendor,
                                      file=state['file'],
                                      line=state['line'])
 
         (attribute, code, datatype) = tokens[1:4]
-        code = int(code, 0)
+
+        try:
+            # todo: check if float like for extended attributes
+            code = int(code, 0)
+        except:
+            return None
+
+        datatype = datatype.split("[")[0]
+
         if not datatype in DATATYPES:
-            raise ParseError('Illegal type: ' + datatype,
-                             file=state['file'],
-                             line=state['line'])
+            # ignore attributes with uknown datatypes
+            logging.info( 'Dictionary: Illegal type: %s file: %s line: %s' % \
+                (datatype, state['file'], state['line']))
+            return None
+
+            # alternate raising exception #
+            # raise ParseError('Illegal type: ' + datatype,
+            #     file=state['file'],
+            #     line=state['line'])
 
         if vendor:
             key = (self.vendors.GetForward(vendor), code)
