@@ -255,7 +255,7 @@ class Server(host.Host):
                     logging.error('Unexpected event in server main loop')
 
 
-    def Run(self, processes = 4):
+    def Run(self, processes = 1):
         """Main loop.
         This method is the main loop for a RADIUS server. It waits
         for packets to arrive via the network and calls other methods
