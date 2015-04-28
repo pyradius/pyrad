@@ -45,6 +45,5 @@ srv=FakeServer(dict=dictionary.Dictionary("dictionary"))
 srv.hosts["127.0.0.1"]=server.RemoteHost("127.0.0.1",
                                          "Kah3choteereethiejeimaeziecumi",
                                          "localhost")
-srv.hosts["172.30.138.10"]=server.RemoteHost("172.30.138.10", "jun01%#", "imme")
 srv.BindToAddress("")
 srv.Run(4)
