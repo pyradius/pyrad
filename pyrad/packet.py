@@ -101,6 +101,7 @@ class Packet(dict):
             key = key.replace('_', '-')
             self.AddAttribute(key, value)
 
+
     def CreateReply(self, **attributes):
         """Create a new packet as a reply to this one. This method
         makes sure the authenticator and secret are copied over
@@ -135,7 +136,7 @@ class Packet(dict):
             key = attr.code
 
         if tag:
-            tag = struckt.pack('B', int(tag))
+            tag = struct.pack('B', int(tag))
             return (key, [tag + self._EncodeValue(attr, v) for v in values])
         else:
             return (key, [self._EncodeValue(attr, v) for v in values])
@@ -166,10 +167,15 @@ class Packet(dict):
         :param value: value
         :type value:  depends on type of attribute
         """
-        (key, value) = self._EncodeKeyValues(key, [value])
-        value = value[0]
+        if isinstance(value, list):
+            (key, value) = self._EncodeKeyValues(key, value)
+            self.setdefault(key, []).extend(value)
+        else:
+            (key, value) = self._EncodeKeyValues(key, [value])
+            value = value[0]
+            self.setdefault(key, []).append(value)
 
-        self.setdefault(key, []).append(value)
+
 
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
@@ -290,11 +296,18 @@ class Packet(dict):
             return (26, data)
 
         (vendor, type, length) = struct.unpack('!LBB', data[:6])[0:3]
-        # Another sanity check
-        if len(data) != length + 4:
-            return (26, data)
 
-        return ((vendor, type), data[6:])
+        tlvs = [((vendor, type), data[6:length+4])]
+
+        sumlength = 4 + length
+        while len(data) > sumlength:
+            type, length = struct.unpack('!BB', data[sumlength:sumlength+2])[0:2]
+
+            tlvs.append(((vendor, type), data[sumlength+2:sumlength+length]))
+            sumlength += length
+
+        return tlvs
+
 
     def DecodePacket(self, packet):
         """Initialize the object from raw packet data.  Decode a packet as
@@ -328,9 +341,11 @@ class Packet(dict):
 
             value = packet[2:attrlen]
             if key == 26:
-                (key, value) = self._PktDecodeVendorAttribute(value)
+                for (key, value) in self._PktDecodeVendorAttribute(value):
+                    self.setdefault(key, []).append(value)
+            else:
+                self.setdefault(key, []).append(value)
 
-            self.setdefault(key, []).append(value)
             packet = packet[attrlen:]
 
 
