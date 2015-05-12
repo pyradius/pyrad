@@ -9,6 +9,7 @@ __docformat__ = 'epytext en'
 
 from twisted.internet import protocol
 from twisted.internet import reactor
+from twisted.internet import defer
 from twisted.python import log
 import sys
 from pyrad import dictionary
@@ -60,10 +61,17 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
             return
 
         pkt.source = (host, port)
-        try:
-            return self.processPacket(pkt)
-        except PacketError as err:
-            log.msg('Dropping packet from %s: %s' % (host, str(err)))
+
+        def errback(err, host):
+            if err.check(PacketError):
+                log.msg('Dropping packet from %s: %s' % (
+                    host, err.getErrorMessage()))
+            else:
+                return err
+
+        d = defer.maybeDeferred(self.processPacket, pkt)
+        d.addErrback(errback, host)
+        return d
 
 
 class RADIUSAccess(RADIUS):
