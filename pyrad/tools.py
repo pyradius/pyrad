@@ -87,9 +87,9 @@ def EncodeAscendBinary(str):
         if key == 'family' and value == 'ipv6':
             terms[key] = '\x03'
             if terms['src'] == '\x00\x00\x00\x00':
-                terms['src'] == 16 * '\x00'
+                terms['src'] = 16 * '\x00'
             if terms['dst'] == '\x00\x00\x00\x00':
-                terms['dst'] == 16 * '\x00'
+                terms['dst'] = 16 * '\x00'
         elif key == 'action' and value == 'accept':
             terms[key] = '\x01'
         elif key == 'direction' and value == 'in':
