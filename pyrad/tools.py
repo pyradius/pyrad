@@ -69,7 +69,7 @@ def EncodeAscendBinary(str):
     terms = {
         'family'    : '\x01',
         'action'    : '\x00',
-        'direction' : '\x00',
+        'direction' : '\x01',
         'src'       : '\x00\x00\x00\x00',
         'dst'       : '\x00\x00\x00\x00',
         'srcl'      : '\x00',
@@ -92,8 +92,8 @@ def EncodeAscendBinary(str):
                 terms['dst'] = 16 * '\x00'
         elif key == 'action' and value == 'accept':
             terms[key] = '\x01'
-        elif key == 'direction' and value == 'in':
-            terms[key] = '\x01'
+        elif key == 'direction' and value == 'out':
+            terms[key] = '\x00'
         elif key == 'src' or key == 'dst':
             ip = IPNetwork(value)
             terms[key] = ip.ip.packed
