@@ -189,6 +189,7 @@ class Dictionary(object):
                                 line=state['line'])
                     encrypt = int(val)
 
+
             if (not has_tag) and encrypt == 0:
                 vendor = tokens[4]
                 if not self.vendors.HasForward(vendor):
