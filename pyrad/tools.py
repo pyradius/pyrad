@@ -3,6 +3,7 @@
 # Utility functions
 import struct
 import six
+import binascii
 from netaddr import *
 
 
@@ -18,7 +19,12 @@ def EncodeString(str):
 def EncodeOctets(str):
     if len(str) > 253:
         raise ValueError('Can only encode strings of <= 253 characters')
-    return str
+
+    if str.startswith('0x'):
+        hexstring = str.split('0x')[1]
+        return binascii.unhexlify(hexstring)
+    else:
+        return str
 
 
 def EncodeAddress(addr):
@@ -81,7 +87,6 @@ def EncodeAscendBinary(str):
         'dportq'    : '\x00'
     }
 
-
     for t in str.split(' '):
         key, value = t.split('=')
         if key == 'family' and value == 'ipv6':
@@ -110,6 +115,7 @@ def EncodeAscendBinary(str):
 
 
 def EncodeInteger(num):
+    num = int(num)
     if not isinstance(num, six.integer_types):
         raise TypeError('Can not encode non-integer as integer')
     return struct.pack('!I', num)
