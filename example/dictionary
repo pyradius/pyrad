@@ -50,7 +50,7 @@
 #$INCLUDE dictionary.tunnel
 #$INCLUDE dictionary.usr
 #$INCLUDE dictionary.versanet
-$INCLUDE dictionary.erx
+#$INCLUDE dictionary.erx
 #$INCLUDE dictionary.freeradius
 #$INCLUDE dictionary.alcatel
 
