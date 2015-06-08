@@ -144,7 +144,10 @@ class Packet(dict):
 
         if tag:
             tag = struct.pack('B', int(tag))
-            return (key, [tag + self._EncodeValue(attr, v) for v in values])
+            if attr.type == "integer":
+                return (key, [tag + self._EncodeValue(attr, v)[1:] for v in values])
+            else:
+                return (key, [tag + self._EncodeValue(attr, v) for v in values])
         else:
             return (key, [self._EncodeValue(attr, v) for v in values])
 
@@ -395,7 +398,6 @@ class Packet(dict):
             last = result[-16:]
             buf = buf[16:]
 
-        print "RESULT: %s" % ":".join("{:02x}".format(ord(c)) for c in result)
         return result
 
 
