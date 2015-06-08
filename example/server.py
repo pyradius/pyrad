@@ -41,9 +41,37 @@ class FakeServer(server.Server):
         self.SendReplyPacket(pkt.fd, reply)
 
 
-srv=FakeServer(dict=dictionary.Dictionary("dictionary"))
-srv.hosts["127.0.0.1"]=server.RemoteHost("127.0.0.1",
-                                         "Kah3choteereethiejeimaeziecumi",
-                                         "localhost")
-srv.BindToAddress("")
-srv.Run(4)
+def sigterm_handler(_signo, _stack_frame):
+    if os.getpid() == mainPid:
+        for p in srv._processes:
+            logging.debug("terminate process with pid %s" % p.pid)
+            p.terminate()
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+
+    signal.signal(signal.SIGTERM, sigterm_handler)
+
+    global mainPid
+    mainPid = os.getpid()
+
+    global srv
+    srv=FakeServer(dict=dictionary.Dictionary("dictionary"))
+    srv.hosts["127.0.0.1"]=server.RemoteHost("127.0.0.1",
+        "Kah3choteereethiejeimaeziecumi", "localhost")
+
+    srv.BindToAddress("")
+    srv.Run(8) # number of processes
+
+    # main loop
+    while True:
+        # auto restart all processes
+        for i in range(len(srv._processes)):
+            _p = srv._processes[i]
+            if not _p.is_alive():
+                pname = _p.name
+                x = pname.split("-")[1]
+                _p = Process(target=srv._run, name=pname, args=(x,))
+                _p.start()
+                srv._processes[i] = _p

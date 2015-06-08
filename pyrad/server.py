@@ -269,9 +269,9 @@ class Server(host.Host):
 
         # start processes
         for x in range(processes):
-            p = Process(target=self._run, args=(x,))
+            p = Process(target=self._run, name="server-%s" % x, args=(x,))
             p.start()
             self._processes.append(p)
 
-        for p in self._processes:
-            p.join()
+        #for p in self._processes:
+        #    p.join()
