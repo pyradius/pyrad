@@ -3,7 +3,7 @@
 from pyrad import dictionary, packet, server
 from netaddr import *
 import logging
-import sys, os, signal
+import sys, os, signal, time
 
 logging.basicConfig(filename="pyrad.log", level="DEBUG",
     format = "%(asctime)s [%(levelname)-8s] %(message)s")
