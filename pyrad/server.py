@@ -240,7 +240,7 @@ class Server(host.Host):
         for packets to arrive via the network and calls other methods
         to process them.
         """
-        logging.info("start process %s with pid %s" % (x, os.getpid()))
+        logging.info("Start process %s with pid %s" % (x, os.getpid()))
         while 1:
             for (fd, event) in self._poll.poll():
                 if event == select.POLLIN:
@@ -252,14 +252,13 @@ class Server(host.Host):
                     except packet.PacketError as err:
                         logging.info('Received a broken packet: ' + str(err))
                 else:
-                    logging.error('Unexpected event in server main loop')
+                    logging.error('Unexpected event in main loop process ' + x)
 
 
     def Run(self, processes = 1):
-        """Main loop.
-        This method is the main loop for a RADIUS server. It waits
-        for packets to arrive via the network and calls other methods
-        to process them.
+        """Run.
+        This method creates N (argument processes) processes running the
+        main loop (_run).
         """
         self._poll = select.poll()
         self._fdmap = {}

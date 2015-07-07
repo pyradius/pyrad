@@ -20,12 +20,14 @@ class FakeServer(server.Server):
         for attr in pkt.keys():
             print ("%s: %s" % (attr, pkt[attr]))
 
-        ip = str(IPAddress("13.%s.0.0" % x) + self.ips)
+        ip = str(IPAddress("192.%s.0.0" % x) + self.ips)
         self.ips += 1
 
-        reply=self.CreateReplyPacket(pkt, **{ 'Service-Type': 'Framed-User', \
-            "Framed-IP-Address" : ip, "Framed-IPv6-Prefix" : "2003::1/64", \
-             'X-Ascend-Data-Filter': ['family=ipv4 action=discard direction=in dst=10.10.255.254/32 sport=200 sportq=2', 'family=ipv6 action=discard direction=in src=fe80::/64 dst=2003::/19 dport=1337' ]})
+        reply=self.CreateReplyPacket(pkt, **{ \
+            "Service-Type": "Framed-User", \
+            "Framed-IP-Address" : ip, \
+            "Framed-IPv6-Prefix" : "2003::1/64"
+        })
         reply.code=packet.AccessAccept
         self.SendReplyPacket(pkt.fd, reply)
 
@@ -45,23 +47,31 @@ class FakeServer(server.Server):
 def sigterm_handler(_signo, _stack_frame):
     if os.getpid() == mainPid:
         for p in srv._processes:
-            logging.debug("terminate process with pid %s" % p.pid)
+            logging.debug("Terminate process with pid %s" % p.pid)
             p.terminate()
     sys.exit(0)
 
 
 if __name__ == '__main__':
 
+    # register sigterm handler
     signal.signal(signal.SIGTERM, sigterm_handler)
 
     global mainPid
     mainPid = os.getpid()
 
+    # create server and read dictionary
     global srv
     srv=FakeServer(dict=dictionary.Dictionary("dictionary"))
-    srv.hosts["127.0.0.1"]=server.RemoteHost("127.0.0.1", "Kah3choteereethiejeimaeziecumi", "localhost")
 
+    # add clients (address, secret, name, authport=1812, acctport=1813)
+    srv.hosts["127.0.0.1"]=server.RemoteHost(\
+                                            "127.0.0.1", \
+                                            "Kah3choteereethiejeimaeziecumi", \
+                                            "localhost")
     srv.BindToAddress("")
+
+    # start server with 8 processes
     srv.Run(8)
 
     # main loop
@@ -75,3 +85,4 @@ if __name__ == '__main__':
                 _p = Process(target=srv._run, name=pname, args=(x,))
                 _p.start()
                 srv._processes[i] = _p
+        time.sleep(10)

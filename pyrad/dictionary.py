@@ -38,7 +38,7 @@ string      ASCII string
 ipaddr      IPv4 address
 date        32 bits UNIX timestamp
 octets      arbitrary binary data
-abinary     ASCII encoded binary data
+abinary     ascend binary data
 ipv6addr    16 octets in network byte order
 ipv6prefix  18 octets in network byte order
 integer     32 bits unsigned number
