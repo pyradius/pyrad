@@ -252,7 +252,7 @@ class Server(host.Host):
                     except packet.PacketError as err:
                         logging.info('Received a broken packet: ' + str(err))
                 else:
-                    logging.error('Unexpected event in main loop process ' + x)
+                    logging.error('Unexpected event in srv main loop ' + str(x))
 
 
     def Run(self, processes = 1, join = True):
