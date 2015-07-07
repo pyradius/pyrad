@@ -71,8 +71,8 @@ if __name__ == '__main__':
                                             "localhost")
     srv.BindToAddress("")
 
-    # start server with 8 processes
-    srv.Run(8)
+    # start server with 8 processes but wihtout joining them
+    srv.Run(8, False)
 
     # main loop
     while True:

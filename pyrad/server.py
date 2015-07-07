@@ -255,7 +255,7 @@ class Server(host.Host):
                     logging.error('Unexpected event in main loop process ' + x)
 
 
-    def Run(self, processes = 1):
+    def Run(self, processes = 1, join = True):
         """Run.
         This method creates N (argument processes) processes running the
         main loop (_run).
@@ -272,5 +272,6 @@ class Server(host.Host):
             p.start()
             self._processes.append(p)
 
-        #for p in self._processes:
-        #    p.join()
+        if join:
+            for p in self._processes:
+                p.join()
