@@ -1,9 +1,12 @@
+.. image:: https://travis-ci.org/wichert/pyrad.svg?branch=master
+    :target: https://travis-ci.org/wichert/pyrad
+
 Introduction
 ============
 
 pyrad is an implementation of a RADIUS client as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
-them and decoding responses. 
+them and decoding responses.
 
 Here is an example of doing a authentication request::
 
@@ -44,7 +47,7 @@ Author, copyright, availability
 ===============================
 
 pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is licensed
-under a BSD license. 
+under a BSD license.
 
 Copyright and license information can be found in the LICENSE.txt file.
 

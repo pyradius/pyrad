@@ -2,6 +2,6 @@ language: python
 python:
   - "2.7"
 # command to install dependencies
-install: "pip install six nose"
+install: "pip install six nose coverage"
 # command to run tests
 script: nosetests -v --with-coverage
