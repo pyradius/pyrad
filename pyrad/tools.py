@@ -1,10 +1,11 @@
 # tools.py
 #
 # Utility functions
+from netaddr import IPAddress
+from netaddr import IPNetwork
 import struct
 import six
 import binascii
-from netaddr import *
 
 
 def EncodeString(str):
@@ -37,7 +38,7 @@ def EncodeIPv6Prefix(addr):
     if not isinstance(addr, six.string_types):
         raise TypeError('IPv6 Prefix has to be a string')
     ip = IPNetwork(addr)
-    return struct.pack('2B', *[0, ip.prefixlen ]) + ip.ip.packed
+    return struct.pack('2B', *[0, ip.prefixlen]) + ip.ip.packed
 
 
 def EncodeIPv6Address(addr):
@@ -73,18 +74,18 @@ def EncodeAscendBinary(str):
     """
 
     terms = {
-        'family'    : '\x01',
-        'action'    : '\x00',
-        'direction' : '\x01',
-        'src'       : '\x00\x00\x00\x00',
-        'dst'       : '\x00\x00\x00\x00',
-        'srcl'      : '\x00',
-        'dstl'      : '\x00',
-        'proto'     : '\x00',
-        'sport'     : '\x00\x00',
-        'dport'     : '\x00\x00',
-        'sportq'    : '\x00',
-        'dportq'    : '\x00'
+        'family':       '\x01',
+        'action':       '\x00',
+        'direction':    '\x01',
+        'src':          '\x00\x00\x00\x00',
+        'dst':          '\x00\x00\x00\x00',
+        'srcl':         '\x00',
+        'dstl':         '\x00',
+        'proto':        '\x00',
+        'sport':        '\x00\x00',
+        'dport':        '\x00\x00',
+        'sportq':       '\x00',
+        'dportq':       '\x00'
     }
 
     for t in str.split(' '):
@@ -108,15 +109,17 @@ def EncodeAscendBinary(str):
         elif key == 'sportq' or key == 'dportq' or key == 'proto':
             terms[key] = struct.pack('B', int(value))
 
-    return '%s%s%s\x00%s%s%s%s%s\x00%s%s%s%s\x00\x00%s' % (terms['family'], \
-        terms['action'], terms['direction'], terms['src'], terms['dst'], \
-        terms['srcl'], terms['dstl'], terms['proto'], terms['sport'], \
-        terms['dport'], terms['sportq'], terms['dportq'], 8 * '\x00')
+    return '%s%s%s\x00%s%s%s%s%s\x00%s%s%s%s\x00\x00%s' % \
+        (terms['family'], terms['action'], terms['direction'], terms['src'],
+         terms['dst'], terms['srcl'], terms['dstl'], terms['proto'],
+         terms['sport'], terms['dport'], terms['sportq'], terms['dportq'],
+         8 * '\x00')
 
 
 def EncodeInteger(num):
-    num = int(num)
-    if not isinstance(num, six.integer_types):
+    try:
+        num = int(num)
+    except:
         raise TypeError('Can not encode non-integer as integer')
     return struct.pack('!I', num)
 
@@ -152,8 +155,7 @@ def DecodeAddress(addr):
 
 def DecodeIPv6Prefix(addr):
     addr = addr + '\x00' * (18-len(addr))
-    _, length, prefix = ':'.join(map('{:x}'.format, \
-        struct.unpack('!BB'+'H'*8, addr))).split(":", 2)
+    _, length, prefix = ':'.join(map('{:x}'.format, struct.unpack('!BB'+'H'*8, addr))).split(":", 2)
     return str(IPNetwork("%s/%s" % (prefix, int(length, 16))))
 
 
@@ -205,9 +207,7 @@ def EncodeAttr(datatype, value):
     elif datatype == 'date':
         return EncodeDate(value)
     else:
-        # encode unknown as string
-        # alternate # raise ValueError('Unknown attribute type %s' % datatype)
-        return EncodeString(value)
+        raise ValueError('Unknown attribute type %s' % datatype)
 
 
 def DecodeAttr(datatype, value):
@@ -232,6 +232,4 @@ def DecodeAttr(datatype, value):
     elif datatype == 'date':
         return DecodeDate(value)
     else:
-        # decode unknown as string
-        # alternate # raise ValueError('Unknown attribute type %s' % datatype)
-        return DecodeString(value)
+        raise ValueError('Unknown attribute type %s' % datatype)

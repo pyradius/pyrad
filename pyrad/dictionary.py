@@ -1,7 +1,6 @@
 # dictionary.py
 #
 # Copyright 2002,2005,2007 Wichert Akkerman <wichert@wiggy.net>
-
 """
 RADIUS uses dictionaries to define the attributes that can
 be used in packets. The Dictionary class stores the attribute
@@ -57,14 +56,13 @@ These datatypes are parsed but not supported:
 |               | where 'h' is hex digits, upper or lowercase. |
 +---------------+----------------------------------------------+
 """
-
-__docformat__ = 'epytext en'
-
 from pyrad import bidict
 from pyrad import tools
 from pyrad import dictfile
 from copy import copy
 import logging
+
+__docformat__ = 'epytext en'
 
 
 DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date', 'octets',
@@ -103,7 +101,7 @@ class ParseError(Exception):
 
 class Attribute:
     def __init__(self, name, code, datatype, vendor='', values={},
-            encrypt=0, has_tag=False):
+                 encrypt=0, has_tag=False):
         if datatype not in DATATYPES:
             raise ValueError('Invalid data type')
         self.name = name
@@ -189,7 +187,6 @@ class Dictionary(object):
                                 line=state['line'])
                     encrypt = int(val)
 
-
             if (not has_tag) and encrypt == 0:
                 vendor = tokens[4]
                 if not self.vendors.HasForward(vendor):
@@ -198,8 +195,8 @@ class Dictionary(object):
                         return None
                     else:
                         raise ParseError('Unknown vendor ' + vendor,
-                                     file=state['file'],
-                                     line=state['line'])
+                                         file=state['file'],
+                                         line=state['line'])
 
         (attribute, code, datatype) = tokens[1:4]
 
@@ -211,25 +208,17 @@ class Dictionary(object):
 
         datatype = datatype.split("[")[0]
 
-        if not datatype in DATATYPES:
-            # ignore attributes with uknown datatypes
-            logging.info( 'Dictionary: Illegal type: %s file: %s line: %s' % \
-                (datatype, state['file'], state['line']))
-            return None
-
-            # alternate raising exception #
-            # raise ParseError('Illegal type: ' + datatype,
-            #     file=state['file'],
-            #     line=state['line'])
-
+        if datatype not in DATATYPES:
+            raise ParseError('Illegal type: ' + datatype,
+                             file=state['file'],
+                             line=state['line'])
         if vendor:
             key = (self.vendors.GetForward(vendor), code)
         else:
             key = code
 
         self.attrindex.Add(attribute, key)
-        self.attributes[attribute] = Attribute(attribute, code, datatype,
-                vendor, encrypt=encrypt, has_tag=has_tag)
+        self.attributes[attribute] = Attribute(attribute, code, datatype, vendor, encrypt=encrypt, has_tag=has_tag)
 
     def __ParseValue(self, state, tokens, defer):
         if len(tokens) != 4:

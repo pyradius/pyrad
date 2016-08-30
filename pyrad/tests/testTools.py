@@ -1,6 +1,8 @@
+from netaddr import AddrFormatError
+from pyrad import tools
 import unittest
 import six
-from pyrad import tools
+
 
 
 class EncodingTests(unittest.TestCase):
@@ -14,7 +16,7 @@ class EncodingTests(unittest.TestCase):
         self.assertRaises(TypeError, tools.EncodeString, 1)
 
     def testAddressEncoding(self):
-        self.assertRaises(ValueError, tools.EncodeAddress, '123')
+        self.assertRaises(AddrFormatError, tools.EncodeAddress, 'TEST123')
         self.assertEqual(
                 tools.EncodeAddress('192.168.0.255'),
                 six.b('\xc0\xa8\x00\xff'))
@@ -31,7 +33,7 @@ class EncodingTests(unittest.TestCase):
                 six.b('\xff\xff\xff\xff'))
 
     def testInvalidIntegerEncodingRaisesTypeError(self):
-        self.assertRaises(TypeError, tools.EncodeInteger, '1')
+        self.assertRaises(TypeError, tools.EncodeInteger, 'ONE')
 
     def testDateEncoding(self):
         self.assertEqual(tools.EncodeDate(0x01020304),

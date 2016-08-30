@@ -303,7 +303,7 @@ class Packet(dict):
         # Check if this packet is long enough to be in the
         # RFC2865 recommended form
         if len(data) < 6:
-            return (26, data)
+            return [(26, data)]
 
         (vendor, type, length) = struct.unpack('!LBB', data[:6])[0:3]
 
@@ -311,13 +311,13 @@ class Packet(dict):
 
         sumlength = 4 + length
         while len(data) > sumlength:
-            type, length = struct.unpack('!BB', data[sumlength:sumlength+2])[0:2]
-
+            try:
+                type, length = struct.unpack('!BB', data[sumlength:sumlength+2])[0:2]
+            except:
+                return [(26, data)]
             tlvs.append(((vendor, type), data[sumlength+2:sumlength+length]))
             sumlength += length
-
         return tlvs
-
 
     def DecodePacket(self, packet):
         """Initialize the object from raw packet data.  Decode a packet as
@@ -357,7 +357,6 @@ class Packet(dict):
                 self.setdefault(key, []).append(value)
 
             packet = packet[attrlen:]
-
 
     def SaltCrypt(self, value):
         """Salt Encryption
