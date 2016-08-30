@@ -27,10 +27,10 @@ def EncodeAddress(addr):
     return struct.pack('BBBB', a, b, c, d)
 
 
-def EncodeInteger(num):
+def EncodeInteger(num, fmt='!I'):
     if not isinstance(num, six.integer_types):
         raise TypeError('Can not encode non-integer as integer')
-    return struct.pack('!I', num)
+    return struct.pack(fmt, num)
 
 
 def EncodeDate(num):
@@ -51,8 +51,8 @@ def DecodeAddress(addr):
     return '.'.join(map(str, struct.unpack('BBBB', addr)))
 
 
-def DecodeInteger(num):
-    return (struct.unpack('!I', num))[0]
+def DecodeInteger(num, fmt='!I'):
+    return (struct.unpack(fmt, num))[0]
 
 
 def DecodeDate(num):
@@ -68,6 +68,12 @@ def EncodeAttr(datatype, value):
         return EncodeAddress(value)
     elif datatype == 'integer':
         return EncodeInteger(value)
+    elif datatype == 'signed':
+        return EncodeInteger(value, '!i')
+    elif datatype == 'short':
+        return EncodeInteger(value, '!H')
+    elif datatype == 'byte':
+        return EncodeInteger(value, 'B')
     elif datatype == 'date':
         return EncodeDate(value)
     else:
@@ -83,6 +89,12 @@ def DecodeAttr(datatype, value):
         return DecodeAddress(value)
     elif datatype == 'integer':
         return DecodeInteger(value)
+    elif datatype == 'signed':
+        return DecodeInteger(value, '!i')
+    elif datatype == 'short':
+        return DecodeInteger(value, '!H')
+    elif datatype == 'byte':
+        return DecodeInteger(value, 'B')
     elif datatype == 'date':
         return DecodeDate(value)
     else:

@@ -16,7 +16,7 @@ class RemoteHost:
     """Remote RADIUS capable host we can talk to.
     """
 
-    def __init__(self, address, secret, name, authport=1812, acctport=1813):
+    def __init__(self, address, secret, name, authport=1812, acctport=1813, coaport=1700):
         """Constructor.
 
         :param   address: IP address
@@ -29,11 +29,14 @@ class RemoteHost:
         :type   authport: integer
         :param  acctport: port used for accounting packets
         :type   acctport: integer
+        :param  coaport: port used for CoA packets
+        :type   acctport: integer
         """
         self.address = address
         self.secret = secret
         self.authport = authport
         self.acctport = acctport
+        self.coaport = coaport
         self.name = name
 
 
@@ -63,8 +66,8 @@ class Server(host.Host):
 
     MaxPacketSize = 8192
 
-    def __init__(self, addresses=[], authport=1812, acctport=1813, hosts=None,
-            dict=None):
+    def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=1700,
+                hosts=None, dict=None):
         """Constructor.
 
         :param addresses: IP addresses to listen on
@@ -73,12 +76,14 @@ class Server(host.Host):
         :type   authport: integer
         :param  acctport: port to listen on for accounting packets
         :type   acctport: integer
+        :param  coaport: port to listen on for CoA packets
+        :type   coaport: integer
         :param     hosts: hosts who we can talk to
         :type      hosts: dictionary mapping IP to RemoteHost class instances
         :param      dict: RADIUS dictionary to use
         :type       dict: Dictionary class instance
         """
-        host.Host.__init__(self, authport, acctport, dict)
+        host.Host.__init__(self, authport, acctport, coaport, dict)
         if hosts is None:
             self.hosts = {}
         else:
@@ -86,6 +91,7 @@ class Server(host.Host):
 
         self.authfds = []
         self.acctfds = []
+        self.coafds = []
 
         for addr in addresses:
             self.BindToAddress(addr)
@@ -105,8 +111,13 @@ class Server(host.Host):
         acctfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         acctfd.bind((addr, self.acctport))
 
+        coafd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        coafd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        coafd.bind((addr, self.coaport))
+
         self.authfds.append(authfd)
         self.acctfds.append(acctfd)
+        self.coafds.append(coafd)
 
     def HandleAuthPacket(self, pkt):
         """Authentication packet handler.
@@ -122,6 +133,16 @@ class Server(host.Host):
         """Accounting packet handler.
         This is an empty function that is called when a valid
         accounting packet has been received. It can be overriden in
+        derived classes to add custom behaviour.
+
+        :param pkt: packet to process
+        :type  pkt: Packet class instance
+        """
+
+    def HandleCoAPacket(self, pkt):
+        """CoA packet handler.
+        This is an empty function that is called when a valid
+        coa packet has been received. It can be overriden in
         derived classes to add custom behaviour.
 
         :param pkt: packet to process
@@ -165,6 +186,26 @@ class Server(host.Host):
                     'Received non-accounting packet on accounting port')
         self.HandleAcctPacket(pkt)
 
+    def _HandleCoAPacket(self, pkt):
+        """Process a packet received on the coa port.
+        If this packet should be dropped instead of processed a
+        ServerPacketError exception should be raised. The main loop will
+        drop the packet and log the reason.
+
+        :param pkt: packet to process
+        :type  pkt: Packet class instance
+        """
+        if pkt.source[0] not in self.hosts:
+            raise ServerPacketError('Received packet from unknown host')
+
+        pkt.secret = self.hosts[pkt.source[0]].secret
+        if not pkt.code in [packet.CoARequest,
+                packet.CoARequest]:
+            raise ServerPacketError(
+                    'Received non-accounting packet on accounting port')
+        self.HandleCoAPacket(pkt)
+
+
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.
         This method assumes there is data waiting for to be read.
@@ -183,12 +224,14 @@ class Server(host.Host):
     def _PrepareSockets(self):
         """Prepare all sockets to receive packets.
         """
-        for fd in self.authfds + self.acctfds:
+        for fd in self.authfds + self.acctfds + self.coafds:
             self._fdmap[fd.fileno()] = fd
             self._poll.register(fd.fileno(),
                     select.POLLIN | select.POLLPRI | select.POLLERR)
         self._realauthfds = list(map(lambda x: x.fileno(), self.authfds))
         self._realacctfds = list(map(lambda x: x.fileno(), self.acctfds))
+        self._realcoafds = list(map(lambda x: x.fileno(), self.coafds))
+
 
     def CreateReplyPacket(self, pkt, **attributes):
         """Create a reply packet.
@@ -219,10 +262,14 @@ class Server(host.Host):
             pkt = self._GrabPacket(lambda data, s=self:
                     s.CreateAuthPacket(packet=data), fd)
             self._HandleAuthPacket(pkt)
-        else:
+        elif fd.fileno() in self._realacctfds:
             pkt = self._GrabPacket(lambda data, s=self:
                     s.CreateAcctPacket(packet=data), fd)
             self._HandleAcctPacket(pkt)
+        elif fd.fileno() in self._realcoafds:
+            pkt = self._GrabPacket(lambda data, s=self:
+                    s.CreateCoAPacket(packet=data), fd)
+            self._HandleCoAPacket(pkt)
 
     def Run(self):
         """Main loop.
