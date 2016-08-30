@@ -1,5 +1,9 @@
 .. image:: https://travis-ci.org/wichert/pyrad.svg?branch=master
     :target: https://travis-ci.org/wichert/pyrad
+.. image:: https://img.shields.io/pypi/v/pyrad.svg
+    :target: https://pypi.python.org/pypi/pyrad
+.. image:: https://img.shields.io/pypi/dm/pyrad.svg
+    :target: https://pypi.python.org/pypi/pyrad
 
 Introduction
 ============
