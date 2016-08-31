@@ -1,19 +1,22 @@
 Changelog
 =========
 
-X.X - Unreleased
-------------------
-
-* tagged attribute support (send only)
-* salt encryption support (encrypt 2)
-* ascend data filter support (human readable format to octets)
-* ipv6 address and prefix support
-* support for octet strings in hex (starting with 0x)
-* support for VSA's with multiple sub TLV's
-
-
 2.1 - Unreleased
 ------------------
+
+* Add tagged attribute support (send only).
+
+* Add salt encryption support (encrypt 2).
+
+* Add ascend data filter support (human readable format to octets).
+
+* Add ipv6 address and prefix support.
+
+* Add support for octet strings in hex (starting with 0x).
+
+* Add support for types short, signed and byte.
+
+* Add support for VSA's with multiple sub TLV's.
 
 * Use a different random generator to improve the security of generated
   packet ids and authenticators.
