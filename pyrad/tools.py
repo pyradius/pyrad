@@ -109,11 +109,12 @@ def EncodeAscendBinary(str):
         elif key == 'sportq' or key == 'dportq' or key == 'proto':
             terms[key] = struct.pack('B', int(value))
 
+    trailer = 8 * b'\x00'
     return b'%s%s%s\x00%s%s%s%s%s\x00%s%s%s%s\x00\x00%s' % \
         (terms['family'], terms['action'], terms['direction'], terms['src'],
          terms['dst'], terms['srcl'], terms['dstl'], terms['proto'],
          terms['sport'], terms['dport'], terms['sportq'], terms['dportq'],
-         8 * b'\x00')
+         trailer)
 
 
 def EncodeInteger(num):
