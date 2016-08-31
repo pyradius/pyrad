@@ -154,13 +154,13 @@ def DecodeAddress(addr):
 
 
 def DecodeIPv6Prefix(addr):
-    addr = addr + '\x00' * (18-len(addr))
+    addr = addr + b'\x00' * (18-len(addr))
     _, length, prefix = ':'.join(map('{:x}'.format, struct.unpack('!BB'+'H'*8, addr))).split(":", 2)
     return str(IPNetwork("%s/%s" % (prefix, int(length, 16))))
 
 
 def DecodeIPv6Address(addr):
-    addr = addr + '\x00' * (16-len(addr))
+    addr = addr + b'\x00' * (16-len(addr))
     prefix = ':'.join(map('{:x}'.format, struct.unpack('!'+'H'*8, addr)))
     return str(IPAddress(prefix))
 

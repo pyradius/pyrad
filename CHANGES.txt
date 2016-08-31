@@ -4,7 +4,6 @@ Changelog
 X.X - Unreleased
 ------------------
 
-* multi processing support
 * tagged attribute support (send only)
 * salt encryption support (encrypt 2)
 * ascend data filter support (human readable format to octets)

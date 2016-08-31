@@ -60,8 +60,7 @@ class Packet(dict):
     :obj:`AuthPacket` or :obj:`AcctPacket` classes.
     """
 
-    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None,
-            **attributes):
+    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None, **attributes):
         """Constructor
 
         :param dict:   RADIUS dictionary
@@ -100,7 +99,6 @@ class Packet(dict):
                 continue
             key = key.replace('_', '-')
             self.AddAttribute(key, value)
-
 
     def CreateReply(self, **attributes):
         """Create a new packet as a reply to this one. This method
@@ -184,8 +182,6 @@ class Packet(dict):
             (key, value) = self._EncodeKeyValues(key, [value])
             value = value[0]
             self.setdefault(key, []).append(value)
-
-
 
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
@@ -375,7 +371,7 @@ class Packet(dict):
             self.authenticator = 16 * six.b('\x00')
 
         salt = struct.pack('!H', random_generator.randrange(0, 65535))
-        salt = chr(ord(salt[0]) | 1<<7)+salt[1]
+        salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
 
         length = struct.pack("B", len(value))
         buf = length + value

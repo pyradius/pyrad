@@ -1,6 +1,6 @@
 # server.py
 #
-# Copyright 2003-2004,2007 Wichert Akkerman <wichert@wiggy.net>
+# Copyright 2003-2004,2007,2016 Wichert Akkerman <wichert@wiggy.net>
 
 import select
 import socket
@@ -8,13 +8,12 @@ from pyrad import host
 from pyrad import packet
 import logging
 
-from multiprocessing import Process
-import os
+
+logger = logging.getLogger('pyrad')
 
 
 class RemoteHost:
-    """Remote RADIUS capable host we can talk to.
-    """
+    """Remote RADIUS capable host we can talk to."""
 
     def __init__(self, address, secret, name, authport=1812, acctport=1813):
         """Constructor.
@@ -64,7 +63,7 @@ class Server(host.Host):
     MaxPacketSize = 8192
 
     def __init__(self, addresses=[], authport=1812, acctport=1813, hosts=None,
-            dict=None):
+                 dict=None):
         """Constructor.
 
         :param addresses: IP addresses to listen on
@@ -90,7 +89,6 @@ class Server(host.Host):
         for addr in addresses:
             self.BindToAddress(addr)
 
-
     def BindToAddress(self, addr):
         """Add an address to listen to.
         An empty string indicated you want to listen on all addresses.
@@ -109,7 +107,6 @@ class Server(host.Host):
         self.authfds.append(authfd)
         self.acctfds.append(acctfd)
 
-
     def HandleAuthPacket(self, pkt):
         """Authentication packet handler.
         This is an empty function that is called when a valid
@@ -120,7 +117,6 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
 
-
     def HandleAcctPacket(self, pkt):
         """Accounting packet handler.
         This is an empty function that is called when a valid
@@ -130,7 +126,6 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-
 
     def _HandleAuthPacket(self, pkt):
         """Process a packet received on the authentication port.
@@ -150,7 +145,6 @@ class Server(host.Host):
                 'Received non-authentication packet on authentication port')
         self.HandleAuthPacket(pkt)
 
-
     def _HandleAcctPacket(self, pkt):
         """Process a packet received on the accounting port.
         If this packet should be dropped instead of processed a
@@ -164,12 +158,11 @@ class Server(host.Host):
             raise ServerPacketError('Received packet from unknown host')
 
         pkt.secret = self.hosts[pkt.source[0]].secret
-        if not pkt.code in [packet.AccountingRequest,
-                packet.AccountingResponse]:
+        if pkt.code not in [packet.AccountingRequest,
+                            packet.AccountingResponse]:
             raise ServerPacketError(
                     'Received non-accounting packet on accounting port')
         self.HandleAcctPacket(pkt)
-
 
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.
@@ -186,17 +179,14 @@ class Server(host.Host):
         pkt.fd = fd
         return pkt
 
-
     def _PrepareSockets(self):
         """Prepare all sockets to receive packets.
         """
         for fd in self.authfds + self.acctfds:
             self._fdmap[fd.fileno()] = fd
-            self._poll.register(fd.fileno(),
-                    select.POLLIN | select.POLLPRI | select.POLLERR)
+            self._poll.register(fd.fileno(), select.POLLIN | select.POLLPRI | select.POLLERR)
         self._realauthfds = list(map(lambda x: x.fileno(), self.authfds))
         self._realacctfds = list(map(lambda x: x.fileno(), self.acctfds))
-
 
     def CreateReplyPacket(self, pkt, **attributes):
         """Create a reply packet.
@@ -210,8 +200,7 @@ class Server(host.Host):
         reply.source = pkt.source
         return reply
 
-
-    def _ProcessInput(self, fd, x):
+    def _ProcessInput(self, fd):
         """Process available data.
         If this packet should be dropped instead of processed a
         PacketError exception should be raised. The main loop will
@@ -225,53 +214,31 @@ class Server(host.Host):
         :type   fd: socket class instance
         """
         if fd.fileno() in self._realauthfds:
-            pkt = self._GrabPacket(lambda data, s=self:
-                    s.CreateAuthPacket(packet=data), fd)
-            self._HandleAuthPacket(pkt, x)
+            pkt = self._GrabPacket(lambda data, s=self: s.CreateAuthPacket(packet=data), fd)
+            self._HandleAuthPacket(pkt)
         else:
-            pkt = self._GrabPacket(lambda data, s=self:
-                    s.CreateAcctPacket(packet=data), fd)
-            self._HandleAcctPacket(pkt, x)
+            pkt = self._GrabPacket(lambda data, s=self: s.CreateAcctPacket(packet=data), fd)
+            self._HandleAcctPacket(pkt)
 
-
-    def _run(self, x):
+    def Run(self):
         """Main loop.
         This method is the main loop for a RADIUS server. It waits
         for packets to arrive via the network and calls other methods
         to process them.
         """
-        logging.info("Start process %s with pid %s" % (x, os.getpid()))
-        while 1:
-            for (fd, event) in self._poll.poll():
-                if event == select.POLLIN:
-                    try:
-                        fdo = self._fdmap[fd]
-                        self._ProcessInput(fdo, x)
-                    except ServerPacketError as err:
-                        logging.info('Dropping packet: ' + str(err))
-                    except packet.PacketError as err:
-                        logging.info('Received a broken packet: ' + str(err))
-                else:
-                    logging.error('Unexpected event in srv main loop ' + str(x))
-
-
-    def Run(self, processes = 1, join = True):
-        """Run.
-        This method creates N (argument processes) processes running the
-        main loop (_run).
-        """
         self._poll = select.poll()
         self._fdmap = {}
         self._PrepareSockets()
 
-        self._processes = []
-
-        # start processes
-        for x in range(processes):
-            p = Process(target=self._run, name="server-%s" % x, args=(x,))
-            p.start()
-            self._processes.append(p)
-
-        if join:
-            for p in self._processes:
-                p.join()
+        while True:
+            for (fd, event) in self._poll.poll():
+                if event == select.POLLIN:
+                    try:
+                        fdo = self._fdmap[fd]
+                        self._ProcessInput(fdo)
+                    except ServerPacketError as err:
+                        logger.info('Dropping packet: ' + str(err))
+                    except packet.PacketError as err:
+                        logger.info('Received a broken packet: ' + str(err))
+                else:
+                    logger.error('Unexpected event in server main loop')
