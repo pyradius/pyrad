@@ -1,6 +1,9 @@
+from netaddr import AddrFormatError
+from pyrad import tools
 import unittest
 import six
-from pyrad import tools
+import sys
+
 
 
 class EncodingTests(unittest.TestCase):
@@ -14,7 +17,7 @@ class EncodingTests(unittest.TestCase):
         self.assertRaises(TypeError, tools.EncodeString, 1)
 
     def testAddressEncoding(self):
-        self.assertRaises(ValueError, tools.EncodeAddress, '123')
+        self.assertRaises(AddrFormatError, tools.EncodeAddress, 'TEST123')
         self.assertEqual(
                 tools.EncodeAddress('192.168.0.255'),
                 six.b('\xc0\xa8\x00\xff'))
@@ -23,22 +26,26 @@ class EncodingTests(unittest.TestCase):
         self.assertRaises(TypeError, tools.EncodeAddress, 1)
 
     def testIntegerEncoding(self):
-        self.assertEqual(tools.EncodeInteger(0x01020304),
-                six.b('\x01\x02\x03\x04'))
+        self.assertEqual(tools.EncodeInteger(0x01020304), six.b('\x01\x02\x03\x04'))
 
     def testUnsignedIntegerEncoding(self):
-        self.assertEqual(tools.EncodeInteger(0xFFFFFFFF),
-                six.b('\xff\xff\xff\xff'))
+        self.assertEqual(tools.EncodeInteger(0xFFFFFFFF), six.b('\xff\xff\xff\xff'))
 
     def testInvalidIntegerEncodingRaisesTypeError(self):
-        self.assertRaises(TypeError, tools.EncodeInteger, '1')
+        self.assertRaises(TypeError, tools.EncodeInteger, 'ONE')
 
     def testDateEncoding(self):
-        self.assertEqual(tools.EncodeDate(0x01020304),
-                six.b('\x01\x02\x03\x04'))
+        self.assertEqual(tools.EncodeDate(0x01020304), six.b('\x01\x02\x03\x04'))
 
     def testInvalidDataEncodingRaisesTypeError(self):
         self.assertRaises(TypeError, tools.EncodeDate, '1')
+
+    def testEncodeAscendBinary(self):
+        # skip test in python 3
+        if sys.version_info[0] < 3:
+            self.assertEqual(
+                tools.EncodeAscendBinary('family=ipv4 action=discard direction=in dst=10.10.255.254/32'),
+                b'\x01\x00\x01\x00\x00\x00\x00\x00\n\n\xff\xfe\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
 
     def testStringDecoding(self):
         self.assertEqual(

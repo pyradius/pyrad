@@ -36,23 +36,23 @@
 #	directive to the end of the file if you want to see the old names
 #	in the logfiles too.
 #
-$INCLUDE dictionary.compat	# compability issues
-$INCLUDE dictionary.acc
-$INCLUDE dictionary.ascend
-$INCLUDE dictionary.bay
-$INCLUDE dictionary.cisco
-$INCLUDE dictionary.livingston
-$INCLUDE dictionary.microsoft
-$INCLUDE dictionary.quintum
-$INCLUDE dictionary.redback
-$INCLUDE dictionary.shasta
-$INCLUDE dictionary.shiva
-$INCLUDE dictionary.tunnel
-$INCLUDE dictionary.usr
-$INCLUDE dictionary.versanet
-$INCLUDE dictionary.erx
-$INCLUDE dictionary.freeradius
-$INCLUDE dictionary.alcatel
+#$INCLUDE dictionary.compat	# compability issues
+#$INCLUDE dictionary.acc
+#$INCLUDE dictionary.ascend
+#$INCLUDE dictionary.bay
+#$INCLUDE dictionary.cisco
+#$INCLUDE dictionary.livingston
+#$INCLUDE dictionary.microsoft
+#$INCLUDE dictionary.quintum
+#$INCLUDE dictionary.redback
+#$INCLUDE dictionary.shasta
+#$INCLUDE dictionary.shiva
+#$INCLUDE dictionary.tunnel
+#$INCLUDE dictionary.usr
+#$INCLUDE dictionary.versanet
+#$INCLUDE dictionary.erx
+#$INCLUDE dictionary.freeradius
+#$INCLUDE dictionary.alcatel
 
 #
 #	Following are the proper new names. Use these.
@@ -135,10 +135,12 @@ ATTRIBUTE	NAS-Port-Id		87	string
 ATTRIBUTE	Framed-Pool		88	string
 ATTRIBUTE	NAS-IPv6-Address	95	octets	# really IPv6
 ATTRIBUTE	Framed-Interface-Id	96	octets	# 8 octets
-ATTRIBUTE	Framed-IPv6-Prefix	97	octets	# stupid format
+ATTRIBUTE	Framed-IPv6-Prefix	97	ipv6prefix	# stupid format
 ATTRIBUTE	Login-IPv6-Host		98	octets	# really IPv6
 ATTRIBUTE	Framed-IPv6-Route	99	string
 ATTRIBUTE	Framed-IPv6-Pool	100	string
+ATTRIBUTE   Delegated-IPv6-Prefix   123     ipv6prefix
+
 
 ATTRIBUTE	Digest-Response		206	string
 ATTRIBUTE	Digest-Attributes	207	octets	# stupid format

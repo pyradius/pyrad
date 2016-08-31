@@ -1,6 +1,17 @@
 Changelog
 =========
 
+X.X - Unreleased
+------------------
+
+* tagged attribute support (send only)
+* salt encryption support (encrypt 2)
+* ascend data filter support (human readable format to octets)
+* ipv6 address and prefix support
+* support for octet strings in hex (starting with 0x)
+* support for VSA's with multiple sub TLV's
+
+
 2.1 - Unreleased
 ------------------
 
@@ -25,7 +36,7 @@ Changelog
 
 * Setup sphinx based documentation.
 
-* Use hashlib instead of md5, if present. This fixes deprecation warnings 
+* Use hashlib instead of md5, if present. This fixes deprecation warnings
   for python 2.6. Patch from Jeremy Liané.
 
 * Support parsing VENDOR format specifications in dictionary files. Patch by
@@ -50,7 +61,7 @@ Changelog
 * Check against unimplemented datatypes in EncodeData and DecodeData instead
   of assuming an identity transform works.
 
-* Make Packet.has_key and __contains__ gracefully handle unknown attributes. 
+* Make Packet.has_key and __contains__ gracefully handle unknown attributes.
   Based on a patch from Alexey V Michurun <am@rol.ru>.
 
 * Add a __delitem__ implementation to Packet. Based on a patch from
@@ -112,8 +123,8 @@ Changelog
   Michael Mitchell <Michael.Mitchell@team.telstra.com>
 
 * Fix passing of dict parameter when creating reply packets
-	  
-	
+
+
 0.7
 ---
 

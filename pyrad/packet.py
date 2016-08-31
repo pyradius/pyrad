@@ -60,8 +60,7 @@ class Packet(dict):
     :obj:`AuthPacket` or :obj:`AcctPacket` classes.
     """
 
-    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None,
-            **attributes):
+    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None, **attributes):
         """Constructor
 
         :param dict:   RADIUS dictionary
@@ -117,14 +116,23 @@ class Packet(dict):
             return tools.DecodeAttr(attr.type, value)
 
     def _EncodeValue(self, attr, value):
+        result = ''
         if attr.values.HasForward(value):
-            return attr.values.GetForward(value)
+            result = attr.values.GetForward(value)
         else:
-            return tools.EncodeAttr(attr.type, value)
+            result = tools.EncodeAttr(attr.type, value)
+
+        if attr.encrypt == 2:
+            # salt encrypt attribute
+            result = self.SaltCrypt(result)
+
+        return result
 
     def _EncodeKeyValues(self, key, values):
         if not isinstance(key, str):
             return (key, values)
+
+        key, _, tag = key.partition(":")
 
         attr = self.dict.attributes[key]
         if attr.vendor:
@@ -132,7 +140,14 @@ class Packet(dict):
         else:
             key = attr.code
 
-        return (key, [self._EncodeValue(attr, v) for v in values])
+        if tag:
+            tag = struct.pack('B', int(tag))
+            if attr.type == "integer":
+                return (key, [tag + self._EncodeValue(attr, v)[1:] for v in values])
+            else:
+                return (key, [tag + self._EncodeValue(attr, v) for v in values])
+        else:
+            return (key, [self._EncodeValue(attr, v) for v in values])
 
     def _EncodeKey(self, key):
         if not isinstance(key, str):
@@ -160,10 +175,13 @@ class Packet(dict):
         :param value: value
         :type value:  depends on type of attribute
         """
-        (key, value) = self._EncodeKeyValues(key, [value])
-        value = value[0]
-
-        self.setdefault(key, []).append(value)
+        if isinstance(value, list):
+            (key, value) = self._EncodeKeyValues(key, value)
+            self.setdefault(key, []).extend(value)
+        else:
+            (key, value) = self._EncodeKeyValues(key, [value])
+            value = value[0]
+            self.setdefault(key, []).append(value)
 
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
@@ -281,14 +299,21 @@ class Packet(dict):
         # Check if this packet is long enough to be in the
         # RFC2865 recommended form
         if len(data) < 6:
-            return (26, data)
+            return [(26, data)]
 
         (vendor, type, length) = struct.unpack('!LBB', data[:6])[0:3]
-        # Another sanity check
-        if len(data) != length + 4:
-            return (26, data)
 
-        return ((vendor, type), data[6:])
+        tlvs = [((vendor, type), data[6:length+4])]
+
+        sumlength = 4 + length
+        while len(data) > sumlength:
+            try:
+                type, length = struct.unpack('!BB', data[sumlength:sumlength+2])[0:2]
+            except:
+                return [(26, data)]
+            tlvs.append(((vendor, type), data[sumlength+2:sumlength+length]))
+            sumlength += length
+        return tlvs
 
     def DecodePacket(self, packet):
         """Initialize the object from raw packet data.  Decode a packet as
@@ -322,10 +347,53 @@ class Packet(dict):
 
             value = packet[2:attrlen]
             if key == 26:
-                (key, value) = self._PktDecodeVendorAttribute(value)
+                for (key, value) in self._PktDecodeVendorAttribute(value):
+                    self.setdefault(key, []).append(value)
+            else:
+                self.setdefault(key, []).append(value)
 
-            self.setdefault(key, []).append(value)
             packet = packet[attrlen:]
+
+    def SaltCrypt(self, value):
+        """Salt Encryption
+
+        :param value:    plaintext value
+        :type password:  unicode string
+        :return:         obfuscated version of the value
+        :rtype:          binary string
+        """
+
+        if isinstance(value, six.text_type):
+            value = value.encode('utf-8')
+
+        if self.authenticator is None:
+            # self.authenticator = self.CreateAuthenticator()
+            self.authenticator = 16 * six.b('\x00')
+
+        salt = struct.pack('!H', random_generator.randrange(0, 65535))
+        salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
+
+        length = struct.pack("B", len(value))
+        buf = length + value
+        if len(buf) % 16 != 0:
+            buf += six.b('\x00') * (16 - (len(buf) % 16))
+
+        result = six.b(salt)
+
+        last = self.authenticator + salt
+        while buf:
+            hash = md5_constructor(self.secret + last).digest()
+            if six.PY3:
+                for i in range(16):
+                    result += bytes((hash[i] ^ buf[i],))
+            else:
+                for i in range(16):
+                    result += chr(ord(hash[i]) ^ ord(buf[i]))
+
+            last = result[-16:]
+            buf = buf[16:]
+
+        return result
 
 
 class AuthPacket(Packet):

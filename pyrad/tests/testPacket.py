@@ -202,18 +202,18 @@ class PacketTests(unittest.TestCase):
         decode = self.packet._PktDecodeVendorAttribute
 
         # Non-RFC2865 recommended form
-        self.assertEqual(decode(six.b('')), (26, six.b('')))
-        self.assertEqual(decode(six.b('12345')), (26, six.b('12345')))
+        self.assertEqual(decode(six.b('')), [(26, six.b(''))])
+        self.assertEqual(decode(six.b('12345')), [(26, six.b('12345'))])
 
         # Almost RFC2865 recommended form: bad length value
         self.assertEqual(
                 decode(six.b('\x00\x00\x00\x01\x02\x06value')),
-                (26, six.b('\x00\x00\x00\x01\x02\x06value')))
+                [(26, six.b('\x00\x00\x00\x01\x02\x06value'))])
 
         # Proper RFC2865 recommended form
         self.assertEqual(
                 decode(six.b('\x00\x00\x00\x01\x02\x07value')),
-                ((1, 2), six.b('value')))
+                [((1, 2), six.b('value'))])
 
     def testDecodePacketWithEmptyPacket(self):
         try:

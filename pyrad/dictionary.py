@@ -1,7 +1,6 @@
 # dictionary.py
 #
 # Copyright 2002,2005,2007 Wichert Akkerman <wichert@wiggy.net>
-
 """
 RADIUS uses dictionaries to define the attributes that can
 be used in packets. The Dictionary class stores the attribute
@@ -31,45 +30,44 @@ The commands supported are::
 
 The datatypes currently supported are:
 
-=======   ======================
-type      description
-=======   ======================
-string    ASCII string
-ipaddr    IPv4 address
-integer   32 bits signed number
-date      32 bits UNIX timestamp
-octets    arbitrary binary data
-=======   ======================
+=======     ======================
+type        description
+=======     ======================
+string      ASCII string
+ipaddr      IPv4 address
+date        32 bits UNIX timestamp
+octets      arbitrary binary data
+abinary     ascend binary data
+ipv6addr    16 octets in network byte order
+ipv6prefix  18 octets in network byte order
+integer     32 bits unsigned number
+short       16 bits unsigned number
+byte        8 bits unsigned number
+=======     ======================
 
 These datatypes are parsed but not supported:
 
-+------------+----------------------------------------------+
-| type       | description                                  |
-+============+==============================================+
-| abinary    | ASCII encoded binary data                    |
-+------------+----------------------------------------------+
-| ifid       | 8 octets in network byte order               |
-+------------+----------------------------------------------+
-| ipv6addr   | 16 octets in network byte order              |
-+------------+----------------------------------------------+
-| ipv6prefix | 18 octets in network byte order              |
-+------------+----------------------------------------------+
-| ether      | 6 octets of hh:hh:hh:hh:hh:hh                |
-|            | where 'h' is hex digits, upper or lowercase. |
-+------------+----------------------------------------------+
-
++---------------+----------------------------------------------+
+| type          | description                                  |
++===============+==============================================+
+| ifid          | 8 octets in network byte order               |
++---------------+----------------------------------------------+
+| ether         | 6 octets of hh:hh:hh:hh:hh:hh                |
+|               | where 'h' is hex digits, upper or lowercase. |
++---------------+----------------------------------------------+
 """
-
-__docformat__ = 'epytext en'
-
 from pyrad import bidict
 from pyrad import tools
 from pyrad import dictfile
 from copy import copy
+import logging
 
-DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date',
-                       'octets', 'abinary', 'ipv6addr',
-                       'ipv6prefix', 'ifid', 'ether'])
+__docformat__ = 'epytext en'
+
+
+DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date', 'octets',
+                       'abinary', 'ipv6addr', 'ipv6prefix', 'short', 'byte',
+                       'ifid', 'ether'])
 
 
 class ParseError(Exception):
@@ -103,7 +101,7 @@ class ParseError(Exception):
 
 class Attribute:
     def __init__(self, name, code, datatype, vendor='', values={},
-            encrypt=0, has_tag=False):
+                 encrypt=0, has_tag=False):
         if datatype not in DATATYPES:
             raise ValueError('Invalid data type')
         self.name = name
@@ -192,25 +190,35 @@ class Dictionary(object):
             if (not has_tag) and encrypt == 0:
                 vendor = tokens[4]
                 if not self.vendors.HasForward(vendor):
-                    raise ParseError('Unknown vendor ' + vendor,
-                                     file=state['file'],
-                                     line=state['line'])
+                    if vendor == "concat":
+                        # ignore attributes with concat (freeradius compat.)
+                        return None
+                    else:
+                        raise ParseError('Unknown vendor ' + vendor,
+                                         file=state['file'],
+                                         line=state['line'])
 
         (attribute, code, datatype) = tokens[1:4]
-        code = int(code, 0)
-        if not datatype in DATATYPES:
+
+        try:
+            # todo: check if float like for extended attributes
+            code = int(code, 0)
+        except:
+            return None
+
+        datatype = datatype.split("[")[0]
+
+        if datatype not in DATATYPES:
             raise ParseError('Illegal type: ' + datatype,
                              file=state['file'],
                              line=state['line'])
-
         if vendor:
             key = (self.vendors.GetForward(vendor), code)
         else:
             key = code
 
         self.attrindex.Add(attribute, key)
-        self.attributes[attribute] = Attribute(attribute, code, datatype,
-                vendor, encrypt=encrypt, has_tag=has_tag)
+        self.attributes[attribute] = Attribute(attribute, code, datatype, vendor, encrypt=encrypt, has_tag=has_tag)
 
     def __ParseValue(self, state, tokens, defer):
         if len(tokens) != 4:
