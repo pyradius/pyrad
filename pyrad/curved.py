@@ -9,6 +9,7 @@ __docformat__ = 'epytext en'
 
 from twisted.internet import protocol
 from twisted.internet import reactor
+from twisted.internet import defer
 from twisted.python import log
 import sys
 from pyrad import dictionary
@@ -35,42 +36,62 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
     def createPacket(self, **kwargs):
         raise NotImplementedError('Attempted to use a pure base class')
 
-    def datagramReceived(self, datagram, (host, port)):
-        try:
-            pkt = self.CreatePacket(packet=datagram)
-        except packet.PacketError as err:
-            log.msg('Dropping invalid packet: ' + str(err))
-            return
+    def createReplyPacket(self, pkt, **attributes):
+        """Create a reply packet.
+        Create a new packet which can be returned as a reply to a received
+        packet.
 
+        :param pkt:   original packet
+        :type pkt:    Packet instance
+        """
+        reply = pkt.CreateReply(**attributes)
+        reply.source = pkt.source
+        return reply
+
+    def datagramReceived(self, datagram, (host, port)):
         if host not in self.hosts:
             log.msg('Dropping packet from unknown host ' + host)
             return
 
-        pkt.source = (host, port)
         try:
-            self.processPacket(pkt)
-        except PacketError as err:
-            log.msg('Dropping packet from %s: %s' % (host, str(err)))
+            pkt = self.createPacket(packet=datagram,
+                                    secret=self.hosts[host].secret)
+        except packet.PacketError as err:
+            log.msg('Dropping invalid packet: ' + str(err))
+            return
+
+        pkt.source = (host, port)
+
+        def errback(err, host):
+            if err.check(PacketError):
+                log.msg('Dropping packet from %s: %s' % (
+                    host, err.getErrorMessage()))
+            else:
+                return err
+
+        d = defer.maybeDeferred(self.processPacket, pkt)
+        d.addErrback(errback, host)
+        return d
 
 
 class RADIUSAccess(RADIUS):
     def createPacket(self, **kwargs):
-        self.CreateAuthPacket(**kwargs)
+        return self.CreateAuthPacket(**kwargs)
 
     def processPacket(self, pkt):
         if pkt.code != packet.AccessRequest:
             raise PacketError(
-                    'non-AccessRequest packet on authentication socket')
+                'non-AccessRequest packet on authentication socket')
 
 
 class RADIUSAccounting(RADIUS):
     def createPacket(self, **kwargs):
-        self.CreateAcctPacket(**kwargs)
+        return self.CreateAcctPacket(**kwargs)
 
     def processPacket(self, pkt):
         if pkt.code != packet.AccountingRequest:
             raise PacketError(
-                    'non-AccountingRequest packet on authentication socket')
+                'non-AccountingRequest packet on authentication socket')
 
 
 if __name__ == '__main__':
