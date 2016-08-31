@@ -518,7 +518,7 @@ class AuthPacket(Packet):
 
         return result
 
-    def VerifyChapPasswd(self,userpwd):
+    def VerifyChapPasswd(self, userpwd):
         """ Verify RADIUS ChapPasswd
 
         :param userpwd: plaintext password
@@ -526,12 +526,12 @@ class AuthPacket(Packet):
         :return:        is verify ok
         :rtype:         bool
         """
-        
+
         if not self.authenticator:
             self.authenticator = self.CreateAuthenticator()
 
         if isinstance(userpwd, six.text_type):
-            userpwd = userpwd.strip().encode('utf-8')   
+            userpwd = userpwd.strip().encode('utf-8')
 
         chap_password = tools.DecodeOctets(self.get(3)[0])
         if len(chap_password) != 17:
@@ -542,9 +542,9 @@ class AuthPacket(Packet):
 
         challenge = self.authenticator
         if 'CHAP-Challenge' in self:
-            challenge = self['CHAP-Challenge'][0] 
+            challenge = self['CHAP-Challenge'][0]
 
-        return password == md5_constructor("%s%s%s"%(chapid,userpwd,challenge)).digest()        
+        return password == md5_constructor("%s%s%s" % (chapid, userpwd, challenge)).digest()
 
 
 class AcctPacket(Packet):
