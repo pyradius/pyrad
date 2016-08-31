@@ -118,20 +118,12 @@ def EncodeAscendBinary(str):
     return result
 
 
-def EncodeInteger(num):
+def EncodeInteger(num, format='!I'):
     try:
         num = int(num)
     except:
         raise TypeError('Can not encode non-integer as integer')
-    return struct.pack('!I', num)
-
-
-def EncodeShort(num):
-    return struct.pack('!H', int(num))
-
-
-def EncodeByte(num):
-    return struct.pack('!B', int(num))
+    return struct.pack(format, num)
 
 
 def EncodeDate(num):
@@ -171,16 +163,8 @@ def DecodeAscendBinary(str):
     return str
 
 
-def DecodeInteger(num):
-    return (struct.unpack('!I', num))[0]
-
-
-def DecodeShort(num):
-    return (struct.unpack('!H', num))[0]
-
-
-def DecodeByte(num):
-    return (struct.unpack('!B', num))[0]
+def DecodeInteger(num, format='!I'):
+    return (struct.unpack(format, num))[0]
 
 
 def DecodeDate(num):
@@ -202,10 +186,12 @@ def EncodeAttr(datatype, value):
         return EncodeIPv6Address(value)
     elif datatype == 'abinary':
         return EncodeAscendBinary(value)
+    elif datatype == 'signed':
+        return EncodeInteger(value, '!i')
     elif datatype == 'short':
-        return EncodeShort(value)
+        return EncodeInteger(value, '!H')
     elif datatype == 'byte':
-        return EncodeByte(value)
+        return EncodeInteger(value, '!B')
     elif datatype == 'date':
         return EncodeDate(value)
     else:
@@ -227,10 +213,12 @@ def DecodeAttr(datatype, value):
         return DecodeIPv6Address(value)
     elif datatype == 'abinary':
         return DecodeAscendBinary(value)
+    elif datatype == 'signed':
+        return DecodeInteger(value, '!i')
     elif datatype == 'short':
-        return DecodeShort(value)
+        return DecodeInteger(value, '!H')
     elif datatype == 'byte':
-        return DecodeByte(value)
+        return DecodeInteger(value, '!B')
     elif datatype == 'date':
         return DecodeDate(value)
     else:
