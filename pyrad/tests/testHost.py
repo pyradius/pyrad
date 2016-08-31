@@ -12,16 +12,18 @@ class ConstructionTests(unittest.TestCase):
         self.assertEqual(host.acctport, 1813)
 
     def testParameterOrder(self):
-        host = Host(123, 456, 789)
+        host = Host(123, 456, 789, 012)
         self.assertEqual(host.authport, 123)
         self.assertEqual(host.acctport, 456)
-        self.assertEqual(host.dict, 789)
+        self.assertEqual(host.coaport, 789)
+        self.assertEqual(host.dict, 012)
 
     def testNamedParameters(self):
-        host = Host(authport=123, acctport=456, dict=789)
+        host = Host(authport=123, acctport=456, coaport=789, dict=012)
         self.assertEqual(host.authport, 123)
         self.assertEqual(host.acctport, 456)
-        self.assertEqual(host.dict, 789)
+        self.assertEqual(host.coaport, 789)
+        self.assertEqual(host.dict, 012)
 
 
 class PacketCreationTests(unittest.TestCase):

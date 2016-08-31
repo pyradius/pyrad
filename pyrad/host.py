@@ -15,19 +15,22 @@ class Host:
     :ivar acctport: port to listen on for accounting packets
     :type acctport: integer
     """
-    def __init__(self, authport=1812, acctport=1813, dict=None):
+    def __init__(self, authport=1812, acctport=1813, coaport=3799, dict=None):
         """Constructor
 
         :param authport: port to listen on for authentication packets
         :type  authport: integer
         :param acctport: port to listen on for accounting packets
         :type  acctport: integer
+        :param coaport: port to listen on for CoA packets
+        :type  coaport: integer
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
         """
         self.dict = dict
         self.authport = authport
         self.acctport = acctport
+        self.coaport = coaport
 
     def CreatePacket(self, **args):
         """Create a new RADIUS packet.
@@ -64,6 +67,18 @@ class Host:
         :rtype:  pyrad.packet.AcctPacket
         """
         return packet.AcctPacket(dict=self.dict, **args)
+        
+    def CreateCoAPacket(self, **args):
+        """Create a new CoA RADIUS packet.
+        This utility function creates a new CoA RADIUS packet
+        which can be used to communicate with the RADIUS server this
+        client talks to. This is initializing the new packet with the
+        dictionary and secret used for the client.
+
+        :return: a new empty packet instance
+        :rtype:  pyrad.packet.CoAPacket
+        """
+        return packet.CoAPacket(dict=self.dict, **args)
 
     def SendPacket(self, fd, pkt):
         """Send a packet.

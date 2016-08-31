@@ -160,10 +160,12 @@ class Packet(dict):
         :param value: value
         :type value:  depends on type of attribute
         """
-        (key, value) = self._EncodeKeyValues(key, [value])
-        value = value[0]
-
-        self.setdefault(key, []).append(value)
+        if isinstance(value, list):
+            values = value
+        else:
+            values = [value]
+        (key, values) = self._EncodeKeyValues(key, values)
+        self.setdefault(key, []).extend(values)
 
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
@@ -188,8 +190,13 @@ class Packet(dict):
         dict.__delitem__(self, self._EncodeKey(key))
 
     def __setitem__(self, key, item):
+        if isinstance(item, list):
+            items = item
+        else:
+            items = [item]
+
         if isinstance(key, six.string_types):
-            (key, item) = self._EncodeKeyValues(key, [item])
+            (key, item) = self._EncodeKeyValues(key, items)
             dict.__setitem__(self, key, item)
         else:
             assert isinstance(item, list)
@@ -514,6 +521,68 @@ class AcctPacket(Packet):
             + self.secret).digest()
         return header + self.authenticator + attr
 
+class CoAPacket(Packet):
+    """RADIUS CoA packets. This class is a specialization
+    of the generic :obj:`Packet` class for CoA packets.
+    """
+
+    def __init__(self, code=CoARequest, id=None, secret=six.b(''),
+            authenticator=None, **attributes):
+        """Constructor
+
+        :param dict:   RADIUS dictionary
+        :type dict:    pyrad.dictionary.Dictionary class
+        :param secret: secret needed to communicate with a RADIUS server
+        :type secret:  string
+        :param id:     packet identifaction number
+        :type id:      integer (8 bits)
+        :param code:   packet type code
+        :type code:    integer (8bits)
+        :param packet: raw packet to decode
+        :type packet:  string
+        """
+        Packet.__init__(self, code, id, secret, authenticator, **attributes)
+        if 'packet' in attributes:
+            self.raw_packet = attributes['packet']
+
+    def CreateReply(self, **attributes):
+        """Create a new packet as a reply to this one. This method
+        makes sure the authenticator and secret are copied over
+        to the new instance.
+        """
+        return CoAPacket(CoAACK, self.id,
+            self.secret, self.authenticator, dict=self.dict,
+            **attributes)
+
+    def VerifyCoARequest(self):
+        """Verify request authenticator.
+
+        :return: True if verification failed else False
+        :rtype: boolean
+        """
+        assert(self.raw_packet)
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+                self.raw_packet[20:] + self.secret).digest()
+        return hash == self.authenticator
+
+    def RequestPacket(self):
+        """Create a ready-to-transmit CoA request packet.
+        Return a RADIUS packet which can be directly transmitted
+        to a RADIUS server.
+
+        :return: raw packet
+        :rtype:  string
+        """
+
+        attr = self._PktEncodeAttributes()
+
+        if self.id is None:
+            self.id = self.CreateID()
+
+        header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
+        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') + attr
+            + self.secret).digest()
+        return header + self.authenticator + attr
 
 def CreateID():
     """Generate a packet ID.
