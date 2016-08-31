@@ -2,14 +2,15 @@
 from __future__ import print_function
 from pyrad.client import Client
 from pyrad import dictionary
+from pyrad import packet
 
 ADDRESS = "127.0.0.1"
 SECRET = b"Kah3choteereethiejeimaeziecumi"
 ATTRIBUTES = {
     "Acct-Session-Id": "1337"
 }
-# set code to 40 to send a disconnect request instead of coa (43)
-CODE = 43
+CODE = packet.CoARequest                # 43
+# CODE = packet.DisconnectRequest       # 40
 
 # create coa client
 client = Client(server=ADDRESS, secret=SECRET, authport=3799, acctport=3799, dict=dictionary.Dictionary("dictionary"))
