@@ -1,0 +1,6 @@
+build/
+dist/
+docs/.build/
+pyrad.egg-info/
+*.pyc
+*__pycache__
