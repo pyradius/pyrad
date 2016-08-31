@@ -21,8 +21,8 @@ def EncodeOctets(str):
     if len(str) > 253:
         raise ValueError('Can only encode strings of <= 253 characters')
 
-    if str.startswith('0x'):
-        hexstring = str.split('0x')[1]
+    if str.startswith(b'0x'):
+        hexstring = str.split(b'0x')[1]
         return binascii.unhexlify(hexstring)
     else:
         return str
@@ -74,32 +74,32 @@ def EncodeAscendBinary(str):
     """
 
     terms = {
-        'family':       '\x01',
-        'action':       '\x00',
-        'direction':    '\x01',
-        'src':          '\x00\x00\x00\x00',
-        'dst':          '\x00\x00\x00\x00',
-        'srcl':         '\x00',
-        'dstl':         '\x00',
-        'proto':        '\x00',
-        'sport':        '\x00\x00',
-        'dport':        '\x00\x00',
-        'sportq':       '\x00',
-        'dportq':       '\x00'
+        'family':       b'\x01',
+        'action':       b'\x00',
+        'direction':    b'\x01',
+        'src':          b'\x00\x00\x00\x00',
+        'dst':          b'\x00\x00\x00\x00',
+        'srcl':         b'\x00',
+        'dstl':         b'\x00',
+        'proto':        b'\x00',
+        'sport':        b'\x00\x00',
+        'dport':        b'\x00\x00',
+        'sportq':       b'\x00',
+        'dportq':       b'\x00'
     }
 
     for t in str.split(' '):
         key, value = t.split('=')
         if key == 'family' and value == 'ipv6':
-            terms[key] = '\x03'
-            if terms['src'] == '\x00\x00\x00\x00':
-                terms['src'] = 16 * '\x00'
-            if terms['dst'] == '\x00\x00\x00\x00':
-                terms['dst'] = 16 * '\x00'
+            terms[key] = b'\x03'
+            if terms['src'] == b'\x00\x00\x00\x00':
+                terms['src'] = 16 * b'\x00'
+            if terms['dst'] == b'\x00\x00\x00\x00':
+                terms['dst'] = 16 * b'\x00'
         elif key == 'action' and value == 'accept':
-            terms[key] = '\x01'
+            terms[key] = b'\x01'
         elif key == 'direction' and value == 'out':
-            terms[key] = '\x00'
+            terms[key] = b'\x00'
         elif key == 'src' or key == 'dst':
             ip = IPNetwork(value)
             terms[key] = ip.ip.packed
@@ -109,11 +109,11 @@ def EncodeAscendBinary(str):
         elif key == 'sportq' or key == 'dportq' or key == 'proto':
             terms[key] = struct.pack('B', int(value))
 
-    return '%s%s%s\x00%s%s%s%s%s\x00%s%s%s%s\x00\x00%s' % \
+    return b'%s%s%s\x00%s%s%s%s%s\x00%s%s%s%s\x00\x00%s' % \
         (terms['family'], terms['action'], terms['direction'], terms['src'],
          terms['dst'], terms['srcl'], terms['dstl'], terms['proto'],
          terms['sport'], terms['dport'], terms['sportq'], terms['dportq'],
-         8 * '\x00')
+         8 * b'\x00')
 
 
 def EncodeInteger(num):
