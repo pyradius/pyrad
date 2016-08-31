@@ -1,6 +1,6 @@
 # dictionary.py
 #
-# Copyright 2002,2005,2007 Wichert Akkerman <wichert@wiggy.net>
+# Copyright 2002,2005,2007,2016 Wichert Akkerman <wichert@wiggy.net>
 """
 RADIUS uses dictionaries to define the attributes that can
 be used in packets. The Dictionary class stores the attribute
@@ -41,6 +41,7 @@ abinary     ascend binary data
 ipv6addr    16 octets in network byte order
 ipv6prefix  18 octets in network byte order
 integer     32 bits unsigned number
+signed      32 bits signed number
 short       16 bits unsigned number
 byte        8 bits unsigned number
 =======     ======================
@@ -67,7 +68,7 @@ __docformat__ = 'epytext en'
 
 DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date', 'octets',
                        'abinary', 'ipv6addr', 'ipv6prefix', 'short', 'byte',
-                       'ifid', 'ether'])
+                       'signed', 'ifid', 'ether'])
 
 
 class ParseError(Exception):
