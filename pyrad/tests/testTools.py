@@ -41,11 +41,9 @@ class EncodingTests(unittest.TestCase):
         self.assertRaises(TypeError, tools.EncodeDate, '1')
 
     def testEncodeAscendBinary(self):
-        # skip test in python 3
-        if sys.version_info[0] < 3:
-            self.assertEqual(
-                tools.EncodeAscendBinary('family=ipv4 action=discard direction=in dst=10.10.255.254/32'),
-                b'\x01\x00\x01\x00\x00\x00\x00\x00\n\n\xff\xfe\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+        self.assertEqual(
+            tools.EncodeAscendBinary('family=ipv4 action=discard direction=in dst=10.10.255.254/32'),
+            six.b('\x01\x00\x01\x00\x00\x00\x00\x00\n\n\xff\xfe\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'))
 
     def testStringDecoding(self):
         self.assertEqual(
