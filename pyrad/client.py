@@ -28,7 +28,7 @@ class Client(host.Host):
     :ivar timeout: number of seconds to wait for an answer
     :type timeout: integer
     """
-    def __init__(self, server, authport=1812, acctport=1813,
+    def __init__(self, server, authport=1812, acctport=1813, discport=1700,
             secret=six.b(''), dict=None):
 
         """Constructor.
@@ -39,12 +39,14 @@ class Client(host.Host):
         :type  authport: integer
         :param acctport: port to use for accounting packets
         :type  acctport: integer
+        :param discport: port to use for accounting packets
+        :type  discport: integer
         :param   secret: RADIUS secret
         :type    secret: string
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
         """
-        host.Host.__init__(self, authport, acctport, dict)
+        host.Host.__init__(self, authport, acctport, discport, dict)
 
         self.server = server
         self.secret = secret
@@ -99,6 +101,18 @@ class Client(host.Host):
         :rtype:  pyrad.packet.Packet
         """
         return host.Host.CreateAcctPacket(self, secret=self.secret, **args)
+
+    def CreateDiscPacket(self, **args):
+        """Create a new RADIUS packet.
+        This utility function creates a new RADIUS packet which can
+        be used to communicate with the RADIUS server this client
+        talks to. This is initializing the new packet with the
+        dictionary and secret used for the client.
+
+        :return: a new empty packet instance
+        :rtype:  pyrad.packet.Packet
+        """
+        return host.Host.CreateDiscPacket(self, secret=self.secret, **args)
 
     def _SendPacket(self, pkt, port):
         """Send a packet to a RADIUS server.
@@ -157,5 +171,7 @@ class Client(host.Host):
         """
         if isinstance(pkt, packet.AuthPacket):
             return self._SendPacket(pkt, self.authport)
-        else:
+        elif isinstance(pkt , packet.AcctPacket):
             return self._SendPacket(pkt, self.acctport)
+        else:
+            return self._SendPacket(pkt, self.discport)

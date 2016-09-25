@@ -610,6 +610,66 @@ class AcctPacket(Packet):
             + self.secret).digest()
         return header + self.authenticator + attr
 
+class DiscPacket(Packet):
+    """RADIUS disconnect packets. This class is a specialization
+    of the generic :obj:`Packet` class for disconnect packets.
+    """
+
+    def __init__(self, code=DisconnectRequest, id=None, secret=six.b(''),
+            authenticator=None, **attributes):
+        """Constructor
+
+        :param dict:   RADIUS dictionary
+        :type dict:    pyrad.dictionary.Dictionary class
+        :param secret: secret needed to communicate with a RADIUS server
+        :type secret:  string
+        :param id:     packet identifaction number
+        :type id:      integer (8 bits)
+        :param code:   packet type code
+        :type code:    integer (8bits)
+        :param packet: raw packet to decode
+        :type packet:  string
+        """
+        Packet.__init__(self, code, id, secret, authenticator, **attributes)
+        if 'packet' in attributes:
+            self.raw_packet = attributes['packet']
+
+    def CreateReply(self, **attributes):
+        """Create a new packet as a reply to this one.
+        """
+        return DiscPacket(DisconnectACK , self.id,
+            self.secret, self.authenticator, dict=self.dict,
+            **attributes)
+
+    def VerifyDiscRequest(self):
+        """Verify disconnect request
+
+        :return: True if verification failed else False
+        :rtype: boolean
+        """
+        assert(self.raw_packet)
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+                self.raw_packet[20:] + self.secret).digest()
+        return hash == self.authenticator
+
+    def RequestPacket(self):
+        """Create a ready-to-transmit disconnect request packet.
+        Return a RADIUS packet which can be directly transmitted
+        to a RADIUS server.
+
+        :return: raw packet
+        :rtype:  string
+        """
+
+        attr = self._PktEncodeAttributes()
+
+        if self.id is None:
+            self.id = self.CreateID()
+
+        header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
+        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') + attr
+            + self.secret).digest()
+        return header + self.authenticator + attr
 
 def CreateID():
     """Generate a packet ID.
