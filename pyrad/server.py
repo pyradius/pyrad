@@ -62,25 +62,30 @@ class Server(host.Host):
     :cvar MaxPacketSize: maximum size of a RADIUS packet
     :type MaxPacketSize: integer
     """
-
     MaxPacketSize = 8192
 
     def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=3799,
-                 hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=True):
+                 hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False):
         """Constructor.
 
-        :param addresses: IP addresses to listen on
-        :type  addresses: sequence of strings
-        :param  authport: port to listen on for authentication packets
-        :type   authport: integer
-        :param  acctport: port to listen on for accounting packets
-        :type   acctport: integer
-        :param   coaport: port to listen on for CoA packets
-        :type    coaport: integer
-        :param     hosts: hosts who we can talk to
-        :type      hosts: dictionary mapping IP to RemoteHost class instances
-        :param      dict: RADIUS dictionary to use
-        :type       dict: Dictionary class instance
+        :param     addresses: IP addresses to listen on
+        :type      addresses: sequence of strings
+        :param      authport: port to listen on for authentication packets
+        :type       authport: integer
+        :param      acctport: port to listen on for accounting packets
+        :type       acctport: integer
+        :param       coaport: port to listen on for CoA packets
+        :type        coaport: integer
+        :param         hosts: hosts who we can talk to
+        :type          hosts: dictionary mapping IP to RemoteHost class instances
+        :param          dict: RADIUS dictionary to use
+        :type           dict: Dictionary class instance
+        :param  auth_enabled: enable auth server (default True)
+        :type   auth_enabled: bool
+        :param  acct_enabled: enable accounting server (default True)
+        :type   acct_enabled: bool
+        :param   coa_enabled: enable coa server (default False)
+        :type    coa_enabled: bool
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
         if hosts is None:
