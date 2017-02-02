@@ -9,18 +9,22 @@ SECRET = b"Kah3choteereethiejeimaeziecumi"
 ATTRIBUTES = {
     "Acct-Session-Id": "1337"
 }
-CODE = packet.CoARequest                # 43
-# CODE = packet.DisconnectRequest       # 40
 
 # create coa client
-client = Client(server=ADDRESS, secret=SECRET, authport=3799, acctport=3799, dict=dictionary.Dictionary("dictionary"))
+client = Client(server=ADDRESS, secret=SECRET, dict=dictionary.Dictionary("dictionary"))
+
 # set coa timeout
 client.timeout = 30
 
 # create coa request packet
-attributes = {k.replace("-", "_"): attributes[k] for k in attributes}
-request = client.CreateAcctPacket(code=CODE, **attributes)
+attributes = {k.replace("-", "_"): ATTRIBUTES[k] for k in ATTRIBUTES}
 
-# send coa request
+# create coa request
+request = client.CreateCoAPacket(**attributes)
+# create disconnect request
+# request = client.CreateCoAPacket(code=packet.DisconnectRequest, **attributes)
+
+# send request
 result = client.SendPacket(request)
 print(result)
+print(result.code)
