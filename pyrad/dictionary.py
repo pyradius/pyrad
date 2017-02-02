@@ -100,7 +100,7 @@ class ParseError(Exception):
         return str
 
 
-class Attribute:
+class Attribute(object):
     def __init__(self, name, code, datatype, vendor='', values={},
                  encrypt=0, has_tag=False):
         if datatype not in DATATYPES:
@@ -239,7 +239,7 @@ class Dictionary(object):
                              file=state['file'],
                              line=state['line'])
 
-        if adef.type == 'integer':
+        if adef.type in ['integer','signed','short','byte']:
             value = int(value, 0)
         value = tools.EncodeAttr(adef.type, value)
         self.attributes[attr].values.Add(key, value)

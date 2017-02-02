@@ -30,10 +30,11 @@ class ConstructionTests(unittest.TestCase):
 
     def testParameterOrder(self):
         marker = object()
-        client = Client(self.server, 123, 456, "secret", marker)
+        client = Client(self.server, 123, 456, 789, "secret", marker)
         self.failUnless(client.server is self.server)
         self.assertEqual(client.authport, 123)
         self.assertEqual(client.acctport, 456)
+        self.assertEqual(client.coaport, 789)
         self.assertEqual(client.secret, "secret")
         self.failUnless(client.dict is marker)
 
