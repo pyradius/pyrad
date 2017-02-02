@@ -4,6 +4,9 @@
     :target: https://pypi.python.org/pypi/pyrad
 .. image:: https://img.shields.io/pypi/dm/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
+.. image:: https://readthedocs.org/projects/pyrad/badge/?version=latest
+    :target: http://pyrad.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 
 Introduction
 ============
