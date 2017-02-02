@@ -1,19 +1,15 @@
-.. _index:
 
 *********************************
 :mod:`pyrad` -- RADIUS for Python
 *********************************
 
-
 :Author: Wichert Akkerman
 :Version: |version|
-
-.. module:: pyrad
 
 Introduction
 ============
 
-pyrad is an implementation of a RADIUS client as described in RFC2865.
+pyrad is an implementation of a RADIUS client/server as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
 them and decoding responses.
 
@@ -62,17 +58,18 @@ API Documentation
 Per-module :mod:`pyrad` API documentation.
 
 .. toctree::
-   :maxdepth: 2
+  :maxdepth: 2
 
-   api/client
-   api/dictionary
-   api/host
-   api/packet
-   api/proxy
-   api/server
+  api/client
+  api/dictionary
+  api/host
+  api/packet
+  api/proxy
+  api/server
+
 
 Indices and tables
-------------------
+==================
 
 * :ref:`genindex`
 * :ref:`modindex`

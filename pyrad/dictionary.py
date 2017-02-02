@@ -30,21 +30,31 @@ The commands supported are::
 
 The datatypes currently supported are:
 
-=======     ======================
-type        description
-=======     ======================
-string      ASCII string
-ipaddr      IPv4 address
-date        32 bits UNIX timestamp
-octets      arbitrary binary data
-abinary     ascend binary data
-ipv6addr    16 octets in network byte order
-ipv6prefix  18 octets in network byte order
-integer     32 bits unsigned number
-signed      32 bits signed number
-short       16 bits unsigned number
-byte        8 bits unsigned number
-=======     ======================
++---------------+----------------------------------------------+
+| type          | description                                  |
++===============+==============================================+
+| string        | ASCII string                                 |
++---------------+----------------------------------------------+
+| ipaddr        | IPv4 address                                 |
++---------------+----------------------------------------------+
+| date          | 32 bits UNIX                                 |
++---------------+----------------------------------------------+
+| octets        | arbitrary binary data                        |
++---------------+----------------------------------------------+
+| abinary       | ascend binary data                           |
++---------------+----------------------------------------------+
+| ipv6addr      | 16 octets in network byte order              |
++---------------+----------------------------------------------+
+| ipv6prefix    | 18 octets in network byte order              |
++---------------+----------------------------------------------+
+| integer       | 32 bits unsigned number                      |
++---------------+----------------------------------------------+
+| signed        | 32 bits signed number                        |
++---------------+----------------------------------------------+
+| short         | 16 bits unsigned number                      |
++---------------+----------------------------------------------+
+| byte          | 8 bits unsigned number                       |
++---------------+----------------------------------------------+
 
 These datatypes are parsed but not supported:
 

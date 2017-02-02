@@ -1,7 +1,6 @@
 :mod:`pyrad.packet` -- packet encoding and decoding
 ===================================================
 
-
 .. automodule:: pyrad.packet
 
   .. autoclass:: Packet
