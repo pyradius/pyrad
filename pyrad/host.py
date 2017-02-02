@@ -1,11 +1,10 @@
 # host.py
 #
 # Copyright 2003,2007 Wichert Akkerman <wichert@wiggy.net>
-
 from pyrad import packet
 
 
-class Host:
+class Host(object):
     """Generic RADIUS capable host.
 
     :ivar     dict: RADIUS dictionary
@@ -67,7 +66,7 @@ class Host:
         :rtype:  pyrad.packet.AcctPacket
         """
         return packet.AcctPacket(dict=self.dict, **args)
-        
+
     def CreateCoAPacket(self, **args):
         """Create a new CoA RADIUS packet.
         This utility function creates a new CoA RADIUS packet
