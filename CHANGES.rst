@@ -1,8 +1,10 @@
 Changelog
 =========
 
-2.1 - Unreleased
-------------------
+2.1 - Feb 2, 2017
+-----------------
+
+* Add CoA support (client and server)
 
 * Add tagged attribute support (send only).
 
