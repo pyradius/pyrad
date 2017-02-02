@@ -44,9 +44,9 @@ copyright = u'2002-2009 Wichert Akkerman, 2009 Kristoffer Gronlund'
 # other places throughout the built documents.
 #
 # The short X.Y version.
-version = '1.2'
+version = '2.1'
 # The full version, including alpha/beta/rc tags.
-release = '1.2'
+release = '2.1'
 
 # There are two options for replacing |today|: either, you set today to
 # some non-false value, then it is used:
@@ -189,4 +189,3 @@ latex_logo = '.static/logo.png'
 # Options for extras
 # ------------------
 todo_include_todos = True
-

@@ -4,6 +4,7 @@
 :mod:`pyrad` -- RADIUS for Python
 *********************************
 
+
 :Author: Wichert Akkerman
 :Version: |version|
 
@@ -14,30 +15,34 @@ Introduction
 
 pyrad is an implementation of a RADIUS client as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
-them and decoding responses. 
+them and decoding responses.
 
 Here is an example of doing a authentication request::
 
-  import pyrad.packet
-  from pyrad.client import Client
-  from pyrad.dictionary import Dictionary
+    from __future__ import print_function
+    from pyrad.client import Client
+    from pyrad.dictionary import Dictionary
+    import pyrad.packet
 
-  srv=Client(server="radius.my.domain", secret="s3cr3t",
-  	dict=Dictionary("dicts/dictionary", "dictionary.acc"))
+    srv = Client(server="localhost", secret=b"Kah3choteereethiejeimaeziecumi",
+                 dict=Dictionary("dictionary"))
 
-  req=srv.CreateAuthPacket(code=pyrad.packet.AccessRequest,
-  		User_Name="wichert", NAS_Identifier="localhost")
-  req["User-Password"]=req.PwCrypt("password")
+    # create request
+    req = srv.CreateAuthPacket(code=pyrad.packet.AccessRequest,
+                               User_Name="wichert", NAS_Identifier="localhost")
+    req["User-Password"] = req.PwCrypt("password")
 
-  reply=srv.SendPacket(req)
-  if reply.code==pyrad.packet.AccessAccept:
-      print "access accepted"
-  else:
-      print "access denied"
+    # send request
+    reply = srv.SendPacket(req)
 
-  print "Attributes returned by server:"
-  for i in reply.keys():
-      print "%s: %s" % (i, reply[i])
+    if reply.code == pyrad.packet.AccessAccept:
+        print("access accepted")
+    else:
+        print("access denied")
+
+    print("Attributes returned by server:")
+    for i in reply.keys():
+        print("%s: %s" % (i, reply[i]))
 
 
 Requirements & Installation

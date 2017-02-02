@@ -12,4 +12,3 @@
 
   .. autoclass:: Server
     :members:
-
