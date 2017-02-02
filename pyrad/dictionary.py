@@ -100,7 +100,7 @@ class ParseError(Exception):
         return str
 
 
-class Attribute:
+class Attribute(object):
     def __init__(self, name, code, datatype, vendor='', values={},
                  encrypt=0, has_tag=False):
         if datatype not in DATATYPES:
