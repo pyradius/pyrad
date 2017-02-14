@@ -7,6 +7,7 @@
 
 import struct
 import random
+import hmac
 try:
     import hashlib
     md5_constructor = hashlib.md5
@@ -60,7 +61,8 @@ class Packet(dict):
     :obj:`AuthPacket` or :obj:`AcctPacket` classes.
     """
 
-    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None, **attributes):
+    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None,
+                 auth_type='pap', **attributes):
         """Constructor
 
         :param dict:   RADIUS dictionary
@@ -87,6 +89,7 @@ class Packet(dict):
                 not isinstance(authenticator, six.binary_type):
                     raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
+        self.auth_type = auth_type
 
         if 'dict' in attributes:
             self.dict = attributes['dict']
@@ -398,7 +401,7 @@ class Packet(dict):
 
 class AuthPacket(Packet):
     def __init__(self, code=AccessRequest, id=None, secret=six.b(''),
-            authenticator=None, **attributes):
+            authenticator=None, auth_type='pap', **attributes):
         """Constructor
 
         :param code:   packet type code
@@ -414,7 +417,7 @@ class AuthPacket(Packet):
         :param packet: raw packet to decode
         :type packet:  string
         """
-        Packet.__init__(self, code, id, secret, authenticator, **attributes)
+        Packet.__init__(self, code, id, secret, authenticator, auth_type, **attributes)
 
     def CreateReply(self, **attributes):
         """Create a new packet as a reply to this one. This method
@@ -423,7 +426,7 @@ class AuthPacket(Packet):
         """
         return AuthPacket(AccessAccept, self.id,
             self.secret, self.authenticator, dict=self.dict,
-            **attributes)
+            auth_type=self.auth_type, **attributes)
 
     def RequestPacket(self):
         """Create a ready-to-transmit authentication request packet.
@@ -440,6 +443,15 @@ class AuthPacket(Packet):
 
         if self.id is None:
             self.id = self.CreateID()
+
+        if self.auth_type == 'eap-md5':
+            header = struct.pack('!BBH16s', self.code, self.id,
+                (20 + 18 + len(attr)), self.authenticator)
+            digest = hmac.new(
+                self.secret,
+                header + attr + struct.pack('!BB16s', 80, struct.calcsize('!BB16s'), b'')
+            ).digest()
+            return header + attr + struct.pack('!BB16s', 80, struct.calcsize('!BB16s'), digest)
 
         header = struct.pack('!BBH16s', self.code, self.id,
             (20 + len(attr)), self.authenticator)
