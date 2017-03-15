@@ -58,7 +58,7 @@ Python modules::
 Author, Copyright, Availability
 ===============================
 
-pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by Christian Giese (@GIC-de). 
+pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by Christian Giese (GIC-de). 
 
 This project is licensed under a BSD license.
 
