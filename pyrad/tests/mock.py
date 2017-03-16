@@ -79,10 +79,16 @@ class MockPoll:
     results = []
 
     def __init__(self):
-        self.registry = []
+        self.registry = {}
 
     def register(self, fd, options):
-        self.registry.append((fd, options))
+        self.registry[fd] = options
+
+    def unregister(self, fd):
+        try:
+            del self.registry[fd]
+        except KeyError:
+            pass
 
     def poll(self):
         for result in self.results:

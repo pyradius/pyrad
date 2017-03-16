@@ -109,7 +109,7 @@ class SocketTests(unittest.TestCase):
         self.server._poll = MockPoll()
         self.server._PrepareSockets()
 
-        self.assertEqual(self.server._poll.registry, [])
+        self.assertEqual(self.server._poll.registry, {})
         self.assertEqual(self.server._realauthfds, [])
         self.assertEqual(self.server._realacctfds, [])
 
@@ -121,8 +121,8 @@ class SocketTests(unittest.TestCase):
 
         self.assertEqual(list(self.server._fdmap.keys()), [12, 14])
         self.assertEqual(self.server._poll.registry,
-                [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
-                 (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
+                {12: select.POLLIN | select.POLLPRI | select.POLLERR,
+                 14: select.POLLIN | select.POLLPRI | select.POLLERR})
 
     def testPrepareSocketAcctFds(self):
         self.server._poll = MockPoll()
@@ -132,8 +132,8 @@ class SocketTests(unittest.TestCase):
 
         self.assertEqual(list(self.server._fdmap.keys()), [12, 14])
         self.assertEqual(self.server._poll.registry,
-                [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
-                 (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
+                {12: select.POLLIN | select.POLLPRI | select.POLLERR,
+                 14: select.POLLIN | select.POLLPRI | select.POLLERR})
 
 
 class AuthPacketHandlingTests(unittest.TestCase):
