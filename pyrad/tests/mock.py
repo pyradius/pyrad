@@ -90,7 +90,7 @@ class MockPoll:
         except KeyError:
             pass
 
-    def poll(self):
+    def poll(self, timeout=None):
         for result in self.results:
             yield result
         raise MockFinished
