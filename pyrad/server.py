@@ -182,7 +182,11 @@ class Server(host.Host):
         if pkt.source[0] not in self.hosts and '0.0.0.0/0' not in self.hosts:
             raise ServerPacketError('Received packet from unknown host')
 
-        pkt.secret = self.hosts[pkt.source[0]].secret
+        if '0.0.0.0/0' in self.hosts:
+            pkt.secret = self.hosts['0.0.0.0/0'].secret
+        else:
+            pkt.secret = self.hosts[pkt.source[0]].secret
+
         if pkt.code != packet.AccessRequest:
             raise ServerPacketError(
                 'Received non-authentication packet on authentication port')
