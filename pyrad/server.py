@@ -179,7 +179,7 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] not in self.hosts:
+        if pkt.source[0] not in self.hosts and '0.0.0.0/0' not in self.hosts:
             raise ServerPacketError('Received packet from unknown host')
 
         pkt.secret = self.hosts[pkt.source[0]].secret
