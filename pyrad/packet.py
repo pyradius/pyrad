@@ -134,7 +134,7 @@ class Packet(dict):
 
         key, _, tag = key.partition(":")
 
-        attr = self.dict.attributes[key]
+        attr = self.dict.attributes[key.upper()]
         if attr.vendor:
             key = (self.dict.vendors.GetForward(attr.vendor), attr.code)
         else:
@@ -153,7 +153,7 @@ class Packet(dict):
         if not isinstance(key, str):
             return key
 
-        attr = self.dict.attributes[key]
+        attr = self.dict.attributes[key.upper()]
         if attr.vendor:
             return (self.dict.vendors.GetForward(attr.vendor), attr.code)
         else:
@@ -188,7 +188,7 @@ class Packet(dict):
             return dict.__getitem__(self, key)
 
         values = dict.__getitem__(self, self._EncodeKey(key))
-        attr = self.dict.attributes[key]
+        attr = self.dict.attributes[key.upper()]
         res = []
         for v in values:
             res.append(self._DecodeValue(attr, v))
