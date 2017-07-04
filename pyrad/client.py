@@ -134,10 +134,11 @@ class Client(host.Host):
                             pkt["Acct-Delay-Time"][0] + self.timeout
                 else:
                     pkt["Acct-Delay-Time"] = self.timeout
-            self._socket.sendto(pkt.RequestPacket(), (self.server, port))
 
             now = time.time()
             waitto = now + self.timeout
+            
+            self._socket.sendto(pkt.RequestPacket(), (self.server, port))
 
             while now < waitto:
                 ready = select.select([self._socket], [], [],
