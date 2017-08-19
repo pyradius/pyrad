@@ -91,6 +91,16 @@ class SocketTests(unittest.TestCase):
         self.assertEqual(self.server.acctfds[0].address,
                 ('192.168.13.13', 1813))
 
+    def testBindv6(self):
+        self.server.BindToAddress('2001:db8:123::1')
+        self.assertEqual(len(self.server.authfds), 1)
+        self.assertEqual(self.server.authfds[0].address,
+                ('2001:db8:123::1', 1812))
+
+        self.assertEqual(len(self.server.acctfds), 1)
+        self.assertEqual(self.server.acctfds[0].address,
+                ('2001:db8:123::1', 1813))
+
     def testGrabPacket(self):
         def gen(data):
             res = TrivialObject()
