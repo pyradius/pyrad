@@ -32,7 +32,7 @@ class Client(host.Host):
   """
 
   def __init__(self, server, authport=1812, acctport=1813,
-         coaport=3799, secret=six.b(''), dict=None):
+         coaport=3799, secret=six.b(''), dic=None):
     """Constructor.
 
     :param  server: hostname or IP address of RADIUS server
@@ -45,10 +45,10 @@ class Client(host.Host):
     :type coaport: integer
     :param  secret: RADIUS secret
     :type  secret: string
-    :param   dict: RADIUS dictionary
-    :type   dict: pyrad.dictionary.Dictionary
+    :param   dic: RADIUS dictionary
+    :type   dic: pyrad.dictionary.Dictionary
     """
-    host.Host.__init__(self, authport, acctport, coaport, dict)
+    host.Host.__init__(self, authport, acctport, coaport, dic)
 
     self.server = server
     self.secret = secret
@@ -64,23 +64,23 @@ class Client(host.Host):
     :param addr: network address (hostname or IP) and port to bind to
     :type addr: host,port tuple
     """
-    self._CloseSocket()
-    self._SocketOpen()
+    self._close_socket()
+    self._socket_open()
     self._socket.bind(addr)
 
-  def _SocketOpen(self):
+  def _socket_open(self):
     if not self._socket:
       self._socket = socket.socket(socket.AF_INET,
                      socket.SOCK_DGRAM)
       self._socket.setsockopt(socket.SOL_SOCKET,
                   socket.SO_REUSEADDR, 1)
 
-  def _CloseSocket(self):
+  def _close_socket(self):
     if self._socket:
       self._socket.close()
       self._socket = None
 
-  def CreateAuthPacket(self, **args):
+  def create_auth_packet(self, **args):
     """Create a new RADIUS packet.
     This utility function creates a new RADIUS packet which can
     be used to communicate with the RADIUS server this client
@@ -90,9 +90,9 @@ class Client(host.Host):
     :return: a new empty packet instance
     :rtype: pyrad.packet.Packet
     """
-    return host.Host.CreateAuthPacket(self, secret=self.secret, **args)
+    return host.Host.create_auth_packet(self, secret=self.secret, **args)
 
-  def CreateAcctPacket(self, **args):
+  def create_acct_packet(self, **args):
     """Create a new RADIUS packet.
     This utility function creates a new RADIUS packet which can
     be used to communicate with the RADIUS server this client
@@ -102,9 +102,9 @@ class Client(host.Host):
     :return: a new empty packet instance
     :rtype: pyrad.packet.Packet
     """
-    return host.Host.CreateAcctPacket(self, secret=self.secret, **args)
+    return host.Host.create_acct_packet(self, secret=self.secret, **args)
 
-  def CreateCoAPacket(self, **args):
+  def create_coa_packet(self, **args):
     """Create a new RADIUS packet.
     This utility function creates a new RADIUS packet which can
     be used to communicate with the RADIUS server this client
@@ -114,9 +114,9 @@ class Client(host.Host):
     :return: a new empty packet instance
     :rtype: pyrad.packet.Packet
     """
-    return host.Host.CreateCoAPacket(self, secret=self.secret, **args)
+    return host.Host.create_coa_packet(self, secret=self.secret, **args)
 
-  def _SendPacket(self, pkt, port):
+  def _send_packet(self, pkt, port):
     """Send a packet to a RADIUS server.
 
     :param pkt: the packet to send
@@ -127,10 +127,10 @@ class Client(host.Host):
     :rtype:   pyrad.packet.Packet
     :raise Timeout: RADIUS server does not reply
     """
-    self._SocketOpen()
+    self._socket_open()
 
     for attempt in range(self.retries):
-      if attempt and pkt.code == packet.AccountingRequest:
+      if attempt and pkt.code == packet.ACCOUNTINGREQUEST:
         if "Acct-Delay-Time" in pkt:
           pkt["Acct-Delay-Time"] = \
             pkt["Acct-Delay-Time"][0] + self.timeout
@@ -162,7 +162,7 @@ class Client(host.Host):
 
     raise Timeout
 
-  def SendPacket(self, pkt):
+  def send_packet(self, pkt): # pylint: disable=arguments-differ
     """Send a packet to a RADIUS server.
 
     :param pkt: the packet to send
@@ -172,8 +172,8 @@ class Client(host.Host):
     :raise Timeout: RADIUS server does not reply
     """
     if isinstance(pkt, packet.AuthPacket):
-      return self._SendPacket(pkt, self.authport)
+      return self._send_packet(pkt, self.authport)
     elif isinstance(pkt, packet.CoAPacket):
-      return self._SendPacket(pkt, self.coaport)
+      return self._send_packet(pkt, self.coaport)
     else:
-      return self._SendPacket(pkt, self.acctport)
+      return self._send_packet(pkt, self.acctport)

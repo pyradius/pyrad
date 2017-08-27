@@ -8,7 +8,7 @@ import six
 import binascii
 
 
-def EncodeString(str):
+def encode_string(str):
   if len(str) > 253:
     raise ValueError('Can only encode strings of <= 253 characters')
   if isinstance(str, six.text_type):
@@ -17,7 +17,7 @@ def EncodeString(str):
     return str
 
 
-def EncodeOctets(str):
+def encode_octets(str):
   if len(str) > 253:
     raise ValueError('Can only encode strings of <= 253 characters')
 
@@ -28,26 +28,26 @@ def EncodeOctets(str):
     return str
 
 
-def EncodeAddress(addr):
+def encode_address(addr):
   if not isinstance(addr, six.string_types):
     raise TypeError('Address has to be a string')
   return IPAddress(addr).packed
 
 
-def EncodeIPv6Prefix(addr):
+def encode_ipv6_prefix(addr):
   if not isinstance(addr, six.string_types):
     raise TypeError('IPv6 Prefix has to be a string')
   ip = IPNetwork(addr)
   return struct.pack('2B', *[0, ip.prefixlen]) + ip.ip.packed
 
 
-def EncodeIPv6Address(addr):
+def encode_ipv6_address(addr):
   if not isinstance(addr, six.string_types):
     raise TypeError('IPv6 Address has to be a string')
   return IPAddress(addr).packed
 
 
-def EncodeAscendBinary(str):
+def encode_ascend_binary(str):
   """
   Format: List of type=value pairs sperated by spaces.
 
@@ -118,109 +118,109 @@ def EncodeAscendBinary(str):
   return result
 
 
-def EncodeInteger(num, format='!I'):
+def encode_integer(num, fmt='!I'):
   try:
     num = int(num)
   except:
     raise TypeError('Can not encode non-integer as integer')
-  return struct.pack(format, num)
+  return struct.pack(fmt, num)
 
 
-def EncodeDate(num):
+def encode_date(num):
   if not isinstance(num, int):
     raise TypeError('Can not encode non-integer as date')
   return struct.pack('!I', num)
 
 
-def DecodeString(str):
+def decode_string(str):
   try:
     return str.decode('utf-8')
   except:
     return str
 
 
-def DecodeOctets(str):
+def decode_octets(str):
   return str
 
 
-def DecodeAddress(addr):
-  return '.'.join(map(str, struct.unpack('BBBB', addr)))
+def decode_address(addr):
+  return '.'.join([str(x) for x in struct.unpack('BBBB', addr)])
 
 
-def DecodeIPv6Prefix(addr):
+def decode_ipv6_prefix(addr):
   addr = addr + b'\x00' * (18 - len(addr))
   _, length, prefix = ':'.join(
     map('{:x}'.format, struct.unpack('!BB' + 'H' * 8, addr))).split(":", 2)
   return str(IPNetwork("%s/%s" % (prefix, int(length, 16))))
 
 
-def DecodeIPv6Address(addr):
+def decode_ipv6_address(addr):
   addr = addr + b'\x00' * (16 - len(addr))
   prefix = ':'.join(map('{:x}'.format, struct.unpack('!' + 'H' * 8, addr)))
   return str(IPAddress(prefix))
 
 
-def DecodeAscendBinary(str):
+def decode_ascend_binary(str):
   return str
 
 
-def DecodeInteger(num, format='!I'):
-  return (struct.unpack(format, num))[0]
+def decode_integer(num, fmt='!I'):
+  return (struct.unpack(fmt, num))[0]
 
 
-def DecodeDate(num):
+def decode_date(num):
   return (struct.unpack('!I', num))[0]
 
 
-def EncodeAttr(datatype, value):
+def encode_attr(datatype, value):
   if datatype == 'string':
-    return EncodeString(value)
+    return encode_string(value)
   elif datatype == 'octets':
-    return EncodeOctets(value)
+    return encode_octets(value)
   elif datatype == 'integer':
-    return EncodeInteger(value)
+    return encode_integer(value)
   elif datatype == 'ipaddr':
-    return EncodeAddress(value)
+    return encode_address(value)
   elif datatype == 'ipv6prefix':
-    return EncodeIPv6Prefix(value)
+    return encode_ipv6_prefix(value)
   elif datatype == 'ipv6addr':
-    return EncodeIPv6Address(value)
+    return encode_ipv6_address(value)
   elif datatype == 'abinary':
-    return EncodeAscendBinary(value)
+    return encode_ascend_binary(value)
   elif datatype == 'signed':
-    return EncodeInteger(value, '!i')
+    return encode_integer(value, '!i')
   elif datatype == 'short':
-    return EncodeInteger(value, '!H')
+    return encode_integer(value, '!H')
   elif datatype == 'byte':
-    return EncodeInteger(value, '!B')
+    return encode_integer(value, '!B')
   elif datatype == 'date':
-    return EncodeDate(value)
+    return encode_date(value)
   else:
     raise ValueError('Unknown attribute type %s' % datatype)
 
 
-def DecodeAttr(datatype, value):
+def decode_attr(datatype, value):
   if datatype == 'string':
-    return DecodeString(value)
+    return decode_string(value)
   elif datatype == 'octets':
-    return DecodeOctets(value)
+    return decode_octets(value)
   elif datatype == 'integer':
-    return DecodeInteger(value)
+    return decode_integer(value)
   elif datatype == 'ipaddr':
-    return DecodeAddress(value)
+    return decode_address(value)
   elif datatype == 'ipv6prefix':
-    return DecodeIPv6Prefix(value)
+    return decode_ipv6_prefix(value)
   elif datatype == 'ipv6addr':
-    return DecodeIPv6Address(value)
+    return decode_ipv6_address(value)
   elif datatype == 'abinary':
-    return DecodeAscendBinary(value)
+    return decode_ascend_binary(value)
   elif datatype == 'signed':
-    return DecodeInteger(value, '!i')
+    return decode_integer(value, '!i')
   elif datatype == 'short':
-    return DecodeInteger(value, '!H')
+    return decode_integer(value, '!H')
   elif datatype == 'byte':
-    return DecodeInteger(value, '!B')
+    return decode_integer(value, '!B')
   elif datatype == 'date':
-    return DecodeDate(value)
+    return decode_date(value)
   else:
     raise ValueError('Unknown attribute type %s' % datatype)

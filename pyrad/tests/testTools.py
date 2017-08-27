@@ -8,106 +8,106 @@ import sys
 class EncodingTests(unittest.TestCase):
 
     def testStringEncoding(self):
-        self.assertRaises(ValueError, tools.EncodeString, 'x' * 254)
+        self.assertRaises(ValueError, tools.encode_string, 'x' * 254)
         self.assertEqual(
-            tools.EncodeString('1234567890'),
+            tools.encode_string('1234567890'),
             six.b('1234567890'))
 
     def testInvalidStringEncodingRaisesTypeError(self):
-        self.assertRaises(TypeError, tools.EncodeString, 1)
+        self.assertRaises(TypeError, tools.encode_string, 1)
 
     def testAddressEncoding(self):
-        self.assertRaises(AddrFormatError, tools.EncodeAddress, 'TEST123')
+        self.assertRaises(AddrFormatError, tools.encode_address, 'TEST123')
         self.assertEqual(
-            tools.EncodeAddress('192.168.0.255'),
+            tools.encode_address('192.168.0.255'),
             six.b('\xc0\xa8\x00\xff'))
 
     def testInvalidAddressEncodingRaisesTypeError(self):
-        self.assertRaises(TypeError, tools.EncodeAddress, 1)
+        self.assertRaises(TypeError, tools.encode_address, 1)
 
     def testIntegerEncoding(self):
         self.assertEqual(
-            tools.EncodeInteger(0x01020304),
+            tools.encode_integer(0x01020304),
             six.b('\x01\x02\x03\x04'))
 
     def testUnsignedIntegerEncoding(self):
         self.assertEqual(
-            tools.EncodeInteger(0xFFFFFFFF),
+            tools.encode_integer(0xFFFFFFFF),
             six.b('\xff\xff\xff\xff'))
 
     def testInvalidIntegerEncodingRaisesTypeError(self):
-        self.assertRaises(TypeError, tools.EncodeInteger, 'ONE')
+        self.assertRaises(TypeError, tools.encode_integer, 'ONE')
 
     def testDateEncoding(self):
         self.assertEqual(
-            tools.EncodeDate(0x01020304),
+            tools.encode_date(0x01020304),
             six.b('\x01\x02\x03\x04'))
 
     def testInvalidDataEncodingRaisesTypeError(self):
-        self.assertRaises(TypeError, tools.EncodeDate, '1')
+        self.assertRaises(TypeError, tools.encode_date, '1')
 
-    def testEncodeAscendBinary(self):
+    def testencode_ascend_binary(self):
         self.assertEqual(
-            tools.EncodeAscendBinary(
+            tools.encode_ascend_binary(
                 'family=ipv4 action=discard direction=in dst=10.10.255.254/32'),
             six.b('\x01\x00\x01\x00\x00\x00\x00\x00\n\n\xff\xfe\x00 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'))
 
     def testStringDecoding(self):
         self.assertEqual(
-            tools.DecodeString(six.b('1234567890')),
+            tools.decode_string(six.b('1234567890')),
             '1234567890')
 
     def testAddressDecoding(self):
         self.assertEqual(
-            tools.DecodeAddress(six.b('\xc0\xa8\x00\xff')),
+            tools.decode_address(six.b('\xc0\xa8\x00\xff')),
             '192.168.0.255')
 
     def testIntegerDecoding(self):
         self.assertEqual(
-            tools.DecodeInteger(six.b('\x01\x02\x03\x04')),
+            tools.decode_integer(six.b('\x01\x02\x03\x04')),
             0x01020304)
 
     def testDateDecoding(self):
         self.assertEqual(
-            tools.DecodeDate(six.b('\x01\x02\x03\x04')),
+            tools.decode_date(six.b('\x01\x02\x03\x04')),
             0x01020304)
 
     def testUnknownTypeEncoding(self):
-        self.assertRaises(ValueError, tools.EncodeAttr, 'unknown', None)
+        self.assertRaises(ValueError, tools.encode_attr, 'unknown', None)
 
     def testUnknownTypeDecoding(self):
-        self.assertRaises(ValueError, tools.DecodeAttr, 'unknown', None)
+        self.assertRaises(ValueError, tools.decode_attr, 'unknown', None)
 
     def testEncodeFunction(self):
         self.assertEqual(
-            tools.EncodeAttr('string', six.u('string')),
+            tools.encode_attr('string', six.u('string')),
             six.b('string'))
         self.assertEqual(
-            tools.EncodeAttr('octets', six.b('string')),
+            tools.encode_attr('octets', six.b('string')),
             six.b('string'))
         self.assertEqual(
-            tools.EncodeAttr('ipaddr', '192.168.0.255'),
+            tools.encode_attr('ipaddr', '192.168.0.255'),
             six.b('\xc0\xa8\x00\xff'))
         self.assertEqual(
-            tools.EncodeAttr('integer', 0x01020304),
+            tools.encode_attr('integer', 0x01020304),
             six.b('\x01\x02\x03\x04'))
         self.assertEqual(
-            tools.EncodeAttr('date', 0x01020304),
+            tools.encode_attr('date', 0x01020304),
             six.b('\x01\x02\x03\x04'))
 
     def testDecodeFunction(self):
         self.assertEqual(
-            tools.DecodeAttr('string', six.b('string')),
+            tools.decode_attr('string', six.b('string')),
             six.u('string'))
         self.assertEqual(
-            tools.EncodeAttr('octets', six.b('string')),
+            tools.encode_attr('octets', six.b('string')),
             six.b('string'))
         self.assertEqual(
-            tools.DecodeAttr('ipaddr', six.b('\xc0\xa8\x00\xff')),
+            tools.decode_attr('ipaddr', six.b('\xc0\xa8\x00\xff')),
             '192.168.0.255')
         self.assertEqual(
-            tools.DecodeAttr('integer', six.b('\x01\x02\x03\x04')),
+            tools.decode_attr('integer', six.b('\x01\x02\x03\x04')),
             0x01020304)
         self.assertEqual(
-            tools.DecodeAttr('date', six.b('\x01\x02\x03\x04')),
+            tools.decode_attr('date', six.b('\x01\x02\x03\x04')),
             0x01020304)

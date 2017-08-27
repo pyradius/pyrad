@@ -16,7 +16,7 @@ class Host(object):
   :type acctport: integer
   """
 
-  def __init__(self, authport=1812, acctport=1813, coaport=3799, dict=None):
+  def __init__(self, authport=1812, acctport=1813, coaport=3799, dic=None):
     """Constructor
 
     :param authport: port to listen on for authentication packets
@@ -28,12 +28,12 @@ class Host(object):
     :param  dict: RADIUS dictionary
     :type  dict: pyrad.dictionary.Dictionary
     """
-    self.dict = dict
+    self.dic = dic
     self.authport = authport
     self.acctport = acctport
     self.coaport = coaport
 
-  def CreatePacket(self, **args):
+  def create_packet(self, **args):
     """Create a new RADIUS packet.
     This utility function creates a new RADIUS authentication
     packet which can be used to communicate with the RADIUS server
@@ -43,9 +43,9 @@ class Host(object):
     :return: a new empty packet instance
     :rtype: pyrad.packet.Packet
     """
-    return packet.Packet(dict=self.dict, **args)
+    return packet.Packet(dict=self.dic, **args)
 
-  def CreateAuthPacket(self, **args):
+  def create_auth_packet(self, **args):
     """Create a new authentication RADIUS packet.
     This utility function creates a new RADIUS authentication
     packet which can be used to communicate with the RADIUS server
@@ -55,9 +55,9 @@ class Host(object):
     :return: a new empty packet instance
     :rtype: pyrad.packet.AuthPacket
     """
-    return packet.AuthPacket(dict=self.dict, **args)
+    return packet.AuthPacket(dict=self.dic, **args)
 
-  def CreateAcctPacket(self, **args):
+  def create_acct_packet(self, **args):
     """Create a new accounting RADIUS packet.
     This utility function creates a new accouting RADIUS packet
     which can be used to communicate with the RADIUS server this
@@ -67,9 +67,9 @@ class Host(object):
     :return: a new empty packet instance
     :rtype: pyrad.packet.AcctPacket
     """
-    return packet.AcctPacket(dict=self.dict, **args)
+    return packet.AcctPacket(dict=self.dic, **args)
 
-  def CreateCoAPacket(self, **args):
+  def create_coa_packet(self, **args):
     """Create a new CoA RADIUS packet.
     This utility function creates a new CoA RADIUS packet
     which can be used to communicate with the RADIUS server this
@@ -79,9 +79,9 @@ class Host(object):
     :return: a new empty packet instance
     :rtype: pyrad.packet.CoAPacket
     """
-    return packet.CoAPacket(dict=self.dict, **args)
+    return packet.CoAPacket(dict=self.dic, **args)
 
-  def SendPacket(self, fd, pkt):
+  def send_packet(self, fd, pkt): # pylint: disable=no-self-use
     """Send a packet.
 
     :param fd: socket to send packet with
@@ -91,7 +91,7 @@ class Host(object):
     """
     fd.sendto(pkt.Packet(), pkt.source)
 
-  def SendReplyPacket(self, fd, pkt):
+  def send_reply_packet(self, fd, pkt): # pylint: disable=no-self-use
     """Send a packet.
 
     :param fd: socket to send packet with

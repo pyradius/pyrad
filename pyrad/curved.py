@@ -27,41 +27,41 @@ class PacketError(Exception):
 
 class RADIUS(host.Host, protocol.DatagramProtocol):
 
-  def __init__(self, hosts={}, dict=dictionary.Dictionary()):
-    host.Host.__init__(self, dict=dict)
+  def __init__(self, hosts={}, dic=dictionary.Dictionary()):
+    host.Host.__init__(self, dic=dic)
     self.hosts = hosts
 
-  def processPacket(self, pkt):
+  def process_packet(self, pkt):
     pass
 
-  def createPacket(self, **kwargs):
+  def create_packet(self, **kwargs):
     raise NotImplementedError('Attempted to use a pure base class')
 
-  def datagramReceived(self, datagram, source):
-    host, port = source
+  def datagram_received(self, datagram, source):
+    remote_host, port = source
     try:
-      pkt = self.CreatePacket(packet=datagram)
+      pkt = self.create_packet(packet=datagram)
     except packet.PacketError as err:
       log.msg('Dropping invalid packet: ' + str(err))
       return
 
-    if host not in self.hosts:
-      log.msg('Dropping packet from unknown host ' + host)
+    if remote_host not in self.hosts:
+      log.msg('Dropping packet from unknown host ' + remote_host)
       return
 
-    pkt.source = (host, port)
+    pkt.source = (remote_host, port)
     try:
-      self.processPacket(pkt)
+      self.process_packet(pkt)
     except PacketError as err:
-      log.msg('Dropping packet from %s: %s' % (host, str(err)))
+      log.msg('Dropping packet from %s: %s' % (remote_host, str(err)))
 
 
 class RADIUSAccess(RADIUS):
 
-  def createPacket(self, **kwargs):
-    self.CreateAuthPacket(**kwargs)
+  def create_packet(self, **kwargs):
+    self.create_auth_packet(**kwargs)
 
-  def processPacket(self, pkt):
+  def process_packet(self, pkt):
     if pkt.code != packet.AccessRequest:
       raise PacketError(
         'non-AccessRequest packet on authentication socket')
@@ -69,10 +69,10 @@ class RADIUSAccess(RADIUS):
 
 class RADIUSAccounting(RADIUS):
 
-  def createPacket(self, **kwargs):
-    self.CreateAcctPacket(**kwargs)
+  def create_packet(self, **kwargs):
+    self.create_acct_packet(**kwargs)
 
-  def processPacket(self, pkt):
+  def process_packet(self, pkt):
     if pkt.code != packet.AccountingRequest:
       raise PacketError(
         'non-AccountingRequest packet on authentication socket')

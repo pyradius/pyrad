@@ -71,7 +71,6 @@ from pyrad import bidict
 from pyrad import tools
 from pyrad import dictfile
 from copy import copy
-import logging
 
 __docformat__ = 'epytext en'
 
@@ -93,22 +92,22 @@ class ParseError(Exception):
 
   def __init__(self, msg=None, **data):
     self.msg = msg
-    self.file = data.get('file', '')
+    self.fn = data.get('file', '')
     self.line = data.get('line', -1)
 
   def __str__(self):
-    str = ''
-    if self.file:
-      str += self.file
+    string = ''
+    if self.fn:
+      string += self.fn
     if self.line > -1:
-      str += '(%d)' % self.line
-    if self.file or self.line > -1:
-      str += ': '
-    str += 'Parse error'
+      string += '(%d)' % self.line
+    if self.fn or self.line > -1:
+      string += ': '
+    string += 'Parse error'
     if self.msg:
-      str += ': %s' % self.msg
+      string += ': %s' % self.msg
 
-    return str
+    return string
 
 
 class Attribute(object):
@@ -125,7 +124,7 @@ class Attribute(object):
     self.has_tag = has_tag
     self.values = bidict.BiDict()
     for (key, value) in values.items():
-      self.values.Add(key, value)
+      self.values.add(key, value)
 
 
 class Dictionary(object):
@@ -142,24 +141,24 @@ class Dictionary(object):
   :type attributes: bidict
   """
 
-  def __init__(self, dict=None, *dicts):
+  def __init__(self, dictionary=None, *dicts):
     """
-    :param dict: path of dictionary file or file-like object to read
+    :param dictionary: path of dictionary file or file-like object to read
     :type dict: string or file
     :param dicts: list of dictionaries
     :type dicts: sequence of strings or files
     """
     self.vendors = bidict.BiDict()
-    self.vendors.Add('', 0)
+    self.vendors.add('', 0)
     self.attrindex = bidict.BiDict()
     self.attributes = {}
     self.defer_parse = []
 
-    if dict:
-      self.ReadDictionary(dict)
+    if dictionary:
+      self.read_dictionary(dictionary)
 
     for i in dicts:
-      self.ReadDictionary(i)
+      self.read_dictionary(i)
 
   def __len__(self):
     return len(self.attributes)
@@ -172,7 +171,7 @@ class Dictionary(object):
 
   has_key = __contains__
 
-  def __ParseAttribute(self, state, tokens):
+  def __parse_attribute(self, state, tokens):
     if not len(tokens) in [4, 5]:
       raise ParseError(
         'Incorrect number of tokens for attribute definition',
@@ -203,7 +202,7 @@ class Dictionary(object):
 
       if (not has_tag) and encrypt == 0:
         vendor = tokens[4]
-        if not self.vendors.HasForward(vendor):
+        if not self.vendors.has_forward(vendor):
           if vendor == "concat":
             # ignore attributes with concat (freeradius compat.)
             return None
@@ -227,11 +226,11 @@ class Dictionary(object):
                file=state['file'],
                line=state['line'])
     if vendor:
-      key = (self.vendors.GetForward(vendor), code)
+      key = (self.vendors.get_forward(vendor), code)
     else:
       key = code
 
-    self.attrindex.Add(attribute, key)
+    self.attrindex.add(attribute, key)
     self.attributes[attribute] = Attribute(
       attribute,
       code,
@@ -240,7 +239,7 @@ class Dictionary(object):
       encrypt=encrypt,
       has_tag=has_tag)
 
-  def __ParseValue(self, state, tokens, defer):
+  def __parse_value(self, state, tokens, defer):
     if len(tokens) != 4:
       raise ParseError('Incorrect number of tokens for value definition',
                file=state['file'],
@@ -260,10 +259,10 @@ class Dictionary(object):
 
     if adef.type in ['integer', 'signed', 'short', 'byte']:
       value = int(value, 0)
-    value = tools.EncodeAttr(adef.type, value)
-    self.attributes[attr].values.Add(key, value)
+    value = tools.encode_attr(adef.type, value)
+    self.attributes[attr].values.add(key, value)
 
-  def __ParseVendor(self, state, tokens):
+  def __parse_vendor(self, state, tokens):
     if len(tokens) not in [3, 4]:
       raise ParseError(
         'Incorrect number of tokens for vendor definition',
@@ -293,9 +292,9 @@ class Dictionary(object):
           line=state['line'])
 
     (vendorname, vendor) = tokens[1:3]
-    self.vendors.Add(vendorname, int(vendor, 0))
+    self.vendors.add(vendorname, int(vendor, 0))
 
-  def __ParseBeginVendor(self, state, tokens):
+  def __parse_begin_vendor(self, state, tokens):
     if len(tokens) != 2:
       raise ParseError(
         'Incorrect number of tokens for begin-vendor statement',
@@ -304,7 +303,7 @@ class Dictionary(object):
 
     vendor = tokens[1]
 
-    if not self.vendors.HasForward(vendor):
+    if not self.vendors.has_forward(vendor):
       raise ParseError(
         'Unknown vendor %s in begin-vendor statement' % vendor,
         file=state['file'],
@@ -312,7 +311,7 @@ class Dictionary(object):
 
     state['vendor'] = vendor
 
-  def __ParseEndVendor(self, state, tokens):
+  def _parse_end_vendor(self, state, tokens): # pylint: disable=no-self-use
     if len(tokens) != 2:
       raise ParseError(
         'Incorrect number of tokens for end-vendor statement',
@@ -328,24 +327,25 @@ class Dictionary(object):
         line=state['line'])
     state['vendor'] = ''
 
-  def ReadDictionary(self, file):
+  def read_dictionary(self, dictionary_file):
     """Parse a dictionary file.
     Reads a RADIUS dictionary file and merges its contents into the
     class instance.
 
-    :param file: Name of dictionary file to parse or a file-like object
+    :param dictionary_file: Name of dictionary file to parse or a
+      file-like object
     :type file: string or file-like object
     """
 
-    fil = dictfile.DictFile(file)
+    fil = dictfile.DictFile(dictionary_file)
 
     state = {}
     state['vendor'] = ''
 
     self.defer_parse = []
     for line in fil:
-      state['file'] = fil.File()
-      state['line'] = fil.Line()
+      state['file'] = fil.file()
+      state['line'] = fil.line()
       line = line.split('#', 1)[0].strip()
 
       tokens = line.split()
@@ -354,18 +354,18 @@ class Dictionary(object):
 
       key = tokens[0].upper()
       if key == 'ATTRIBUTE':
-        self.__ParseAttribute(state, tokens)
+        self.__parse_attribute(state, tokens)
       elif key == 'VALUE':
-        self.__ParseValue(state, tokens, True)
+        self.__parse_value(state, tokens, True)
       elif key == 'VENDOR':
-        self.__ParseVendor(state, tokens)
+        self.__parse_vendor(state, tokens)
       elif key == 'BEGIN-VENDOR':
-        self.__ParseBeginVendor(state, tokens)
+        self.__parse_begin_vendor(state, tokens)
       elif key == 'END-VENDOR':
-        self.__ParseEndVendor(state, tokens)
+        self._parse_end_vendor(state, tokens)
 
     for state, tokens in self.defer_parse:
       key = tokens[0].upper()
       if key == 'VALUE':
-        self.__ParseValue(state, tokens, False)
+        self.__parse_value(state, tokens, False)
     self.defer_parse = []

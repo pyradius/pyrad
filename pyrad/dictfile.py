@@ -31,7 +31,7 @@ class _Node(object):
     else:
       self.dir = os.path.join(parentdir, path)
 
-  def Next(self):
+  def next(self):
     if self.current >= self.length:
       return None
     self.current += 1
@@ -53,11 +53,11 @@ class DictFile(object):
     @type fil: string or file
     """
     self.stack = []
-    self.__ReadNode(fil)
+    self.__read_node(fil)
 
-  def __ReadNode(self, fil):
+  def __read_node(self, fil):
     node = None
-    parentdir = self.__CurDir()
+    parentdir = self.__cur_dir()
     if isinstance(fil, six.string_types):
       fname = None
       if os.path.isabs(fil):
@@ -71,13 +71,13 @@ class DictFile(object):
       node = _Node(fil, '', parentdir)
     self.stack.append(node)
 
-  def __CurDir(self):
+  def __cur_dir(self):
     if self.stack:
       return self.stack[-1].dir
     else:
       return os.path.realpath(os.curdir)
 
-  def __GetInclude(self, line):
+  def _get_include(self, line): # pylint: disable=no-self-use
     line = line.split("#", 1)[0].strip()
     tokens = line.split()
     if tokens and tokens[0].upper() == '$INCLUDE':
@@ -85,7 +85,7 @@ class DictFile(object):
     else:
       return None
 
-  def Line(self):
+  def line(self):
     """Returns line number of current file
     """
     if self.stack:
@@ -93,7 +93,7 @@ class DictFile(object):
     else:
       return -1
 
-  def File(self):
+  def file(self):
     """Returns name of current file
     """
     if self.stack:
@@ -106,13 +106,13 @@ class DictFile(object):
 
   def __next__(self):
     while self.stack:
-      line = self.stack[-1].Next()
+      line = self.stack[-1].next()
       if line is None:
         self.stack.pop()
       else:
-        inc = self.__GetInclude(line)
+        inc = self._get_include(line)
         if inc:
-          self.__ReadNode(inc)
+          self.__read_node(inc)
         else:
           return line
     raise StopIteration

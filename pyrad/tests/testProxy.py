@@ -2,8 +2,8 @@ import select
 import socket
 import unittest
 from pyrad.proxy import Proxy
-from pyrad.packet import AccessAccept
-from pyrad.packet import AccessRequest
+from pyrad.packet import ACCESSACCEPT
+from pyrad.packet import ACCESSREQUEST
 from pyrad.server import ServerPacketError
 from pyrad.server import Server
 from pyrad.tests.mock import MockFd
@@ -31,7 +31,7 @@ class SocketTests(unittest.TestCase):
 
     def testProxyFd(self):
         self.proxy._poll = MockPoll()
-        self.proxy._PrepareSockets()
+        self.proxy._prepare_sockets()
         self.failUnless(isinstance(self.proxy._proxyfd, MockSocket))
         self.assertEqual(list(self.proxy._fdmap.keys()), [1])
         self.assertEqual(self.proxy._poll.registry,
@@ -45,26 +45,26 @@ class ProxyPacketHandlingTests(unittest.TestCase):
         self.proxy.hosts['host'] = TrivialObject()
         self.proxy.hosts['host'].secret = 'supersecret'
         self.packet = TrivialObject()
-        self.packet.code = AccessAccept
+        self.packet.code = ACCESSACCEPT
         self.packet.source = ('host', 'port')
 
     def testHandleProxyPacketUnknownHost(self):
         self.packet.source = ('stranger', 'port')
         try:
-            self.proxy._HandleProxyPacket(self.packet)
+            self.proxy._handle_proxy_packet(self.packet)
         except ServerPacketError as e:
             self.failUnless('unknown host' in str(e))
         else:
             self.fail()
 
     def testHandleProxyPacketSetsSecret(self):
-        self.proxy._HandleProxyPacket(self.packet)
+        self.proxy._handle_proxy_packet(self.packet)
         self.assertEqual(self.packet.secret, 'supersecret')
 
     def testHandleProxyPacketHandlesWrongPacket(self):
-        self.packet.code = AccessRequest
+        self.packet.code = ACCESSREQUEST
         try:
-            self.proxy._HandleProxyPacket(self.packet)
+            self.proxy._handle_proxy_packet(self.packet)
         except ServerPacketError as e:
             self.failUnless('non-response' in str(e))
         else:
@@ -83,17 +83,17 @@ class OtherTests(unittest.TestCase):
 
     def testProcessInputNonProxyPort(self):
         fd = MockFd(fd=111)
-        MockClassMethod(Server, '_ProcessInput')
-        self.proxy._ProcessInput(fd)
+        MockClassMethod(Server, '_process_input')
+        self.proxy._process_input(fd)
         self.assertEqual(self.proxy.called,
-                         [('_ProcessInput', (fd,), {})])
+                         [('_process_input', (fd,), {})])
 
     def testProcessInput(self):
-        MockClassMethod(Proxy, '_GrabPacket')
-        MockClassMethod(Proxy, '_HandleProxyPacket')
-        self.proxy._ProcessInput(self.proxy._proxyfd)
+        MockClassMethod(Proxy, '_grab_packet')
+        MockClassMethod(Proxy, '_handle_proxy_packet')
+        self.proxy._process_input(self.proxy._proxyfd)
         self.assertEqual([x[0] for x in self.proxy.called],
-                         ['_GrabPacket', '_HandleProxyPacket'])
+                         ['_grab_packet', '_handle_proxy_packet'])
 
 
 if not hasattr(select, 'poll'):
