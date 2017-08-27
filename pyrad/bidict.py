@@ -4,36 +4,43 @@
 
 
 class BiDict(object):
-    def __init__(self):
-        self.forward = {}
-        self.backward = {}
+  """Create a bi-directional map object."""
 
-    def Add(self, one, two):
-        self.forward[one] = two
-        self.backward[two] = one
+  def __init__(self):
+    self.forward = {}
+    self.backward = {}
 
-    def __len__(self):
-        return len(self.forward)
+  def add(self, one, two):
+    """Adds two elements to the forward and backward dicts."""
+    self.forward[one] = two
+    self.backward[two] = one
 
-    def __getitem__(self, key):
-        return self.GetForward(key)
+  def __len__(self):
+    return len(self.forward)
 
-    def __delitem__(self, key):
-        if key in self.forward:
-            del self.backward[self.forward[key]]
-            del self.forward[key]
-        else:
-            del self.forward[self.backward[key]]
-            del self.backward[key]
+  def __getitem__(self, key):
+    return self.get_forward(key)
 
-    def GetForward(self, key):
-        return self.forward[key]
+  def __delitem__(self, key):
+    if key in self.forward:
+      del self.backward[self.forward[key]]
+      del self.forward[key]
+    else:
+      del self.forward[self.backward[key]]
+      del self.backward[key]
 
-    def HasForward(self, key):
-        return key in self.forward
+  def get_forward(self, key):
+    """Get the key from the forward dict and return it."""
+    return self.forward[key]
 
-    def GetBackward(self, key):
-        return self.backward[key]
+  def has_forward(self, key):
+    """Determines if the key is in the forward dict."""
+    return key in self.forward
 
-    def HasBackward(self, key):
-        return key in self.backward
+  def get_backward(self, key):
+    """Get the key from the backward dict and return it."""
+    return self.backward[key]
+
+  def has_backward(self, key):
+    """Determines if the key is in the backward dict."""
+    return key in self.backward

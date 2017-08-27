@@ -17,65 +17,69 @@ from pyrad import packet
 
 
 class PacketError(Exception):
-    """Exception class for bogus packets
 
-    PacketError exceptions are only used inside the Server class to
-    abort processing of a packet.
-    """
+  """Exception class for bogus packets
+
+  PacketError exceptions are only used inside the Server class to
+  abort processing of a packet.
+  """
 
 
 class RADIUS(host.Host, protocol.DatagramProtocol):
-    def __init__(self, hosts={}, dict=dictionary.Dictionary()):
-        host.Host.__init__(self, dict=dict)
-        self.hosts = hosts
 
-    def processPacket(self, pkt):
-        pass
+  def __init__(self, hosts={}, dic=dictionary.Dictionary()):
+    host.Host.__init__(self, dic=dic)
+    self.hosts = hosts
 
-    def createPacket(self, **kwargs):
-        raise NotImplementedError('Attempted to use a pure base class')
+  def process_packet(self, pkt):
+    pass
 
-    def datagramReceived(self, datagram, source):
-        host, port = source
-        try:
-            pkt = self.CreatePacket(packet=datagram)
-        except packet.PacketError as err:
-            log.msg('Dropping invalid packet: ' + str(err))
-            return
+  def create_packet(self, **kwargs):
+    raise NotImplementedError('Attempted to use a pure base class')
 
-        if host not in self.hosts:
-            log.msg('Dropping packet from unknown host ' + host)
-            return
+  def datagram_received(self, datagram, source):
+    remote_host, port = source
+    try:
+      pkt = self.create_packet(packet=datagram)
+    except packet.PacketError as err:
+      log.msg('Dropping invalid packet: ' + str(err))
+      return
 
-        pkt.source = (host, port)
-        try:
-            self.processPacket(pkt)
-        except PacketError as err:
-            log.msg('Dropping packet from %s: %s' % (host, str(err)))
+    if remote_host not in self.hosts:
+      log.msg('Dropping packet from unknown host ' + remote_host)
+      return
+
+    pkt.source = (remote_host, port)
+    try:
+      self.process_packet(pkt)
+    except PacketError as err:
+      log.msg('Dropping packet from %s: %s' % (remote_host, str(err)))
 
 
 class RADIUSAccess(RADIUS):
-    def createPacket(self, **kwargs):
-        self.CreateAuthPacket(**kwargs)
 
-    def processPacket(self, pkt):
-        if pkt.code != packet.AccessRequest:
-            raise PacketError(
-                    'non-AccessRequest packet on authentication socket')
+  def create_packet(self, **kwargs):
+    self.create_auth_packet(**kwargs)
+
+  def process_packet(self, pkt):
+    if pkt.code != packet.ACCESSREQUEST:
+      raise PacketError(
+        'non-AccessRequest packet on authentication socket')
 
 
 class RADIUSAccounting(RADIUS):
-    def createPacket(self, **kwargs):
-        self.CreateAcctPacket(**kwargs)
 
-    def processPacket(self, pkt):
-        if pkt.code != packet.AccountingRequest:
-            raise PacketError(
-                    'non-AccountingRequest packet on authentication socket')
+  def create_packet(self, **kwargs):
+    self.create_acct_packet(**kwargs)
+
+  def process_packet(self, pkt):
+    if pkt.code != packet.ACCOUNTINGREQUEST:
+      raise PacketError(
+        'non-AccountingRequest packet on authentication socket')
 
 
 if __name__ == '__main__':
-    log.startLogging(sys.stdout, 0)
-    reactor.listenUDP(1812, RADIUSAccess())
-    reactor.listenUDP(1813, RADIUSAccounting())
-    reactor.run()
+  log.startLogging(sys.stdout, 0)
+  reactor.listenUDP(1812, RADIUSAccess())
+  reactor.listenUDP(1813, RADIUSAccounting())
+  reactor.run()
