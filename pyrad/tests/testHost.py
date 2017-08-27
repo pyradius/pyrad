@@ -6,6 +6,7 @@ from pyrad.packet import AcctPacket
 
 
 class ConstructionTests(unittest.TestCase):
+
     def testSimpleConstruction(self):
         host = Host()
         self.assertEqual(host.authport, 1812)
@@ -27,6 +28,7 @@ class ConstructionTests(unittest.TestCase):
 
 
 class PacketCreationTests(unittest.TestCase):
+
     def setUp(self):
         self.host = Host()
 
@@ -71,6 +73,7 @@ class MockFd:
 
 
 class PacketSendTest(unittest.TestCase):
+
     def setUp(self):
         self.host = Host()
         self.fd = MockFd()

@@ -14,10 +14,12 @@ from pyrad.tests.mock import UnmockClassMethods
 
 
 class TrivialObject:
+
     """dummy object"""
 
 
 class SocketTests(unittest.TestCase):
+
     def setUp(self):
         self.orgsocket = socket.socket
         socket.socket = MockSocket
@@ -33,10 +35,11 @@ class SocketTests(unittest.TestCase):
         self.failUnless(isinstance(self.proxy._proxyfd, MockSocket))
         self.assertEqual(list(self.proxy._fdmap.keys()), [1])
         self.assertEqual(self.proxy._poll.registry,
-                [(1, select.POLLIN | select.POLLPRI | select.POLLERR)])
+                         [(1, select.POLLIN | select.POLLPRI | select.POLLERR)])
 
 
 class ProxyPacketHandlingTests(unittest.TestCase):
+
     def setUp(self):
         self.proxy = Proxy()
         self.proxy.hosts['host'] = TrivialObject()
@@ -69,6 +72,7 @@ class ProxyPacketHandlingTests(unittest.TestCase):
 
 
 class OtherTests(unittest.TestCase):
+
     def setUp(self):
         self.proxy = Proxy()
         self.proxy._proxyfd = MockFd()
@@ -82,14 +86,14 @@ class OtherTests(unittest.TestCase):
         MockClassMethod(Server, '_ProcessInput')
         self.proxy._ProcessInput(fd)
         self.assertEqual(self.proxy.called,
-                [('_ProcessInput', (fd,), {})])
+                         [('_ProcessInput', (fd,), {})])
 
     def testProcessInput(self):
         MockClassMethod(Proxy, '_GrabPacket')
         MockClassMethod(Proxy, '_HandleProxyPacket')
         self.proxy._ProcessInput(self.proxy._proxyfd)
         self.assertEqual([x[0] for x in self.proxy.called],
-                ['_GrabPacket', '_HandleProxyPacket'])
+                         ['_GrabPacket', '_HandleProxyPacket'])
 
 
 if not hasattr(select, 'poll'):

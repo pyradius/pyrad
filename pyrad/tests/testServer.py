@@ -16,12 +16,20 @@ from pyrad.packet import AccountingRequest
 
 
 class TrivialObject:
+
     """dummy objec"""
 
 
 class RemoteHostTests(unittest.TestCase):
+
     def testSimpleConstruction(self):
-        host = RemoteHost('address', 'secret', 'name', 'authport', 'acctport', 'coaport')
+        host = RemoteHost(
+            'address',
+            'secret',
+            'name',
+            'authport',
+            'acctport',
+            'coaport')
         self.assertEqual(host.address, 'address')
         self.assertEqual(host.secret, 'secret')
         self.assertEqual(host.name, 'name')
@@ -31,7 +39,7 @@ class RemoteHostTests(unittest.TestCase):
 
     def testNamedConstruction(self):
         host = RemoteHost(address='address', secret='secret', name='name',
-               authport='authport', acctport='acctport', coaport='coaport')
+                          authport='authport', acctport='acctport', coaport='coaport')
         self.assertEqual(host.address, 'address')
         self.assertEqual(host.secret, 'secret')
         self.assertEqual(host.name, 'name')
@@ -39,7 +47,9 @@ class RemoteHostTests(unittest.TestCase):
         self.assertEqual(host.acctport, 'acctport')
         self.assertEqual(host.coaport, 'coaport')
 
+
 class ServerConstructiontests(unittest.TestCase):
+
     def testSimpleConstruction(self):
         server = Server()
         self.assertEqual(server.authfds, [])
@@ -50,7 +60,7 @@ class ServerConstructiontests(unittest.TestCase):
         self.assertEqual(server.hosts, {})
 
     def testParameterOrder(self):
-        server = Server([], 'authport', 'acctport', 'coaport','hosts', 'dict')
+        server = Server([], 'authport', 'acctport', 'coaport', 'hosts', 'dict')
         self.assertEqual(server.authfds, [])
         self.assertEqual(server.acctfds, [])
         self.assertEqual(server.authport, 'authport')
@@ -73,6 +83,7 @@ class ServerConstructiontests(unittest.TestCase):
 
 
 class SocketTests(unittest.TestCase):
+
     def setUp(self):
         self.orgsocket = socket.socket
         socket.socket = MockSocket
@@ -85,21 +96,21 @@ class SocketTests(unittest.TestCase):
         self.server.BindToAddress('192.168.13.13')
         self.assertEqual(len(self.server.authfds), 1)
         self.assertEqual(self.server.authfds[0].address,
-                ('192.168.13.13', 1812))
+                        ('192.168.13.13', 1812))
 
         self.assertEqual(len(self.server.acctfds), 1)
         self.assertEqual(self.server.acctfds[0].address,
-                ('192.168.13.13', 1813))
+                        ('192.168.13.13', 1813))
 
     def testBindv6(self):
         self.server.BindToAddress('2001:db8:123::1')
         self.assertEqual(len(self.server.authfds), 1)
         self.assertEqual(self.server.authfds[0].address,
-                ('2001:db8:123::1', 1812))
+                        ('2001:db8:123::1', 1812))
 
         self.assertEqual(len(self.server.acctfds), 1)
         self.assertEqual(self.server.acctfds[0].address,
-                ('2001:db8:123::1', 1813))
+                        ('2001:db8:123::1', 1813))
 
     def testGrabPacket(self):
         def gen(data):
@@ -131,8 +142,8 @@ class SocketTests(unittest.TestCase):
 
         self.assertEqual(list(self.server._fdmap.keys()), [12, 14])
         self.assertEqual(self.server._poll.registry,
-                [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
-                 (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
+                         [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
+                          (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
 
     def testPrepareSocketAcctFds(self):
         self.server._poll = MockPoll()
@@ -142,11 +153,12 @@ class SocketTests(unittest.TestCase):
 
         self.assertEqual(list(self.server._fdmap.keys()), [12, 14])
         self.assertEqual(self.server._poll.registry,
-                [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
-                 (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
+                         [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
+                          (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
 
 
 class AuthPacketHandlingTests(unittest.TestCase):
+
     def setUp(self):
         self.server = Server()
         self.server.hosts['host'] = TrivialObject()
@@ -186,6 +198,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
 
 
 class AcctPacketHandlingTests(unittest.TestCase):
+
     def setUp(self):
         self.server = Server()
         self.server.hosts['host'] = TrivialObject()
@@ -225,6 +238,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
 
 
 class OtherTests(unittest.TestCase):
+
     def setUp(self):
         self.server = Server()
 
@@ -241,7 +255,7 @@ class OtherTests(unittest.TestCase):
                 return reply
 
         reply = self.server.CreateReplyPacket(TrivialPacket(),
-                one='one', two='two')
+                                              one='one', two='two')
         self.failUnless(isinstance(reply, TrivialObject))
         self.failUnless(reply.source is TrivialPacket.source)
         self.assertEqual(reply.kw, dict(one='one', two='two'))
@@ -254,7 +268,7 @@ class OtherTests(unittest.TestCase):
 
         self.server._ProcessInput(fd)
         self.assertEqual([x[0] for x in self.server.called],
-                ['_GrabPacket', '_HandleAuthPacket'])
+                         ['_GrabPacket', '_HandleAuthPacket'])
         self.assertEqual(self.server.called[0][1][1], fd)
 
     def testAcctProcessInput(self):
@@ -266,11 +280,12 @@ class OtherTests(unittest.TestCase):
 
         self.server._ProcessInput(fd)
         self.assertEqual([x[0] for x in self.server.called],
-                ['_GrabPacket', '_HandleAcctPacket'])
+                         ['_GrabPacket', '_HandleAcctPacket'])
         self.assertEqual(self.server.called[0][1][1], fd)
 
 
 class ServerRunTests(unittest.TestCase):
+
     def setUp(self):
         self.server = Server()
         self.origpoll = select.poll

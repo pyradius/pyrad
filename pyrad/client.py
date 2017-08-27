@@ -13,11 +13,13 @@ from pyrad import packet
 
 
 class Timeout(Exception):
+
     """Simple exception class which is raised when a timeout occurs
     while waiting for a RADIUS server to respond."""
 
 
 class Client(host.Host):
+
     """Basic RADIUS client.
     This class implements a basic RADIUS client. It can send requests
     to a RADIUS server, taking care of timeouts and retries, and
@@ -28,9 +30,9 @@ class Client(host.Host):
     :ivar timeout: number of seconds to wait for an answer
     :type timeout: integer
     """
-    def __init__(self, server, authport=1812, acctport=1813,
-            coaport=3799, secret=six.b(''), dict=None):
 
+    def __init__(self, server, authport=1812, acctport=1813,
+                 coaport=3799, secret=six.b(''), dict=None):
         """Constructor.
 
         :param   server: hostname or IP address of RADIUS server
@@ -69,7 +71,7 @@ class Client(host.Host):
     def _SocketOpen(self):
         if not self._socket:
             self._socket = socket.socket(socket.AF_INET,
-                                       socket.SOCK_DGRAM)
+                                         socket.SOCK_DGRAM)
             self._socket.setsockopt(socket.SOL_SOCKET,
                                     socket.SO_REUSEADDR, 1)
 
@@ -101,7 +103,7 @@ class Client(host.Host):
         :rtype:  pyrad.packet.Packet
         """
         return host.Host.CreateAcctPacket(self, secret=self.secret, **args)
-        
+
     def CreateCoAPacket(self, **args):
         """Create a new RADIUS packet.
         This utility function creates a new RADIUS packet which can
@@ -131,7 +133,7 @@ class Client(host.Host):
             if attempt and pkt.code == packet.AccountingRequest:
                 if "Acct-Delay-Time" in pkt:
                     pkt["Acct-Delay-Time"] = \
-                            pkt["Acct-Delay-Time"][0] + self.timeout
+                        pkt["Acct-Delay-Time"][0] + self.timeout
                 else:
                     pkt["Acct-Delay-Time"] = self.timeout
             self._socket.sendto(pkt.RequestPacket(), (self.server, port))
@@ -141,7 +143,7 @@ class Client(host.Host):
 
             while now < waitto:
                 ready = select.select([self._socket], [], [],
-                                    (waitto - now))
+                                     (waitto - now))
 
                 if ready[0]:
                     rawreply = self._socket.recv(4096)

@@ -4,36 +4,37 @@
 
 
 class BiDict(object):
-  def __init__(self):
-    self.forward = {}
-    self.backward = {}
 
-  def Add(self, one, two):
-    self.forward[one] = two
-    self.backward[two] = one
+    def __init__(self):
+        self.forward = {}
+        self.backward = {}
 
-  def __len__(self):
-    return len(self.forward)
+    def Add(self, one, two):
+        self.forward[one] = two
+        self.backward[two] = one
 
-  def __getitem__(self, key):
-    return self.GetForward(key)
+    def __len__(self):
+        return len(self.forward)
 
-  def __delitem__(self, key):
-    if key in self.forward:
-      del self.backward[self.forward[key]]
-      del self.forward[key]
-    else:
-      del self.forward[self.backward[key]]
-      del self.backward[key]
+    def __getitem__(self, key):
+        return self.GetForward(key)
 
-  def GetForward(self, key):
-    return self.forward[key]
+    def __delitem__(self, key):
+        if key in self.forward:
+            del self.backward[self.forward[key]]
+            del self.forward[key]
+        else:
+            del self.forward[self.backward[key]]
+            del self.backward[key]
 
-  def HasForward(self, key):
-    return key in self.forward
+    def GetForward(self, key):
+        return self.forward[key]
 
-  def GetBackward(self, key):
-    return self.backward[key]
+    def HasForward(self, key):
+        return key in self.forward
 
-  def HasBackward(self, key):
-    return key in self.backward
+    def GetBackward(self, key):
+        return self.backward[key]
+
+    def HasBackward(self, key):
+        return key in self.backward

@@ -7,6 +7,7 @@ from pyrad.dictionary import Dictionary
 
 
 class UtilityTests(unittest.TestCase):
+
     def testGenerateID(self):
         id = packet.CreateID()
         self.failUnless(isinstance(id, int))
@@ -55,6 +56,7 @@ class PacketConstructionTests(unittest.TestCase):
 
 
 class PacketTests(unittest.TestCase):
+
     def setUp(self):
         self.path = os.path.join(home, 'tests', 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
@@ -99,24 +101,24 @@ class PacketTests(unittest.TestCase):
         self.failUnless(self.packet[(16, 1)] is marker)
 
     def testHasKey(self):
-        self.assertEqual(self.packet.has_key('Test-String'), False)
+        self.assertEqual('Test-String' in self.packet, False)
         self.assertEqual('Test-String' in self.packet, False)
         self.packet['Test-String'] = 'dummy'
-        self.assertEqual(self.packet.has_key('Test-String'), True)
-        self.assertEqual(self.packet.has_key(1), True)
+        self.assertEqual('Test-String' in self.packet, True)
+        self.assertEqual(1 in self.packet, True)
         self.assertEqual(1 in self.packet, True)
 
     def testHasKeyWithUnknownKey(self):
-        self.assertEqual(self.packet.has_key('Unknown-Attribute'), False)
+        self.assertEqual('Unknown-Attribute' in self.packet, False)
         self.assertEqual('Unknown-Attribute' in self.packet, False)
 
     def testDelItem(self):
         self.packet['Test-String'] = 'dummy'
         del self.packet['Test-String']
-        self.assertEqual(self.packet.has_key('Test-String'), False)
+        self.assertEqual('Test-String' in self.packet, False)
         self.packet['Test-String'] = 'dummy'
         del self.packet[1]
-        self.assertEqual(self.packet.has_key('Test-String'), False)
+        self.assertEqual('Test-String' in self.packet, False)
 
     def testKeys(self):
         self.assertEqual(self.packet.keys(), [])
@@ -169,12 +171,12 @@ class PacketTests(unittest.TestCase):
 
         # Encode a normal attribute
         self.assertEqual(
-                encode(1, six.b('value')),
-                six.b('\x01\x07value'))
+            encode(1, six.b('value')),
+            six.b('\x01\x07value'))
         # Encode a vendor attribute
         self.assertEqual(
-                encode((1, 2), six.b('value')),
-                six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value'))
+            encode((1, 2), six.b('value')),
+            six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value'))
 
     def testPktEncodeAttributes(self):
         self.packet[1] = [six.b('value')]
@@ -195,8 +197,8 @@ class PacketTests(unittest.TestCase):
         self.packet[1] = [six.b('value')]
         self.packet[(1, 2)] = [six.b('value')]
         self.assertEqual(
-                self.packet._PktEncodeAttributes(),
-                six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value\x01\x07value'))
+            self.packet._PktEncodeAttributes(),
+            six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value\x01\x07value'))
 
     def testPktDecodeVendorAttribute(self):
         decode = self.packet._PktDecodeVendorAttribute
@@ -207,13 +209,13 @@ class PacketTests(unittest.TestCase):
 
         # Almost RFC2865 recommended form: bad length value
         self.assertEqual(
-                decode(six.b('\x00\x00\x00\x01\x02\x06value')),
-                [(26, six.b('\x00\x00\x00\x01\x02\x06value'))])
+            decode(six.b('\x00\x00\x00\x01\x02\x06value')),
+            [(26, six.b('\x00\x00\x00\x01\x02\x06value'))])
 
         # Proper RFC2865 recommended form
         self.assertEqual(
-                decode(six.b('\x00\x00\x00\x01\x02\x07value')),
-                [((1, 2), six.b('value'))])
+            decode(six.b('\x00\x00\x00\x01\x02\x07value')),
+            [((1, 2), six.b('value'))])
 
     def testDecodePacketWithEmptyPacket(self):
         try:
@@ -233,7 +235,11 @@ class PacketTests(unittest.TestCase):
 
     def testDecodePacketWithTooBigPacket(self):
         try:
-            self.packet.DecodePacket(six.b('\x00\x00\x24\x00') + (0x2400 - 4) * six.b('X'))
+            self.packet.DecodePacket(
+                six.b(
+                    '\x00\x00\x24\x00') + (
+                        0x2400 - 4) * six.b(
+                            'X'))
         except packet.PacketError as e:
             self.failUnless('too long' in str(e))
         else:
@@ -304,6 +310,7 @@ class PacketTests(unittest.TestCase):
         self.packet.AddAttribute(1, [2, 3])
         self.assertEqual(dict.__getitem__(self.packet, 1), [1, 1, 2, 3])
 
+
 class AuthPacketConstructionTests(PacketConstructionTests):
     klass = packet.AuthPacket
 
@@ -313,6 +320,7 @@ class AuthPacketConstructionTests(PacketConstructionTests):
 
 
 class AuthPacketTests(unittest.TestCase):
+
     def setUp(self):
         self.path = os.path.join(home, 'tests', 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
@@ -370,13 +378,14 @@ class AcctPacketConstructionTests(PacketConstructionTests):
         self.assertEqual(pkt.code, packet.AccountingRequest)
 
     def testConstructorRawPacket(self):
-        raw = six.b('\x00\x00\x00\x14\xb0\x5e\x4b\xfb\xcc\x1c' \
+        raw = six.b('\x00\x00\x00\x14\xb0\x5e\x4b\xfb\xcc\x1c'
                     '\x8c\x8e\xc4\x72\xac\xea\x87\x45\x63\xa7')
         pkt = self.klass(packet=raw)
         self.assertEqual(pkt.raw_packet, raw)
 
 
 class AcctPacketTests(unittest.TestCase):
+
     def setUp(self):
         self.path = os.path.join(home, 'tests', 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))

@@ -4,6 +4,7 @@ from pyrad.bidict import BiDict
 
 
 class BiDictTests(unittest.TestCase):
+
     def setUp(self):
         self.bidict = BiDict()
 

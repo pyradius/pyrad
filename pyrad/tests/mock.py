@@ -35,6 +35,7 @@ class MockPacket:
 
 
 class MockSocket:
+
     def __init__(self, domain, type, data=None):
         self.domain = domain
         self.type = type
