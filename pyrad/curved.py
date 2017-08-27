@@ -62,7 +62,7 @@ class RADIUSAccess(RADIUS):
     self.create_auth_packet(**kwargs)
 
   def process_packet(self, pkt):
-    if pkt.code != packet.AccessRequest:
+    if pkt.code != packet.ACCESSREQUEST:
       raise PacketError(
         'non-AccessRequest packet on authentication socket')
 
@@ -73,7 +73,7 @@ class RADIUSAccounting(RADIUS):
     self.create_acct_packet(**kwargs)
 
   def process_packet(self, pkt):
-    if pkt.code != packet.AccountingRequest:
+    if pkt.code != packet.ACCOUNTINGREQUEST:
       raise PacketError(
         'non-AccountingRequest packet on authentication socket')
 
