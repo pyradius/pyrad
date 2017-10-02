@@ -8,4 +8,7 @@ ATTRIBUTE  Test-Ipv6-Address 5       ipv6addr
 ATTRIBUTE  Test-If-Id        6       ifid
 ATTRIBUTE  Test-Date         7       date
 ATTRIBUTE  Test-Abinary      8       abinary
-
+ATTRIBUTE  Test-Tlv          9       tlv
+ATTRIBUTE  Test-Tlv-Str      9.1     string
+ATTRIBUTE  Test-Tlv-Int      9.2     integer
+ATTRIBUTE  Test-Integer64    10      integer64

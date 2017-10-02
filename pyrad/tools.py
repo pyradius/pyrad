@@ -125,6 +125,12 @@ def EncodeInteger(num, format='!I'):
         raise TypeError('Can not encode non-integer as integer')
     return struct.pack(format, num)
 
+def EncodeInteger64(num, format='!Q'):
+    try:
+        num = int(num)
+    except:
+        raise TypeError('Can not encode non-integer as integer64')
+    return struct.pack(format, num)
 
 def EncodeDate(num):
     if not isinstance(num, int):
@@ -166,6 +172,8 @@ def DecodeAscendBinary(str):
 def DecodeInteger(num, format='!I'):
     return (struct.unpack(format, num))[0]
 
+def DecodeInteger64(num, format='!Q'):
+    return (struct.unpack(format, num))[0]
 
 def DecodeDate(num):
     return (struct.unpack('!I', num))[0]
@@ -194,6 +202,8 @@ def EncodeAttr(datatype, value):
         return EncodeInteger(value, '!B')
     elif datatype == 'date':
         return EncodeDate(value)
+    elif datatype == 'integer64':
+        return EncodeInteger64(value)
     else:
         raise ValueError('Unknown attribute type %s' % datatype)
 
@@ -221,5 +231,7 @@ def DecodeAttr(datatype, value):
         return DecodeInteger(value, '!B')
     elif datatype == 'date':
         return DecodeDate(value)
+    elif datatype == 'integer64':
+        return DecodeInteger64(value)
     else:
         raise ValueError('Unknown attribute type %s' % datatype)
