@@ -86,7 +86,7 @@ class Client(host.Host):
         dictionary and secret used for the client.
 
         :return: a new empty packet instance
-        :rtype:  pyrad.packet.Packet
+        :rtype:  pyrad.packet.AuthPacket
         """
         return host.Host.CreateAuthPacket(self, secret=self.secret, **args)
 
