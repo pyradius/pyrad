@@ -192,8 +192,8 @@ class PacketTests(unittest.TestCase):
                 six.b('\x01\x05one\x01\x05two\x01\x07three'))
 
         self.packet.clear()
-        self.packet[1] = [six.b('value')]
         self.packet[(1, 2)] = [six.b('value')]
+        self.packet[1] = [six.b('value')]
         self.assertEqual(
                 self.packet._PktEncodeAttributes(),
                 six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value\x01\x07value'))
