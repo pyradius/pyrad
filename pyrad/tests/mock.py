@@ -79,12 +79,18 @@ class MockPoll:
     results = []
 
     def __init__(self):
-        self.registry = []
+        self.registry = {}
 
     def register(self, fd, options):
-        self.registry.append((fd, options))
+        self.registry[fd] = options
 
-    def poll(self):
+    def unregister(self, fd):
+        try:
+            del self.registry[fd]
+        except KeyError:
+            pass
+
+    def poll(self, timeout=None):
         for result in self.results:
             yield result
         raise MockFinished
