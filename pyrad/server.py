@@ -108,18 +108,18 @@ class Server(host.Host):
 
         Returns a list of tuples or an empty list:
           [(family, address)]
-        
+
         :param addr: IP address to lookup
         :type  addr: string
         """
-        results = []
+        results = set()
         try:
             tmp = socket.getaddrinfo(addr, 'www')
         except socket.gaierror:
             return []
 
         for el in tmp:
-            results.append((el[0], el[4][0]))
+            results.add((el[0], el[4][0]))
 
         return results
 
@@ -205,7 +205,7 @@ class Server(host.Host):
             pkt.secret = self.hosts['0.0.0.0'].secret
         else:
             raise ServerPacketError('Received packet from unknown host')
-        
+
     def _HandleAuthPacket(self, pkt):
         """Process a packet received on the authentication port.
         If this packet should be dropped instead of processed a

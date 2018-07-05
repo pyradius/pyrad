@@ -68,8 +68,12 @@ class Client(host.Host):
         self._socket.bind(addr)
 
     def _SocketOpen(self):
+        try:
+            family = socket.getaddrinfo(self.server, 'www')[0][0]
+        except:
+            family = socket.AF_INET
         if not self._socket:
-            self._socket = socket.socket(socket.AF_INET,
+            self._socket = socket.socket(family,
                                        socket.SOCK_DGRAM)
             self._socket.setsockopt(socket.SOL_SOCKET,
                                     socket.SO_REUSEADDR, 1)
@@ -104,7 +108,7 @@ class Client(host.Host):
         :rtype:  pyrad.packet.Packet
         """
         return host.Host.CreateAcctPacket(self, secret=self.secret, **args)
-        
+
     def CreateCoAPacket(self, **args):
         """Create a new RADIUS packet.
         This utility function creates a new RADIUS packet which can
@@ -140,7 +144,7 @@ class Client(host.Host):
 
             now = time.time()
             waitto = now + self.timeout
-            
+
             self._socket.sendto(pkt.RequestPacket(), (self.server, port))
 
             while now < waitto:
