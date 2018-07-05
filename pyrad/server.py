@@ -103,6 +103,27 @@ class Server(host.Host):
         for addr in addresses:
             self.BindToAddress(addr)
 
+    def _GetAddrInfo(self, addr):
+        """Use getaddrinfo to lookup all addresses for each address.
+
+        Returns a list of tuples or an empty list:
+          [(family, address)]
+        
+        :param addr: IP address to lookup
+        :type  addr: string
+        """
+        results = []
+        try:
+            tmp = socket.getaddrinfo(addr, 'www')
+        except socket.gaierror:
+            return []
+
+        for el in tmp:
+            results.append((el[0], el[4][0]))
+
+        return results
+
+
     def BindToAddress(self, addr):
         """Add an address to listen to.
         An empty string indicated you want to listen on all addresses.
@@ -110,23 +131,25 @@ class Server(host.Host):
         :param addr: IP address to listen on
         :type  addr: string
         """
-        if self.auth_enabled:
-            authfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            authfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            authfd.bind((addr, self.authport))
-            self.authfds.append(authfd)
+        addrFamily = self._GetAddrInfo(addr)
+        for (family, address) in addrFamily:
+            if self.auth_enabled:
+                authfd = socket.socket(family, socket.SOCK_DGRAM)
+                authfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                authfd.bind((address, self.authport))
+                self.authfds.append(authfd)
 
-        if self.acct_enabled:
-            acctfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            acctfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            acctfd.bind((addr, self.acctport))
-            self.acctfds.append(acctfd)
+            if self.acct_enabled:
+                acctfd = socket.socket(family, socket.SOCK_DGRAM)
+                acctfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                acctfd.bind((address, self.acctport))
+                self.acctfds.append(acctfd)
 
-        if self.coa_enabled:
-            coafd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            coafd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            coafd.bind((addr, self.coaport))
-            self.coafds.append(coafd)
+            if self.coa_enabled:
+                coafd = socket.socket(family, socket.SOCK_DGRAM)
+                coafd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                coafd.bind((address, self.coaport))
+                self.coafds.append(coafd)
 
 
     def HandleAuthPacket(self, pkt):
