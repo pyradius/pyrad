@@ -1,10 +1,18 @@
 Changelog
 =========
 
+* Add async client and server implementation for python >=3.5.
+
+* Add IPv6 bind support for client and server.
+
+* Add support of tlv and integer64 attributes.
+
+* Multiple minor enhancements and fixes.
+
 2.1 - Feb 2, 2017
 -----------------
 
-* Add CoA support (client and server)
+* Add CoA support (client and server).
 
 * Add tagged attribute support (send only).
 
