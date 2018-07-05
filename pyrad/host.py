@@ -55,6 +55,20 @@ class Host(object):
         """
         return packet.AuthPacket(dict=self.dict, **args)
 
+    def CreateDisconnectPacket(self, **args):
+        """Create a new disconnect RADIUS packet.
+        This utility function creates a new RADIUS disconnect
+        packet which can be used to communicate with the RADIUS server
+        this client talks to. This is initializing the new packet with
+        the dictionary and secret used for the client.
+
+        Uses same authenticator as an accounting packet. (http://www.ietf.org/rfc/rfc517)
+
+        :return: a new empty packet instance
+        :rtype:  pyrad.packet.DisconnectPacket
+        """
+        return packet.AcctPacket(code=packet.DisconnectRequest, dict=self.dict, **args)
+
     def CreateAcctPacket(self, **args):
         """Create a new accounting RADIUS packet.
         This utility function creates a new accouting RADIUS packet
