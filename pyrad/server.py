@@ -286,15 +286,17 @@ class Server(host.Host):
         :param  fd: socket to read packet from
         :type   fd: socket class instance
         """
-        if fd.fileno() in self._realauthfds:
+        if self.auth_enabled and fd.fileno() in self._realauthfds:
             pkt = self._GrabPacket(lambda data, s=self: s.CreateAuthPacket(packet=data), fd)
             self._HandleAuthPacket(pkt)
-        elif fd.fileno() in self._realacctfds:
+        elif self.acct_enabled and fd.fileno() in self._realacctfds:
             pkt = self._GrabPacket(lambda data, s=self: s.CreateAcctPacket(packet=data), fd)
             self._HandleAcctPacket(pkt)
-        else:
+        elif self.coa_enabled:
             pkt = self._GrabPacket(lambda data, s=self: s.CreateCoAPacket(packet=data), fd)
             self._HandleCoaPacket(pkt)
+        else:
+            raise ServerPacketError('Received packet for unknown handler')
 
     def Run(self):
         """Main loop.
