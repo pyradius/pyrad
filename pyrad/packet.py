@@ -325,6 +325,7 @@ class Packet(dict):
         try:
             (self.code, self.id, length, self.authenticator) = \
                     struct.unpack('!BBH16s', packet[0:20])
+
         except struct.error:
             raise PacketError('Packet header is corrupt')
         if len(packet) != length:
@@ -415,6 +416,8 @@ class AuthPacket(Packet):
         :type packet:  string
         """
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
+        if 'packet' in attributes:
+            self.raw_packet = attributes['packet']
 
     def CreateReply(self, **attributes):
         """Create a new packet as a reply to this one. This method
@@ -546,6 +549,17 @@ class AuthPacket(Packet):
 
         return password == md5_constructor("%s%s%s" % (chapid, userpwd, challenge)).digest()
 
+    def VerifyAuthRequest(self):
+        """Verify request authenticator.
+
+        :return: True if verification failed else False
+        :rtype: boolean
+        """
+        assert(self.raw_packet)
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+                               self.raw_packet[20:] + self.secret).digest()
+        return hash == self.authenticator
+
 
 class AcctPacket(Packet):
     """RADIUS accounting packets. This class is a specialization
@@ -651,7 +665,7 @@ class CoAPacket(Packet):
         """
         assert(self.raw_packet)
         hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
-                self.raw_packet[20:] + self.secret).digest()
+                               self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator
 
     def RequestPacket(self):
