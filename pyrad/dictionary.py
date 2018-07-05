@@ -66,6 +66,8 @@ These datatypes are parsed but not supported:
 | ether         | 6 octets of hh:hh:hh:hh:hh:hh                |
 |               | where 'h' is hex digits, upper or lowercase. |
 +---------------+----------------------------------------------+
+| tlv           | Nested tag-length-value                      |
++---------------+----------------------------------------------+
 """
 from pyrad import bidict
 from pyrad import tools
@@ -78,7 +80,7 @@ __docformat__ = 'epytext en'
 
 DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date', 'octets',
                        'abinary', 'ipv6addr', 'ipv6prefix', 'short', 'byte',
-                       'signed', 'ifid', 'ether'])
+                       'signed', 'ifid', 'ether', 'tlv', 'combo-ip'])
 
 
 class ParseError(Exception):
@@ -112,7 +114,7 @@ class ParseError(Exception):
 
 class Attribute(object):
     def __init__(self, name, code, datatype, vendor='', values={},
-                 encrypt=0, has_tag=False):
+                 encrypt=0, has_tag=False, has_array=False):
         if datatype not in DATATYPES:
             raise ValueError('Invalid data type')
         self.name = name
@@ -121,6 +123,7 @@ class Attribute(object):
         self.vendor = vendor
         self.encrypt = encrypt
         self.has_tag = has_tag
+        self.has_array = has_array
         self.values = bidict.BiDict()
         for (key, value) in values.items():
             self.values.Add(key, value)
@@ -178,6 +181,7 @@ class Dictionary(object):
 
         vendor = state['vendor']
         has_tag = False
+        has_array = False
         encrypt = 0
         if len(tokens) >= 5:
             def keyval(o):
@@ -190,6 +194,8 @@ class Dictionary(object):
             for (key, val) in options:
                 if key == 'has_tag':
                     has_tag = True
+                elif key == 'array':
+                    has_array = True
                 elif key == 'encrypt':
                     if val not in ['1', '2', '3']:
                         raise ParseError(
@@ -198,7 +204,7 @@ class Dictionary(object):
                                 line=state['line'])
                     encrypt = int(val)
 
-            if (not has_tag) and encrypt == 0:
+            if (not has_tag) and (not has_array) and encrypt == 0:
                 vendor = tokens[4]
                 if not self.vendors.HasForward(vendor):
                     if vendor == "concat":
@@ -229,7 +235,7 @@ class Dictionary(object):
             key = code
 
         self.attrindex.Add(attribute, key)
-        self.attributes[attribute] = Attribute(attribute, code, datatype, vendor, encrypt=encrypt, has_tag=has_tag)
+        self.attributes[attribute] = Attribute(attribute, code, datatype, vendor, encrypt=encrypt, has_tag=has_tag, has_array=has_array)
 
     def __ParseValue(self, state, tokens, defer):
         if len(tokens) != 4:
@@ -278,7 +284,8 @@ class Dictionary(object):
                         file=state['file'],
                         line=state['line'])
             except ValueError:
-                raise ParseError(
+                if fmt[1] != '1,1,c':
+                    raise ParseError(
                         'Syntax error in vendor specification',
                         file=state['file'],
                         line=state['line'])
