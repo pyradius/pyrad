@@ -169,7 +169,20 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
 
+    def _AddSecret(self, pkt):
+        """Add secret to packets received and raise ServerPacketError
+        for unknown hosts.
 
+        :param pkt: packet to process
+        :type  pkt: Packet class instance
+        """
+        if pkt.source[0] in self.hosts:
+            pkt.secret = self.hosts[pkt.source[0]].secret
+        elif '0.0.0.0' in self.hosts:
+            pkt.secret = self.hosts['0.0.0.0'].secret
+        else:
+            raise ServerPacketError('Received packet from unknown host')
+        
     def _HandleAuthPacket(self, pkt):
         """Process a packet received on the authentication port.
         If this packet should be dropped instead of processed a
@@ -179,10 +192,7 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] not in self.hosts:
-            raise ServerPacketError('Received packet from unknown host')
-
-        pkt.secret = self.hosts[pkt.source[0]].secret
+        self._AddSecret(pkt)
         if pkt.code != packet.AccessRequest:
             raise ServerPacketError(
                 'Received non-authentication packet on authentication port')
@@ -197,10 +207,7 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] not in self.hosts:
-            raise ServerPacketError('Received packet from unknown host')
-
-        pkt.secret = self.hosts[pkt.source[0]].secret
+        self._AddSecret(pkt)
         if pkt.code not in [packet.AccountingRequest,
                             packet.AccountingResponse]:
             raise ServerPacketError(
@@ -216,9 +223,7 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] not in self.hosts:
-            raise ServerPacketError('Received packet from unknown host')
-
+        self._AddSecret(pkt)
         pkt.secret = self.hosts[pkt.source[0]].secret
         if pkt.code == packet.CoARequest:
             self.HandleCoaPacket(pkt)
