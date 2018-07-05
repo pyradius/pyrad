@@ -141,8 +141,7 @@ class DatagramProtocolClient(asyncio.Protocol):
     # noinspection PyUnusedLocal
     def datagram_received(self, data, addr):
         try:
-
-            reply = Packet(packet=data)
+            reply = Packet(packet=data, dict=self.client.dict)
 
             if reply and reply.id in self.pending_requests:
                 req = self.pending_requests[reply.id]
