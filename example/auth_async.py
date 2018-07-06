@@ -12,7 +12,7 @@ logging.basicConfig(level="DEBUG",
                     format="%(asctime)s [%(levelname)-8s] %(message)s")
 client = ClientAsync(server="localhost",
                      secret=b"Kah3choteereethiejeimaeziecumi",
-                     timeout=4,
+                     timeout=3, debug=True,
                      dict=Dictionary("dictionary"))
 
 loop = asyncio.get_event_loop()
@@ -50,8 +50,8 @@ def test_auth1():
         loop.run_until_complete(
             asyncio.ensure_future(
                 client.initialize_transports(enable_auth=True,
-                                             local_addr='127.0.0.1',
-                                             local_auth_port=8000,
+                                             #local_addr='127.0.0.1',
+                                             #local_auth_port=8000,
                                              enable_acct=True,
                                              enable_coa=True)))
 
@@ -117,15 +117,16 @@ def test_multi_auth():
             asyncio.ensure_future(
                 client.initialize_transports(enable_auth=True,
                                              local_addr='127.0.0.1',
-                                             local_auth_port=8000,
+                                             #local_auth_port=8000,
                                              enable_acct=True,
                                              enable_coa=True)))
 
 
 
         reqs = []
-        for i in range(255):
+        for i in range(150):
             req = create_request(client, "user%s" % i)
+            print('CREATE REQUEST with id %d' % req.id)
             future = client.SendPacket(req)
             reqs.append(future)
 
@@ -145,6 +146,7 @@ def test_multi_auth():
                 reply = future.result()
                 print_reply(reply)
 
+        print('INVALID RESPONSE:', client.protocol_auth.errors)
         # Close transports
         loop.run_until_complete(asyncio.ensure_future(
             client.deinitialize_transports()))
@@ -160,5 +162,84 @@ def test_multi_auth():
 
     loop.close()
 
+def test_multi_client():
+
+    clients = []
+    n_clients = 73
+    n_req4client = 50
+    reqs = []
+
+    global loop
+
+    try:
+        for i in range(n_clients):
+            client = ClientAsync(server="localhost",
+                                 secret=b"Kah3choteereethiejeimaeziecumi",
+                                 timeout=4, debug=True,
+                                 dict=Dictionary("dictionary"),
+                                 loop=loop)
+
+            clients.append(client)
+
+            # Initialize transports
+            loop.run_until_complete(
+                asyncio.ensure_future(
+                    client.initialize_transports(enable_auth=True,
+                                                 enable_acct=False,
+                                                 enable_coa=False)))
+
+            # Send
+            for i in range(n_req4client):
+                req = create_request(client, "user%s" % i)
+                print('CREATE REQUEST with id %d' % req.id)
+                future = client.SendPacket(req)
+                reqs.append(future)
+
+        #    loop.run_until_complete(future)
+        loop.run_until_complete(asyncio.ensure_future(
+            asyncio.gather(
+                *reqs,
+                return_exceptions=True
+            )
+
+        ))
+
+        for future in reqs:
+            if future.exception():
+                print('EXCEPTION ', future.exception())
+            else:
+                reply = future.result()
+                print_reply(reply)
+
+        client = clients.pop()
+        while client:
+
+            print('INVALID RESPONSE:', client.protocol_auth.errors)
+            print('RETRIES:', client.protocol_auth.retries_counter)
+
+            loop.run_until_complete(asyncio.ensure_future(
+                client.deinitialize_transports()))
+
+            del client
+            if len(clients) > 0:
+                client = clients.pop()
+            else:
+                client = None
+
+        print('END')
+    except Exception as exc:
+
+        print('Error: ', exc)
+        print('\n'.join(traceback.format_exc().splitlines()))
+
+        for client in clients:
+            # Close transports
+            loop.run_until_complete(asyncio.ensure_future(
+                client.deinitialize_transports()))
+
+    loop.close()
+
+
 #test_multi_auth()
-test_auth1()
+#test_auth1()
+test_multi_client()

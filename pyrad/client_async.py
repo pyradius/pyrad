@@ -9,6 +9,7 @@ import asyncio
 import six
 import logging
 import random
+import traceback
 
 from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket
 
@@ -24,6 +25,8 @@ class DatagramProtocolClient(asyncio.Protocol):
         self.retries = retries
         self.timeout = timeout
         self.client = client
+        self.errors = 0
+        self.retries_counter = 0
 
         # Map of pending requests
         self.pending_requests = {}
@@ -58,7 +61,14 @@ class DatagramProtocolClient(asyncio.Protocol):
                             # Send again packet
                             req['send_date'] = now
                             req['retries'] += 1
-                            self.logger.debug('[%s:%d] For request %d execute retry %d', self.server, self.port, id, req['retries'])
+                            self.retries_counter += 1
+                            self.logger.debug(
+                                '[%s:%d] For request %d execute retry %d.' % (
+                                    self.server, self.port, id,
+                                    req['retries']
+                                )
+                            )
+
                             self.transport.sendto(req['packet'].RequestPacket())
                     elif next_weak_up > secs:
                         next_weak_up = secs
@@ -94,9 +104,9 @@ class DatagramProtocolClient(asyncio.Protocol):
         socket = transport.get_extra_info('socket')
         self.logger.info(
             '[%s:%d] Transport created with binding in %s:%d',
-                self.server, self.port,
-                socket.getsockname()[0],
-                socket.getsockname()[1]
+            self.server, self.port,
+            socket.getsockname()[0],
+            socket.getsockname()[1]
         )
 
         pre_loop = asyncio.get_event_loop()
@@ -119,13 +129,13 @@ class DatagramProtocolClient(asyncio.Protocol):
     # noinspection PyUnusedLocal
     def datagram_received(self, data, addr):
         try:
+
             reply = Packet(packet=data, dict=self.client.dict)
 
             if reply and reply.id in self.pending_requests:
                 req = self.pending_requests[reply.id]
                 packet = req['packet']
 
-                reply.dict = packet.dict
                 reply.secret = packet.secret
 
                 if packet.VerifyReply(reply, data):
@@ -133,12 +143,32 @@ class DatagramProtocolClient(asyncio.Protocol):
                     # Remove request for map
                     del self.pending_requests[reply.id]
                 else:
-                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d. %s', self.server, self.port, reply.id)
+                    self.logger.warn(
+                        '[%s:%d] Received invalid reply for id %d. %s' % (
+                            self.server, self.port, reply.id,
+                            'Ignoring it.'
+                        )
+                    )
+                    self.errors += 1
             else:
-                self.logger.warn('[%s:%d] Ignore invalid reply: %d', self.server, self.port, data)
+                self.logger.warn(
+                    '[%s:%d] Received invalid reply with id %d: %s.\nIgnoring it.' % (
+                        self.server, self.port,
+                        (-1, reply.id)[reply is not None],
+                        data.hex(),
+                    )
+                )
+                self.errors += 1
 
         except Exception as exc:
-            self.logger.error('[%s:%d] Error on decode packet: %s', self.server, self.port, exc)
+            self.logger.error(
+                '[%s:%d] Error on decode packet: %s.' % (
+                    self.server, self.port,
+                    (exc, '\n'.join(traceback.format_exc().splitlines()))[
+                        self.client.debug
+                    ]
+                )
+            )
 
     async def close_transport(self):
         if self.transport:
@@ -177,7 +207,7 @@ class ClientAsync:
     def __init__(self, server, auth_port=1812, acct_port=1813,
                  coa_port=3799, secret=six.b(''), dict=None,
                  loop=None, retries=3, timeout=30,
-                 logger_name='pyrad'):
+                 logger_name='pyrad', debug=False):
 
         """Constructor.
 
@@ -216,6 +246,8 @@ class ClientAsync:
 
         self.protocol_coa = None
         self.coa_port = coa_port
+
+        self.debug = debug
 
     async def initialize_transports(self, enable_acct=False,
                                     enable_auth=False, enable_coa=False,

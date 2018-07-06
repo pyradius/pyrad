@@ -10,12 +10,13 @@ from pyrad.packet import AccessAccept
 from pyrad.server import RemoteHost
 
 try:
+    # If available i try to use uvloop
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 except:
     pass
 
-logging.basicConfig(level="DEBUG",
+logging.basicConfig(level="INFO",
                     format="%(asctime)s [%(levelname)-8s] %(message)s")
 
 class FakeServer(ServerAsync):
@@ -102,6 +103,8 @@ if __name__ == '__main__':
             loop.run_forever()
         except KeyboardInterrupt as k:
             pass
+
+        print('STATS', server.stats())
 
         # Close transports
         loop.run_until_complete(asyncio.ensure_future(
