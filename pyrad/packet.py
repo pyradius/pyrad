@@ -742,17 +742,6 @@ class AuthPacket(Packet):
             challenge = self['CHAP-Challenge'][0]
         return password == md5_constructor(chapid + userpwd + challenge).digest()
 
-    def VerifyAuthRequest(self):
-        """Verify request authenticator.
-
-        :return: True if verification failed else False
-        :rtype: boolean
-        """
-        assert(self.raw_packet)
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
-                               self.raw_packet[20:] + self.secret).digest()
-        return hash == self.authenticator
-
 
 class AcctPacket(Packet):
     """RADIUS accounting packets. This class is a specialization
@@ -820,10 +809,7 @@ class AcctPacket(Packet):
         self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
                                              attr + self.secret).digest()
 
-        ans = header + self.authenticator + attr
-
-        return ans
-
+        return header + self.authenticator + attr
 
 class CoAPacket(Packet):
     """RADIUS CoA packets. This class is a specialization
