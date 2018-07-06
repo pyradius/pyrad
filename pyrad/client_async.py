@@ -49,11 +49,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                     secs = (req['send_date'] - now).seconds
                     if secs > self.timeout:
                         if req['retries'] == self.retries:
-                            self.logger.debug(
-                                '[%s:%d] For request %d execute all retries.' % (
-                                    self.server, self.port, id
-                                )
-                            )
+                            self.logger.debug('[%s:%d] For request %d execute all retries', self.server, self.port, id)
                             req['future'].set_exception(
                                 TimeoutError('Timeout on Reply')
                             )
@@ -62,12 +58,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                             # Send again packet
                             req['send_date'] = now
                             req['retries'] += 1
-                            self.logger.debug(
-                                '[%s:%d] For request %d execute retry %d.' % (
-                                    self.server, self.port, id,
-                                    req['retries']
-                                )
-                            )
+                            self.logger.debug('[%s:%d] For request %d execute retry %d', self.server, self.port, id, req['retries'])
                             self.transport.sendto(req['packet'].RequestPacket())
                     elif next_weak_up > secs:
                         next_weak_up = secs
@@ -84,9 +75,7 @@ class DatagramProtocolClient(asyncio.Protocol):
 
     def send_packet(self, packet, future):
         if packet.id in self.pending_requests:
-            raise Exception('Packet with id %d already present' % (
-                packet.id
-            ))
+            raise Exception('Packet with id %d already present' % packet.id)
 
         # Store packet on pending requests map
         self.pending_requests[packet.id] = {
@@ -104,11 +93,10 @@ class DatagramProtocolClient(asyncio.Protocol):
         self.transport = transport
         socket = transport.get_extra_info('socket')
         self.logger.info(
-            '[%s:%d] Transport created with binding in %s:%d.' % (
+            '[%s:%d] Transport created with binding in %s:%d',
                 self.server, self.port,
                 socket.getsockname()[0],
                 socket.getsockname()[1]
-            )
         )
 
         pre_loop = asyncio.get_event_loop()
@@ -120,23 +108,13 @@ class DatagramProtocolClient(asyncio.Protocol):
         asyncio.set_event_loop(loop=pre_loop)
 
     def error_received(self, exc):
-        self.logger.error(
-            '[%s:%d] Error received: %s.' % (
-                self.server, self.port, exc
-            )
-        )
+        self.logger.error('[%s:%d] Error received: %s', self.server, self.port, exc)
 
     def connection_lost(self, exc):
         if exc:
-            self.logger.warn(
-                '[%s:%d] Connection lost: %s.' % (
-                    self.server, self.port, str(exc)
-                )
-            )
+            self.logger.warn('[%s:%d] Connection lost: %s', self.server, self.port, str(exc))
         else:
-            self.logger.info(
-                '[%s:%d] Transport closed.' % (self.server, self.port)
-            )
+            self.logger.info('[%s:%d] Transport closed', self.server, self.port)
 
     # noinspection PyUnusedLocal
     def datagram_received(self, data, addr):
@@ -155,32 +133,16 @@ class DatagramProtocolClient(asyncio.Protocol):
                     # Remove request for map
                     del self.pending_requests[reply.id]
                 else:
-                    self.logger.warn(
-                        '[%s:%d] Received invalid reply for id %d. %s' % (
-                            self.server, self.port, reply.id,
-                            'Ignoring it.'
-                        )
-                    )
+                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d. %s', self.server, self.port, reply.id)
             else:
-                self.logger.warn(
-                    '[%s:%d] Received invalid reply: %d.\nIgnoring it.' % (
-                        self.server, self.port, data,
-                    )
-                )
+                self.logger.warn('[%s:%d] Ignore invalid reply: %d', self.server, self.port, data)
 
         except Exception as exc:
-            self.logger.error(
-                '[%s:%d] Error on decode packet: %s.' % (
-                    self.server, self.port, exc
-                )
-            )
-            pass
+            self.logger.error('[%s:%d] Error on decode packet: %s', self.server, self.port, exc)
 
     async def close_transport(self):
         if self.transport:
-            self.logger.debug(
-                '[%s:%d] Closing transport...' % (self.server, self.port)
-            )
+            self.logger.debug('[%s:%d] Closing transport...', self.server, self.port)
             self.transport.close()
             self.transport = None
         if self.timeout_future:
@@ -193,10 +155,7 @@ class DatagramProtocolClient(asyncio.Protocol):
         return self.packet_id
 
     def __str__(self):
-        return 'DatagramProtocolClient: { server: %s, port: %d }' % (
-            self.server,
-            self.port
-        )
+        return 'DatagramProtocolClient(server?=%s, port=%d)' % (self.server, self.port)
 
     # Used as protocol_factory
     def __call__(self):
@@ -222,20 +181,20 @@ class ClientAsync:
 
         """Constructor.
 
-        :param   server: hostname or IP address of RADIUS server
-        :type    server: string
+        :param    server: hostname or IP address of RADIUS server
+        :type     server: string
         :param auth_port: port to use for authentication packets
         :type  auth_port: integer
         :param acct_port: port to use for accounting packets
         :type  acct_port: integer
-        :param coa_port: port to use for CoA packets
-        :type  coa_port: integer
-        :param   secret: RADIUS secret
-        :type    secret: string
-        :param     dict: RADIUS dictionary
-        :type      dict: pyrad.dictionary.Dictionary
-        :param     loop: Python loop handler
-        :type      loop:  asyncio event loop
+        :param  coa_port: port to use for CoA packets
+        :type   coa_port: integer
+        :param    secret: RADIUS secret
+        :type     secret: string
+        :param      dict: RADIUS dictionary
+        :type       dict: pyrad.dictionary.Dictionary
+        :param      loop: Python loop handler
+        :type       loop:  asyncio event loop
         """
         if not loop:
             self.loop = asyncio.get_event_loop()
@@ -422,7 +381,7 @@ class ClientAsync:
         """Send a packet to a RADIUS server.
 
         :param pkt: the packet to send
-        :type pkt:  pyrad.packet.Packet
+        :type  pkt: pyrad.packet.Packet
         :return:    Future related with packet to send
         :rtype:     asyncio.Future
         """

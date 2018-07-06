@@ -1,7 +1,7 @@
 Changelog
 =========
 
-* Add async client and server implementation for python >=3.5.
+* Add experimental async client and server implementation for python >=3.5.
 
 * Add IPv6 bind support for client and server.
 

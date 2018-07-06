@@ -37,171 +37,96 @@ class DatagramProtocolServer(asyncio.Protocol):
         self.server_type = server_type
         self.request_callback = request_callback
 
-    def __get_remote_host__(self, addr):
-        ans = None
-        if addr in self.hosts.keys():
-            ans = self.hosts[addr]
-        return ans
-
     def connection_made(self, transport):
         self.transport = transport
-        self.logger.info(
-            '[%s:%d] Transport created.' % (
-                self.ip, self.port,
-            )
-        )
+        self.logger.info('[%s:%d] Transport created', self.ip, self.port)
 
     def connection_lost(self, exc):
         if exc:
-            self.logger.warn(
-                '[%s:%d] Connection lost: %s.' % (
-                    self.ip, self.port, str(exc)
-                )
-            )
+            self.logger.warn('[%s:%d] Connection lost: %s', self.ip, self.port, str(exc))
         else:
-            self.logger.info(
-                '[%s:%d] Transport closed.' % (self.ip, self.port)
-            )
+            self.logger.info('[%s:%d] Transport closed', self.ip, self.port)
 
     def send_response(self, reply, addr):
         self.transport.sendto(reply.ReplyPacket(), addr)
 
     def datagram_received(self, data, addr):
-
-        self.logger.debug(
-            '[%s:%d] Received %d bytes from %s.' % (
-                self.ip, self.port, len(data), addr
-            )
-        )
+        self.logger.debug('[%s:%d] Received %d bytes from %s', self.ip, self.port, len(data), addr)
 
         receive_date = datetime.utcnow()
-        req = None
+
+        if addr[0] in self.hosts:
+            remote_host = self.hosts[addr[0]]
+        elif '0.0.0.0' in self.hosts:
+            remote_host = self.hosts['0.0.0.0'].secret
+        else:
+            self.logger.warn('[%s:%d] Drop package from unknown source %s', self.ip, self.port, addr)
+            return
 
         try:
-            remote_host = self.__get_remote_host__(addr[0])
+            self.logger.debug('[%s:%d] Received from %s packet: %s', self.ip, self.port, addr, data.hex())
+            req = Packet(packet=data, dict=self.server.dict)
+        except Exception as exc:
+            self.logger.error('[%s:%d] Error on decode packet: %s', self.ip, self.port, exc)
+            return
 
-            if remote_host:
+        try:
+            if req.code in (AccountingResponse, AccessAccept, AccessReject, CoANAK, CoAACK, DisconnectNAK, DisconnectACK):
+                raise ServerPacketError('Invalid response packet %d' % req.code)
 
-                try:
-                    if self.server.debug:
-                        self.logger.info(
-                            '[%s:%d] Received from %s packet: %s.' % (
-                                self.ip, self.port, addr, data.hex()
-                            )
-                        )
-                    req = Packet(packet=data, dict=self.server.dict)
+            elif self.server_type == ServerType.Auth:
+                if req.code != AccessRequest:
+                    raise ServerPacketError('Received non-auth packet on auth port')
+                req = AuthPacket(secret=remote_host.secret,
+                                 dict=self.server.dict,
+                                 packet=data)
+                if self.server.enable_pkt_verify:
+                    if req.VerifyAuthRequest():
+                        raise PacketError('Packet verification failed')
 
-                except Exception as exc:
-                    self.logger.error(
-                        '[%s:%d] Error on decode packet: %s. Ignore it.' % (
-                            self.ip, self.port, exc
-                        )
-                    )
+            elif self.server_type == ServerType.Coa:
+                if req.code != DisconnectRequest and req.code != CoARequest:
+                    raise ServerPacketError('Received non-coa packet on coa port')
+                req = CoAPacket(secret=remote_host.secret,
+                                dict=self.server.dict,
+                                packet=data)
+                if self.server.enable_pkt_verify:
+                    if req.VerifyCoARequest():
+                        raise PacketError('Packet verification failed')
 
-                if not req:
-                    return
+            elif self.server_type == ServerType.Acct:
 
-                if req.code in (
-                        AccountingResponse,
-                        AccessAccept,
-                        AccessReject,
-                        CoANAK,
-                        CoAACK,
-                        DisconnectNAK,
-                        DisconnectACK):
-                    raise ServerPacketError('Invalid response packet %d' %
-                                            req.code)
+                if req.code != AccountingRequest:
+                    raise ServerPacketError('Received non-acct packet on acct port')
+                req = AcctPacket(secret=remote_host.secret,
+                                 dict=self.server.dict,
+                                 packet=data)
+                if self.server.enable_pkt_verify:
+                    if req.VerifyAcctRequest():
+                        raise PacketError('Packet verification failed')
 
-                elif self.server_type == ServerType.Auth:
-
-                    if req.code != AccessRequest:
-                        raise ServerPacketError(
-                            'Received not-authentication packet '
-                            'on authentication port')
-                    req = AuthPacket(secret=remote_host.secret,
-                                     dict=self.server.dict,
-                                     packet=data)
-                    if self.server.enable_pkt_verify:
-                        if req.VerifyAuthRequest():
-                            raise PacketError('Packet verification failed')
-
-                elif self.server_type == ServerType.Coa:
-
-                    if req.code != DisconnectRequest and \
-                            req.code != CoARequest:
-                        raise ServerPacketError(
-                            'Received not-coa packet on coa port'
-                        )
-                    req = CoAPacket(secret=remote_host.secret,
-                                    dict=self.server.dict,
-                                    packet=data)
-                    if self.server.enable_pkt_verify:
-                        if req.VerifyCoARequest():
-                            raise PacketError('Packet verification failed')
-
-                elif self.server_type == ServerType.Acct:
-
-                    if req.code != AccountingRequest:
-                        raise ServerPacketError(
-                            'Received not-accounting packet on '
-                            'accounting port'
-                        )
-                    req = AcctPacket(secret=remote_host.secret,
-                                     dict=self.server.dict,
-                                     packet=data)
-
-                    if self.server.enable_pkt_verify:
-                        if req.VerifyAcctRequest():
-                            raise PacketError('Packet verification failed')
-
-                # Call request callback
-                self.request_callback(self, req, addr)
-
+            # Call request callback
+            self.request_callback(self, req, addr)
+        except Exception as exc:
+            if self.server.debug:
+                self.logger.exception('[%s:%d] Error for packet from %s', self.ip, self.port, addr)
             else:
-                # POST: Unknown source
-                self.logger.warn(
-                    '[%s:%d] Received package from unknown source %s. Drop data.' % (
-                        self.ip, self.port, addr
-                    )
-                )
-        except Exception as e:
-            self.logger.error(
-                '[%s:%d] Unexpected error for packet from %s: %s' % (
-                    self.ip, self.port, addr,
-                    (e, '\n'.join(traceback.format_exc().splitlines()))[
-                        self.server.debug
-                    ]
-                )
-            )
+                self.logger.error('[%s:%d] Error for packet from %s: %s', self.ip, self.port, addr, exc)
 
         process_date = datetime.utcnow()
-
-        self.logger.debug(
-            '[%s:%d] Request from %s processed in %d ms.' % (
-                self.ip, self.port, addr,
-                (process_date-receive_date).microseconds/1000
-            )
-        )
+        self.logger.debug('[%s:%d] Request from %s processed in %d ms', self.ip, self.port, addr, (process_date-receive_date).microseconds/1000)
 
     def error_received(self, exc):
-        self.logger.error(
-            '[%s:%d] Error received: %s.' % (
-                self.ip, self.port, exc
-            )
-        )
+        self.logger.error('[%s:%d] Error received: %s', self.ip, self.port, exc)
 
     async def close_transport(self):
         if self.transport:
-            self.logger.debug(
-                '[%s:%d] Closing transport...' % (self.ip, self.port)
-            )
+            self.logger.debug('[%s:%d] Close transport...', self.ip, self.port)
             self.transport.close()
             self.transport = None
 
     def __str__(self):
-        return 'DatagramProtocolServer: { ip: %s, port: %d }' % (
-            self.ip, self.port
-        )
+        return 'DatagramProtocolServer(ip=%s, port=%d)' % (self.ip, self.port)
 
     # Used as protocol_factory
     def __call__(self):
@@ -255,43 +180,28 @@ class ServerAsync(metaclass=ABCMeta):
                     req.code == DisconnectRequest:
                 self.handle_disconnect_packet(protocol, req, addr)
             else:
-                self.logger.error(
-                    '[%s:%s] Unexpected request found.' % (
-                        protocol.ip, protocol.port
-                    )
-                )
+                self.logger.error('[%s:%s] Unexpected request found', protocol.ip, protocol.port)
         except Exception as exc:
-            self.logger.error(
-                '[%s:%s] Unexpected error catched: %s' % (
-                    protocol.ip, protocol.port,
-                    (exc, '\n'.join(traceback.format_exc().splitlines()))[
-                        self.debug
-                    ]
-                )
-            )
+            if self.debug:
+                self.logger.exception('[%s:%s] Unexpected error', protocol.ip, protocol.port)
+
+            else:
+                self.logger.error('[%s:%s] Unexpected error: %s', protocol.ip, protocol.port, exc)
 
     def __is_present_proto__(self, ip, port):
-        ans = False
-
         if port == self.auth_port:
             for proto in self.auth_protocols:
                 if proto.ip == ip:
-                    ans = True
-                    break
-
-        if port == self.acct_port:
+                    return True
+        elif port == self.acct_port:
             for proto in self.acct_protocols:
                 if proto.ip == ip:
-                    ans = True
-                    break
-
-        if port == self.coa_port:
+                    return True
+        elif port == self.coa_port:
             for proto in self.coa_protocols:
                 if proto.ip == ip:
-                    ans = True
-                    break
-
-        return ans
+                    return True
+        return False
 
     # noinspection PyPep8Naming
     @staticmethod
@@ -320,8 +230,7 @@ class ServerAsync(metaclass=ABCMeta):
         # noinspection SpellCheckingInspection
         for addr in addresses:
 
-            if enable_acct and not self.__is_present_proto__(addr,
-                                                             self.acct_port):
+            if enable_acct and not self.__is_present_proto__(addr, self.acct_port):
                 protocol_acct = DatagramProtocolServer(
                     addr,
                     self.acct_port,
@@ -340,8 +249,7 @@ class ServerAsync(metaclass=ABCMeta):
                 self.acct_protocols.append(protocol_acct)
                 task_list.append(acct_connect)
 
-            if enable_auth and not self.__is_present_proto__(addr,
-                                                             self.auth_port):
+            if enable_auth and not self.__is_present_proto__(addr, self.auth_port):
                 protocol_auth = DatagramProtocolServer(
                     addr,
                     self.auth_port,
@@ -360,8 +268,7 @@ class ServerAsync(metaclass=ABCMeta):
                 self.auth_protocols.append(protocol_auth)
                 task_list.append(auth_connect)
 
-            if enable_coa and not self.__is_present_proto__(addr,
-                                                            self.coa_port):
+            if enable_coa and not self.__is_present_proto__(addr, self.coa_port):
                 protocol_coa = DatagramProtocolServer(
                     addr,
                     self.coa_port,
@@ -389,9 +296,7 @@ class ServerAsync(metaclass=ABCMeta):
         )
 
     # noinspection SpellCheckingInspection
-    async def deinitialize_transports(self, deinit_coa=True,
-                                      deinit_auth=True,
-                                      deinit_acct=True):
+    async def deinitialize_transports(self, deinit_coa=True, deinit_auth=True, deinit_acct=True):
 
         if deinit_coa:
             for proto in self.coa_protocols:
