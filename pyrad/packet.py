@@ -15,7 +15,9 @@ except ImportError:
     import md5
     md5_constructor = md5.new
 import six
+
 from pyrad import tools
+from pyrad import dictionary
 
 # Packet codes
 AccessRequest = 1
@@ -376,6 +378,20 @@ class Packet(dict):
             type, length = struct.unpack('!BB', data[loc:loc+2])[0:2]
             sub_attributes.setdefault(type, []).append(data[loc+2:loc+length])
             loc += length
+    
+    def _DictionaryHasAttribute(self, decoded_key):
+        """Determines if the dictionary has an attribute"""
+        attribute = self.dict.attributes.get(decoded_key)
+        if attribute is None:
+            message = 'Attribute "{}" does not exist in the dictionaries.'.format(decoded_key)
+            raise dictionary.ParseError(message)
+
+        return True
+    
+    def _DictionaryAttributeTypeIs(self, decoded_key, _type):
+        """Determines if a dictionary attribute is certain type"""
+        attribute = self.dict.attributes.get(decoded_key)
+        return attribute.type == _type
 
     def DecodePacket(self, packet):
         """Initialize the object from raw packet data.  Decode a packet as
@@ -409,10 +425,12 @@ class Packet(dict):
                         'Attribute length is too small (%d)' % attrlen)
 
             value = packet[2:attrlen]
+            decoded_key = self._DecodeKey(key)
+
             if key == 26:
                 for (key, value) in self._PktDecodeVendorAttribute(value):
                     self.setdefault(key, []).append(value)
-            elif self.dict.attributes[self._DecodeKey(key)].type == 'tlv':
+            elif self._DictionaryHasAttribute(decoded_key) and self._DictionaryAttributeTypeIs(decoded_key, 'tlv'):
                 self._PktDecodeTlvAttribute(key,value)
             else:
                 self.setdefault(key, []).append(value)
