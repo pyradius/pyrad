@@ -1,7 +1,6 @@
 :mod:`pyrad.dictionary` -- RADIUS dictionary
 ============================================
 
-
 .. automodule:: pyrad.dictionary
 
   .. autoclass:: ParseError
@@ -9,4 +8,3 @@
 
   .. autoclass:: Dictionary
     :members:
-

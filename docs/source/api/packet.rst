@@ -1,7 +1,6 @@
 :mod:`pyrad.packet` -- packet encoding and decoding
 ===================================================
 
-
 .. automodule:: pyrad.packet
 
   .. autoclass:: Packet
@@ -13,6 +12,9 @@
   .. autoclass:: AcctPacket
     :members:
 
+  .. autoclass:: CoAPacket
+    :members:
+
   .. autoclass:: PacketError
     :members:
 
@@ -20,7 +22,7 @@
 Constants
 ---------
 
-The :mod:`pyrad.packet` module defines several common constants 
+The :mod:`pyrad.packet` module defines several common constants
 that are useful when dealing with RADIUS packets.
 
 The following packet codes are defined:
@@ -44,5 +46,3 @@ CoARequest            43
 CoAACK                44
 CoANAK                45
 ==================    ======
-
-

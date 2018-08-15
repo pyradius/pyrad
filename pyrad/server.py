@@ -103,6 +103,27 @@ class Server(host.Host):
         for addr in addresses:
             self.BindToAddress(addr)
 
+    def _GetAddrInfo(self, addr):
+        """Use getaddrinfo to lookup all addresses for each address.
+
+        Returns a list of tuples or an empty list:
+          [(family, address)]
+
+        :param addr: IP address to lookup
+        :type  addr: string
+        """
+        results = set()
+        try:
+            tmp = socket.getaddrinfo(addr, 'www')
+        except socket.gaierror:
+            return []
+
+        for el in tmp:
+            results.add((el[0], el[4][0]))
+
+        return results
+
+
     def BindToAddress(self, addr):
         """Add an address to listen to.
         An empty string indicated you want to listen on all addresses.
@@ -110,23 +131,25 @@ class Server(host.Host):
         :param addr: IP address to listen on
         :type  addr: string
         """
-        if self.auth_enabled:
-            authfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            authfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            authfd.bind((addr, self.authport))
-            self.authfds.append(authfd)
+        addrFamily = self._GetAddrInfo(addr)
+        for (family, address) in addrFamily:
+            if self.auth_enabled:
+                authfd = socket.socket(family, socket.SOCK_DGRAM)
+                authfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                authfd.bind((address, self.authport))
+                self.authfds.append(authfd)
 
-        if self.acct_enabled:
-            acctfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            acctfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            acctfd.bind((addr, self.acctport))
-            self.acctfds.append(acctfd)
+            if self.acct_enabled:
+                acctfd = socket.socket(family, socket.SOCK_DGRAM)
+                acctfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                acctfd.bind((address, self.acctport))
+                self.acctfds.append(acctfd)
 
-        if self.coa_enabled:
-            coafd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            coafd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            coafd.bind((addr, self.coaport))
-            self.coafds.append(coafd)
+            if self.coa_enabled:
+                coafd = socket.socket(family, socket.SOCK_DGRAM)
+                coafd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                coafd.bind((address, self.coaport))
+                self.coafds.append(coafd)
 
 
     def HandleAuthPacket(self, pkt):
@@ -169,6 +192,19 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
 
+    def _AddSecret(self, pkt):
+        """Add secret to packets received and raise ServerPacketError
+        for unknown hosts.
+
+        :param pkt: packet to process
+        :type  pkt: Packet class instance
+        """
+        if pkt.source[0] in self.hosts:
+            pkt.secret = self.hosts[pkt.source[0]].secret
+        elif '0.0.0.0' in self.hosts:
+            pkt.secret = self.hosts['0.0.0.0'].secret
+        else:
+            raise ServerPacketError('Received packet from unknown host')
 
     def _HandleAuthPacket(self, pkt):
         """Process a packet received on the authentication port.
@@ -179,10 +215,7 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] not in self.hosts:
-            raise ServerPacketError('Received packet from unknown host')
-
-        pkt.secret = self.hosts[pkt.source[0]].secret
+        self._AddSecret(pkt)
         if pkt.code != packet.AccessRequest:
             raise ServerPacketError(
                 'Received non-authentication packet on authentication port')
@@ -197,10 +230,7 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] not in self.hosts:
-            raise ServerPacketError('Received packet from unknown host')
-
-        pkt.secret = self.hosts[pkt.source[0]].secret
+        self._AddSecret(pkt)
         if pkt.code not in [packet.AccountingRequest,
                             packet.AccountingResponse]:
             raise ServerPacketError(
@@ -216,9 +246,7 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] not in self.hosts:
-            raise ServerPacketError('Received packet from unknown host')
-
+        self._AddSecret(pkt)
         pkt.secret = self.hosts[pkt.source[0]].secret
         if pkt.code == packet.CoARequest:
             self.HandleCoaPacket(pkt)
@@ -281,15 +309,17 @@ class Server(host.Host):
         :param  fd: socket to read packet from
         :type   fd: socket class instance
         """
-        if fd.fileno() in self._realauthfds:
+        if self.auth_enabled and fd.fileno() in self._realauthfds:
             pkt = self._GrabPacket(lambda data, s=self: s.CreateAuthPacket(packet=data), fd)
             self._HandleAuthPacket(pkt)
-        elif fd.fileno() in self._realacctfds:
+        elif self.acct_enabled and fd.fileno() in self._realacctfds:
             pkt = self._GrabPacket(lambda data, s=self: s.CreateAcctPacket(packet=data), fd)
             self._HandleAcctPacket(pkt)
-        else:
+        elif self.coa_enabled:
             pkt = self._GrabPacket(lambda data, s=self: s.CreateCoAPacket(packet=data), fd)
             self._HandleCoaPacket(pkt)
+        else:
+            raise ServerPacketError('Received packet for unknown handler')
 
     def Run(self):
         """Main loop.

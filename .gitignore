@@ -4,3 +4,4 @@ docs/.build/
 pyrad.egg-info/
 *.pyc
 *__pycache__
+*.egg/

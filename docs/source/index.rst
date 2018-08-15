@@ -1,12 +1,10 @@
-.. image:: https://travis-ci.org/wichert/pyrad.svg?branch=master
-    :target: https://travis-ci.org/wichert/pyrad
-.. image:: https://img.shields.io/pypi/v/pyrad.svg
-    :target: https://pypi.python.org/pypi/pyrad
-.. image:: https://img.shields.io/pypi/dm/pyrad.svg
-    :target: https://pypi.python.org/pypi/pyrad
-.. image:: https://readthedocs.org/projects/pyrad/badge/?version=latest
-    :target: http://pyrad.readthedocs.io/en/latest/?badge=latest
-    :alt: Documentation Status
+
+*********************************
+:mod:`pyrad` -- RADIUS for Python
+*********************************
+
+:Author: Wichert Akkerman
+:Version: |version|
 
 Introduction
 ============
@@ -43,7 +41,6 @@ Here is an example of doing a authentication request::
         print("%s: %s" % (i, reply[i]))
 
 
-
 Requirements & Installation
 ===========================
 
@@ -55,17 +52,25 @@ Python modules::
   python setup.py install
 
 
-Author, Copyright, Availability
-===============================
+API Documentation
+=================
 
-pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by Christian Giese (GIC-de). 
+Per-module :mod:`pyrad` API documentation.
 
-This project is licensed under a BSD license.
+.. toctree::
+  :maxdepth: 2
 
-Copyright and license information can be found in the LICENSE.txt file.
+  api/client
+  api/dictionary
+  api/host
+  api/packet
+  api/proxy
+  api/server
 
-The current version and documentation can be found on pypi:
-http://pypi.python.org/pypi/pyrad
 
-Bugs and wishes can be submitted in the pyrad issue tracker on github:
-https://github.com/wichert/pyrad/issues
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

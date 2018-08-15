@@ -15,7 +15,9 @@ except ImportError:
     import md5
     md5_constructor = md5.new
 import six
+
 from pyrad import tools
+from pyrad import dictionary
 
 # Packet codes
 AccessRequest = 1
@@ -85,7 +87,7 @@ class Packet(dict):
         self.secret = secret
         if authenticator is not None and \
                 not isinstance(authenticator, six.binary_type):
-                    raise TypeError('authenticator must be a binary string')
+            raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
 
         if 'dict' in attributes:
@@ -133,13 +135,8 @@ class Packet(dict):
             return (key, values)
 
         key, _, tag = key.partition(":")
-
         attr = self.dict.attributes[key]
-        if attr.vendor:
-            key = (self.dict.vendors.GetForward(attr.vendor), attr.code)
-        else:
-            key = attr.code
-
+        key = self._EncodeKey(key)
         if tag:
             tag = struct.pack('B', int(tag))
             if attr.type == "integer":
@@ -154,7 +151,7 @@ class Packet(dict):
             return key
 
         attr = self.dict.attributes[key]
-        if attr.vendor:
+        if attr.vendor and not attr.is_sub_attribute:  #sub attribute keys don't need vendor
             return (self.dict.vendors.GetForward(attr.vendor), attr.code)
         else:
             return attr.code
@@ -175,13 +172,20 @@ class Packet(dict):
         :param value: value
         :type value:  depends on type of attribute
         """
+        attr = self.dict.attributes[key]
+
         if isinstance(value, list):
             (key, value) = self._EncodeKeyValues(key, value)
-            self.setdefault(key, []).extend(value)
         else:
             (key, value) = self._EncodeKeyValues(key, [value])
-            value = value[0]
-            self.setdefault(key, []).append(value)
+
+        if attr.is_sub_attribute:
+            tlv = self.setdefault(self._EncodeKey(attr.parent.name), {})
+            encoded = tlv.setdefault(key, [])
+        else:
+            encoded = self.setdefault(key, [])
+
+        encoded.extend(value)
 
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
@@ -189,10 +193,19 @@ class Packet(dict):
 
         values = dict.__getitem__(self, self._EncodeKey(key))
         attr = self.dict.attributes[key]
-        res = []
-        for v in values:
-            res.append(self._DecodeValue(attr, v))
-        return res
+        if attr.type == 'tlv':  # return map from sub attribute code to its values
+            res = {}
+            for (sub_attr_key, sub_attr_val) in values.items():
+                sub_attr_name = attr.sub_attributes[sub_attr_key]
+                sub_attr = self.dict.attributes[sub_attr_name]
+                for v in sub_attr_val:
+                    res.setdefault(sub_attr_name, []).append(self._DecodeValue(sub_attr, v))
+            return res
+        else:
+            res = []
+            for v in values:
+                res.append(self._DecodeValue(attr, v))
+            return res
 
     def __contains__(self, key):
         try:
@@ -287,12 +300,46 @@ class Packet(dict):
 
         return struct.pack('!BB', key, (len(value) + 2)) + value
 
+    def _PktEncodeTlv(self, tlv_key, tlv_value):
+        tlv_attr = self.dict.attributes[self._DecodeKey(tlv_key)]
+        curr_avp = six.b('')
+        avps = []
+        max_sub_attribute_len = max(map(lambda item: len(item[1]), tlv_value.items()))
+        for i in range(max_sub_attribute_len):
+            sub_attr_encoding = six.b('')
+            for (code, datalst) in tlv_value.items():
+                if i < len(datalst):
+                    sub_attr_encoding += self._PktEncodeAttribute(code, datalst[i])
+            # split above 255. assuming len of one instance of all sub tlvs is lower than 255
+            if (len(sub_attr_encoding) + len(curr_avp)) < 245:
+                curr_avp += sub_attr_encoding
+            else:
+                avps.append(curr_avp)
+                curr_avp = sub_attr_encoding
+        avps.append(curr_avp)
+        tlv_avps = []
+        for avp in avps:
+            value = struct.pack('!BB', tlv_attr.code, (len(avp) + 2)) + avp
+            tlv_avps.append(value)
+        if tlv_attr.vendor:
+            vendor_avps = six.b('')
+            for avp in tlv_avps:
+                vendor_avps += struct.pack(
+                    '!BBL', 26, (len(avp) + 6),
+                    self.dict.vendors.GetForward(tlv_attr.vendor)
+                ) + avp
+            return vendor_avps
+        else:
+            return b''.join(tlv_avps)
+
     def _PktEncodeAttributes(self):
         result = six.b('')
         for (code, datalst) in self.items():
-            for data in datalst:
-                result += self._PktEncodeAttribute(code, data)
-
+            if self.dict.attributes[self._DecodeKey(code)].type == 'tlv':
+                result += self._PktEncodeTlv(code, datalst)
+            else:
+                for data in datalst:
+                    result += self._PktEncodeAttribute(code, data)
         return result
 
     def _PktDecodeVendorAttribute(self, data):
@@ -303,7 +350,14 @@ class Packet(dict):
 
         (vendor, type, length) = struct.unpack('!LBB', data[:6])[0:3]
 
-        tlvs = [((vendor, type), data[6:length+4])]
+        try:
+            if self.dict.attributes[self._DecodeKey((vendor, type))].type == 'tlv':
+                self._PktDecodeTlvAttribute((vendor, type), data[6:length + 4])
+                tlvs = []  # tlv is added to the packet inside _PktDecodeTlvAttribute
+            else:
+                tlvs = [((vendor, type), data[6:length + 4])]
+        except:
+            return [(26, data)]
 
         sumlength = 4 + length
         while len(data) > sumlength:
@@ -315,6 +369,30 @@ class Packet(dict):
             sumlength += length
         return tlvs
 
+    def _PktDecodeTlvAttribute(self, code, data):
+
+        sub_attributes = self.setdefault(code, {})
+        loc = 0
+
+        while loc < len(data):
+            type, length = struct.unpack('!BB', data[loc:loc+2])[0:2]
+            sub_attributes.setdefault(type, []).append(data[loc+2:loc+length])
+            loc += length
+    
+    def _DictionaryHasAttribute(self, decoded_key):
+        """Determines if the dictionary has an attribute"""
+        attribute = self.dict.attributes.get(decoded_key)
+        if attribute is None:
+            message = 'Attribute "{}" does not exist in the dictionaries.'.format(decoded_key)
+            raise dictionary.ParseError(message)
+
+        return True
+    
+    def _DictionaryAttributeTypeIs(self, decoded_key, _type):
+        """Determines if a dictionary attribute is certain type"""
+        attribute = self.dict.attributes.get(decoded_key)
+        return attribute.type == _type
+
     def DecodePacket(self, packet):
         """Initialize the object from raw packet data.  Decode a packet as
         received from the network and decode it.
@@ -325,6 +403,7 @@ class Packet(dict):
         try:
             (self.code, self.id, length, self.authenticator) = \
                     struct.unpack('!BBH16s', packet[0:20])
+
         except struct.error:
             raise PacketError('Packet header is corrupt')
         if len(packet) != length:
@@ -346,9 +425,13 @@ class Packet(dict):
                         'Attribute length is too small (%d)' % attrlen)
 
             value = packet[2:attrlen]
+            decoded_key = self._DecodeKey(key)
+
             if key == 26:
                 for (key, value) in self._PktDecodeVendorAttribute(value):
                     self.setdefault(key, []).append(value)
+            elif self._DictionaryHasAttribute(decoded_key) and self._DictionaryAttributeTypeIs(decoded_key, 'tlv'):
+                self._PktDecodeTlvAttribute(key,value)
             else:
                 self.setdefault(key, []).append(value)
 
@@ -415,6 +498,8 @@ class AuthPacket(Packet):
         :type packet:  string
         """
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
+        if 'packet' in attributes:
+            self.raw_packet = attributes['packet']
 
     def CreateReply(self, **attributes):
         """Create a new packet as a reply to this one. This method
@@ -546,6 +631,17 @@ class AuthPacket(Packet):
 
         return password == md5_constructor("%s%s%s" % (chapid, userpwd, challenge)).digest()
 
+    def VerifyAuthRequest(self):
+        """Verify request authenticator.
+
+        :return: True if verification failed else False
+        :rtype: boolean
+        """
+        assert(self.raw_packet)
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+                               self.raw_packet[20:] + self.secret).digest()
+        return hash == self.authenticator
+
 
 class AcctPacket(Packet):
     """RADIUS accounting packets. This class is a specialization
@@ -651,7 +747,7 @@ class CoAPacket(Packet):
         """
         assert(self.raw_packet)
         hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
-                self.raw_packet[20:] + self.secret).digest()
+                               self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator
 
     def RequestPacket(self):

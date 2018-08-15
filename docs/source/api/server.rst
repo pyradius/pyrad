@@ -1,7 +1,6 @@
 :mod:`pyrad.server` -- basic server
 ===================================
 
-
 .. automodule:: pyrad.server
 
   .. autoclass:: RemoteHost
@@ -12,4 +11,3 @@
 
   .. autoclass:: Server
     :members:
-

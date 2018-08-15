@@ -1,3 +1,4 @@
+import select
 import socket
 import unittest
 import six
@@ -8,6 +9,7 @@ from pyrad.packet import AcctPacket
 from pyrad.packet import AccessRequest
 from pyrad.packet import AccountingRequest
 from pyrad.tests.mock import MockPacket
+from pyrad.tests.mock import MockPoll
 from pyrad.tests.mock import MockSocket
 
 BIND_IP = "127.0.0.1"
@@ -56,6 +58,7 @@ class SocketTests(unittest.TestCase):
         self.orgsocket = socket.socket
         socket.socket = MockSocket
 
+
     def tearDown(self):
         socket.socket = self.orgsocket
 
@@ -74,6 +77,7 @@ class SocketTests(unittest.TestCase):
     def testBindClosesSocket(self):
         s = MockSocket(socket.AF_INET, socket.SOCK_DGRAM)
         self.client._socket = s
+        self.client._poll = MockPoll()
         self.client.bind((BIND_IP, BIND_PORT))
         self.assertEqual(s.closed, True)
 
@@ -146,6 +150,8 @@ class SocketTests(unittest.TestCase):
         self.client.retries = 1
         self.client.timeout = 1
         self.client._socket = MockSocket(1, 2, six.b("valid reply"))
+        self.client._poll = MockPoll()
+        MockPoll.results = [(1, select.POLLIN)]
         packet = MockPacket(AccountingRequest, verify=True)
         reply = self.client._SendPacket(packet, 432)
         self.failUnless(reply is packet.reply)
@@ -154,6 +160,7 @@ class SocketTests(unittest.TestCase):
         self.client.retries = 1
         self.client.timeout = 1
         self.client._socket = MockSocket(1, 2, six.b("invalid reply"))
+        MockPoll.results = [(1, select.POLLIN)]
         packet = MockPacket(AccountingRequest, verify=False)
         self.assertRaises(Timeout, self.client._SendPacket, packet, 432)
 
