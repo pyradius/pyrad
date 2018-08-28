@@ -21,10 +21,11 @@ logging.basicConfig(level="INFO",
 
 class FakeServer(ServerAsync):
 
-    def __init__(self, loop, dictionary):
+    def __init__(self, loop, dictionary, enable_message_authenticator=False):
 
         ServerAsync.__init__(self, loop=loop, dictionary=dictionary,
                              enable_pkt_verify=True, debug=True)
+        self.enable_message_authenticator = enable_message_authenticator
 
 
     def handle_auth_packet(self, protocol, pkt, addr):
@@ -43,6 +44,10 @@ class FakeServer(ServerAsync):
         })
 
         reply.code = AccessAccept
+
+        if self.enable_message_authenticator and pkt.message_authenticator:
+            reply.add_message_authenticator()
+
         protocol.send_response(reply, addr)
 
     def handle_acct_packet(self, protocol, pkt, addr):
@@ -53,6 +58,9 @@ class FakeServer(ServerAsync):
             print("%s: %s" % (attr, pkt[attr]))
 
         reply = self.CreateReplyPacket(pkt)
+
+        if self.enable_message_authenticator and pkt.message_authenticator:
+            reply.add_message_authenticator()
         protocol.send_response(reply, addr)
 
     def handle_coa_packet(self, protocol, pkt, addr):
@@ -63,6 +71,8 @@ class FakeServer(ServerAsync):
             print("%s: %s" % (attr, pkt[attr]))
 
         reply = self.CreateReplyPacket(pkt)
+        if self.enable_message_authenticator and pkt.message_authenticator:
+            reply.add_message_authenticator()
         protocol.send_response(reply, addr)
 
     def handle_disconnect_packet(self, protocol, pkt, addr):
@@ -75,6 +85,9 @@ class FakeServer(ServerAsync):
         reply = self.CreateReplyPacket(pkt)
         # COA NAK
         reply.code = 45
+
+        if self.enable_message_authenticator and pkt.message_authenticator:
+            reply.add_message_authenticator()
         protocol.send_response(reply, addr)
 
 
@@ -82,7 +95,8 @@ if __name__ == '__main__':
 
     # create server and read dictionary
     loop = asyncio.get_event_loop()
-    server = FakeServer(loop=loop, dictionary=Dictionary('dictionary'))
+    server = FakeServer(loop=loop, dictionary=Dictionary('dictionary'),
+                        enable_message_authenticator=True)
 
     # add clients (address, secret, name)
     server.hosts["127.0.0.1"] = RemoteHost("127.0.0.1",

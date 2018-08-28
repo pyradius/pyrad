@@ -64,7 +64,8 @@ class DatagramProtocolServer(asyncio.Protocol):
         return ans
 
     def datagram_received(self, data, addr):
-        self.logger.debug('[%s:%d] Received %d bytes from %s', self.ip, self.port, len(data), addr)
+        self.logger.debug('[%s:%d] Received %d bytes from %s', self.ip,
+                          self.port, len(data), addr)
 
         receive_date = datetime.utcnow()
 
@@ -114,6 +115,13 @@ class DatagramProtocolServer(asyncio.Protocol):
                                      dict=self.server.dict,
                                      packet=data)
 
+                    if self.server.enable_pkt_verify and \
+                            req.message_authenticator and \
+                        not req.verify_message_authenticator():
+                        raise PacketError(
+                            'Received invalid Message-Authenticator'
+                        )
+
                 elif self.server_type == ServerType.Coa:
 
                     if req.code != DisconnectRequest and \
@@ -127,6 +135,11 @@ class DatagramProtocolServer(asyncio.Protocol):
                     if self.server.enable_pkt_verify:
                         if not req.VerifyCoARequest():
                             raise PacketError('Packet verification failed')
+                        if req.message_authenticator and \
+                            not req.verify_message_authenticator():
+                            raise PacketError(
+                                'Received invalid Message-Authenticator'
+                            )
 
                 elif self.server_type == ServerType.Acct:
 
@@ -142,6 +155,11 @@ class DatagramProtocolServer(asyncio.Protocol):
                     if self.server.enable_pkt_verify:
                         if not req.VerifyAcctRequest():
                             raise PacketError('Packet verification failed')
+                        if req.message_authenticator and not \
+                            req.verify_message_authenticator():
+                            raise PacketError(
+                                'Received invalid Message-Authenticator'
+                            )
 
                 # Call request callback
                 self.request_callback(self, req, addr)

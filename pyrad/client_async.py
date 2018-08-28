@@ -132,16 +132,29 @@ class DatagramProtocolClient(asyncio.Protocol):
 
             reply = Packet(packet=data, dict=self.client.dict)
 
-            if reply and reply.id in self.pending_requests:
+            if reply is not None and reply.id in self.pending_requests:
                 req = self.pending_requests[reply.id]
                 packet = req['packet']
 
                 reply.secret = packet.secret
 
                 if packet.VerifyReply(reply, data):
-                    req['future'].set_result(reply)
-                    # Remove request for map
-                    del self.pending_requests[reply.id]
+
+                    if reply.message_authenticator and not \
+                        reply.verify_message_authenticator(
+                            original_authenticator=packet.authenticator):
+                        self.logger.warn(
+                            '[%s:%d] Received invalid reply for id %d. %s' % (
+                                self.server, self.port, reply.id,
+                                'Invalid Message-Authenticator. Ignoring it.'
+                            )
+                        )
+                        self.errors += 1
+                    else:
+
+                        req['future'].set_result(reply)
+                        # Remove request for map
+                        del self.pending_requests[reply.id]
                 else:
                     self.logger.warn(
                         '[%s:%d] Received invalid reply for id %d. %s' % (
@@ -430,9 +443,14 @@ class ClientAsync:
             if not self.protocol_acct:
                 raise Exception('Transport not initialized')
 
+            self.protocol_acct.send_packet(pkt, ans)
+
         elif isinstance(pkt, CoAPacket):
             if not self.protocol_coa:
                 raise Exception('Transport not initialized')
+
+            self.protocol_coa.send_packet(pkt, ans)
+
         else:
             raise Exception('Unsupported packet')
 

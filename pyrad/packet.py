@@ -102,10 +102,7 @@ class Packet(OrderedDict):
             self.message_authenticator = attributes['message_authenticator']
 
         for (key, value) in attributes.items():
-            if key in [
-                'dict', 'fd', 'packet',
-                'message_authenticator',
-            ]:
+            if key in ['dict', 'fd', 'packet', 'message_authenticator']:
                 continue
             key = key.replace('_', '-')
             self.AddAttribute(key, value)
@@ -329,7 +326,7 @@ class Packet(OrderedDict):
 
     def __setitem__(self, key, item):
         if isinstance(key, six.string_types):
-            (key, item) = self._EncodeKeyValues(key, item)
+            (key, item) = self._EncodeKeyValues(key, [item])
             OrderedDict.__setitem__(self, key, item)
         else:
             OrderedDict.__setitem__(self, key, item)
@@ -740,7 +737,11 @@ class AuthPacket(Packet):
         challenge = self.authenticator
         if 'CHAP-Challenge' in self:
             challenge = self['CHAP-Challenge'][0]
-        return password == md5_constructor(chapid + userpwd + challenge).digest()
+
+        return password == md5_constructor(
+            "%s%s%s" % (
+                chapid, userpwd, challenge)
+        ).digest()
 
 
 class AcctPacket(Packet):
