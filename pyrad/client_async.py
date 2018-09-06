@@ -51,7 +51,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                 for id, req in self.pending_requests.items():
 
                     now = datetime.now()
-                    secs = (req['sent_date'] - now).seconds
+                    secs = (now - req['sent_date']).seconds
                     if secs > self.timeout:
                         if req['retries'] == self.retries:
                             self.logger.debug(
@@ -72,10 +72,11 @@ class DatagramProtocolClient(asyncio.Protocol):
                             req['retries'] += 1
                             self.retries_counter += 1
                             self.logger.debug(
-                                '[%s:%d:%d] For request %d execute retry %d.' % (
+                                '[%s:%d:%d] For request %d reached %s secs. %s' % (
                                     self.server, self.port,
                                     socket.getsockname()[1] if socket else '',
-                                    id, req['retries']
+                                    id, secs,
+                                    'I execute retry %d.' % req['retries']
                                 )
                             )
 
