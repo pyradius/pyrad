@@ -5,6 +5,7 @@
 # A RADIUS packet as defined in RFC 2138
 
 from collections import OrderedDict
+from datetime import datetime
 import struct
 import random
 # Hmac needed for Message-Authenticator
@@ -63,6 +64,7 @@ class Packet(OrderedDict):
     """
 
     def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None,
+                 creation_date=datetime.utcnow(),
                  **attributes):
         """Constructor
 
@@ -91,6 +93,7 @@ class Packet(OrderedDict):
             raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
         self.message_authenticator = None
+        self.creation_date = creation_date
 
         if 'dict' in attributes:
             self.dict = attributes['dict']
@@ -100,9 +103,15 @@ class Packet(OrderedDict):
 
         if 'message_authenticator' in attributes:
             self.message_authenticator = attributes['message_authenticator']
+        if 'creation_date' in attributes:
+            self.creation_date = attributes['creation_date']
+        self.sent_date = None
 
         for (key, value) in attributes.items():
-            if key in ['dict', 'fd', 'packet', 'message_authenticator']:
+            if key in [
+                'dict', 'fd', 'packet',
+                'message_authenticator', 'creation_date'
+            ]:
                 continue
             key = key.replace('_', '-')
             self.AddAttribute(key, value)

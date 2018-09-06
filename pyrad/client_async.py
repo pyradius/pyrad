@@ -49,17 +49,22 @@ class DatagramProtocolClient(asyncio.Protocol):
                 # noinspection PyShadowingBuiltins
                 for id, req in self.pending_requests.items():
 
-                    secs = (req['send_date'] - now).seconds
+                    secs = (req['sent_date'] - now).seconds
                     if secs > self.timeout:
                         if req['retries'] == self.retries:
-                            self.logger.debug('[%s:%d] For request %d execute all retries', self.server, self.port, id)
+                            self.logger.debug(
+                                '[%s:%d] For request %d execute all retries' % (
+                                    self.server, self.port, id
+                                )
+                            )
                             req['future'].set_exception(
                                 TimeoutError('Timeout on Reply')
                             )
                             req2delete.append(id)
                         else:
                             # Send again packet
-                            req['send_date'] = now
+                            req['sent_date'] = now
+                            req['packet'].sent_date = now
                             req['retries'] += 1
                             self.retries_counter += 1
                             self.logger.debug(
@@ -87,15 +92,17 @@ class DatagramProtocolClient(asyncio.Protocol):
         if packet.id in self.pending_requests:
             raise Exception('Packet with id %d already present' % packet.id)
 
+        sent_date = datetime.now()
         # Store packet on pending requests map
         self.pending_requests[packet.id] = {
             'packet': packet,
-            'creation_date': datetime.now(),
+            'creation_date': sent_date,
             'retries': 0,
             'future': future,
-            'send_date': datetime.now()
+            'sent_date': sent_date
         }
 
+        packet.sent_date = sent_date
         # In queue packet raw on socket buffer
         self.transport.sendto(packet.RequestPacket())
 
@@ -130,7 +137,9 @@ class DatagramProtocolClient(asyncio.Protocol):
     def datagram_received(self, data, addr):
         try:
 
-            reply = Packet(packet=data, dict=self.client.dict)
+            received_date = datetime.now()
+            reply = Packet(packet=data, dict=self.client.dict,
+                           creation_date=received_date)
 
             if reply is not None and reply.id in self.pending_requests:
                 req = self.pending_requests[reply.id]
