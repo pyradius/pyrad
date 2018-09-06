@@ -43,18 +43,22 @@ class DatagramProtocolClient(asyncio.Protocol):
 
             while True:
 
+                socket = self.transport.get_extra_info('socket') \
+                    if self.transport else None
                 req2delete = []
-                now = datetime.now()
                 next_weak_up = self.timeout
                 # noinspection PyShadowingBuiltins
                 for id, req in self.pending_requests.items():
 
+                    now = datetime.now()
                     secs = (req['sent_date'] - now).seconds
                     if secs > self.timeout:
                         if req['retries'] == self.retries:
                             self.logger.debug(
-                                '[%s:%d] For request %d execute all retries' % (
-                                    self.server, self.port, id
+                                '[%s:%d:%d] For request %d execute all retries' % (
+                                    self.server, self.port,
+                                    socket.getsockname()[1] if socket else '',
+                                    id
                                 )
                             )
                             req['future'].set_exception(
@@ -68,9 +72,10 @@ class DatagramProtocolClient(asyncio.Protocol):
                             req['retries'] += 1
                             self.retries_counter += 1
                             self.logger.debug(
-                                '[%s:%d] For request %d execute retry %d.' % (
-                                    self.server, self.port, id,
-                                    req['retries']
+                                '[%s:%d:%d] For request %d execute retry %d.' % (
+                                    self.server, self.port,
+                                    socket.getsockname()[1] if socket else '',
+                                    id, req['retries']
                                 )
                             )
 
@@ -135,6 +140,9 @@ class DatagramProtocolClient(asyncio.Protocol):
 
     # noinspection PyUnusedLocal
     def datagram_received(self, data, addr):
+
+        socket = self.transport.get_extra_info('socket') \
+            if self.transport else None
         try:
 
             received_date = datetime.now()
@@ -153,8 +161,10 @@ class DatagramProtocolClient(asyncio.Protocol):
                         reply.verify_message_authenticator(
                             original_authenticator=packet.authenticator):
                         self.logger.warn(
-                            '[%s:%d] Received invalid reply for id %d. %s' % (
-                                self.server, self.port, reply.id,
+                            '[%s:%d:%d] Received invalid reply for id %d. %s' % (
+                                self.server, self.port,
+                                socket.getsockname()[1] if socket else '',
+                                reply.id,
                                 'Invalid Message-Authenticator. Ignoring it.'
                             )
                         )
@@ -166,16 +176,19 @@ class DatagramProtocolClient(asyncio.Protocol):
                         del self.pending_requests[reply.id]
                 else:
                     self.logger.warn(
-                        '[%s:%d] Received invalid reply for id %d. %s' % (
-                            self.server, self.port, reply.id,
+                        '[%s:%d:%d] Received invalid reply for id %d. %s' % (
+                            self.server, self.port,
+                            socket.getsockname()[1] if socket else '',
+                            reply.id,
                             'Ignoring it.'
                         )
                     )
                     self.errors += 1
             else:
                 self.logger.warn(
-                    '[%s:%d] Received invalid reply with id %d: %s.\nIgnoring it.' % (
+                    '[%s:%d:%d] Received invalid reply with id %d: %s.\nIgnoring it.' % (
                         self.server, self.port,
+                        socket.getsockname()[1] if socket else '',
                         (-1, reply.id)[reply is not None],
                         data.hex(),
                     )
@@ -184,8 +197,9 @@ class DatagramProtocolClient(asyncio.Protocol):
 
         except Exception as exc:
             self.logger.error(
-                '[%s:%d] Error on decode packet: %s.' % (
+                '[%s:%d:%d] Error on decode packet: %s.' % (
                     self.server, self.port,
+                    socket.getsockname()[1] if socket else '',
                     (exc, '\n'.join(traceback.format_exc().splitlines()))[
                         self.client.debug
                     ]
@@ -194,7 +208,15 @@ class DatagramProtocolClient(asyncio.Protocol):
 
     async def close_transport(self):
         if self.transport:
-            self.logger.debug('[%s:%d] Closing transport...', self.server, self.port)
+
+            socket = self.transport.get_extra_info('socket') \
+                if self.transport else None
+            self.logger.debug(
+                '[%s:%d:%d] Closing transport...' % (
+                    self.server, self.port,
+                    socket.getsockname()[1] if socket else ''
+                )
+            )
             self.transport.close()
             self.transport = None
         if self.timeout_future:
@@ -274,7 +296,8 @@ class ClientAsync:
     async def initialize_transports(self, enable_acct=False,
                                     enable_auth=False, enable_coa=False,
                                     local_addr=None, local_auth_port=None,
-                                    local_acct_port=None, local_coa_port=None):
+                                    local_acct_port=None, local_coa_port=None,
+                                    reuse_address=True, reuse_port=True):
 
         task_list = []
 
@@ -295,7 +318,7 @@ class ClientAsync:
 
             acct_connect = self.loop.create_datagram_endpoint(
                 self.protocol_acct,
-                reuse_address=True, reuse_port=True,
+                reuse_address=reuse_address, reuse_port=reuse_port,
                 remote_addr=(self.server, self.acct_port),
                 local_addr=bind_addr
             )
