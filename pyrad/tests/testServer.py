@@ -187,13 +187,13 @@ class AuthPacketHandlingTests(unittest.TestCase):
 class AcctPacketHandlingTests(unittest.TestCase):
     def setUp(self):
         self.server = Server()
-        self.server.hosts['host'] = RemoteHost('127.0.0.1', 'supersecret', 'name')
+        self.server.hosts['host'] = RemoteHost('10.0.0.0/24', 'supersecret', 'name')
         self.packet = TrivialObject()
         self.packet.code = AccountingRequest
-        self.packet.source = ('127.0.0.1', 'port')
+        self.packet.source = ('10.0.0.1', 'port')
 
     def testHandleAcctPacketUnknownHost(self):
-        self.packet.source = ('127.0.0.2', 'port')
+        self.packet.source = ('10.1.0.1', 'port')
         try:
             self.server._HandleAcctPacket(self.packet)
         except ServerPacketError as e:
