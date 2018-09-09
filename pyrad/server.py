@@ -32,7 +32,11 @@ class RemoteHost:
         :param   coaport: port used for CoA packets
         :type    coaport: integer
         """
-        self.address = address
+        try:
+            # allow addresses to map to hostnames
+            self.address = socket.gethostbyname(address)
+        except socket.gaierror:
+            self.address = address
         self.secret = secret
         self.authport = authport
         self.acctport = acctport
