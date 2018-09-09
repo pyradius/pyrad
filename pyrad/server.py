@@ -7,6 +7,7 @@ import socket
 from pyrad import host
 from pyrad import packet
 import logging
+from netaddr import IPNetwork, IPAddress
 
 
 logger = logging.getLogger('pyrad')
@@ -192,6 +193,20 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
 
+    def _get_remote_host(self, ip):
+        """Checks if an IP is in an IP range.
+        :param ip: an IPv4 or IPv6 address
+        :type  ip: String
+        """
+        all_hosts = None
+        ip_addr = IPAddress(ip)
+        for ref, host in self.hosts.items():
+            if ip_addr in IPNetwork(host.address):
+                return host
+            elif host.address in ['0.0.0.0', '0.0.0.0/0', '0/0']:
+                all_hosts = host
+        return all_hosts
+
     def _AddSecret(self, pkt):
         """Add secret to packets received and raise ServerPacketError
         for unknown hosts.
@@ -199,10 +214,9 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] in self.hosts:
-            pkt.secret = self.hosts[pkt.source[0]].secret
-        elif '0.0.0.0' in self.hosts:
-            pkt.secret = self.hosts['0.0.0.0'].secret
+        remote_host = self._get_remote_host(pkt.source[0])
+        if remote_host:
+            pkt.secret = remote_host.secret
         else:
             raise ServerPacketError('Received packet from unknown host')
 
@@ -247,7 +261,6 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
         self._AddSecret(pkt)
-        pkt.secret = self.hosts[pkt.source[0]].secret
         if pkt.code == packet.CoARequest:
             self.HandleCoaPacket(pkt)
         elif pkt.code == packet.DisconnectRequest:
