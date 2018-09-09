@@ -149,14 +149,13 @@ class SocketTests(unittest.TestCase):
 class AuthPacketHandlingTests(unittest.TestCase):
     def setUp(self):
         self.server = Server()
-        self.server.hosts['host'] = TrivialObject()
-        self.server.hosts['host'].secret = 'supersecret'
+        self.server.hosts['host'] = RemoteHost('127.0.0.1', 'supersecret', 'name')
         self.packet = TrivialObject()
         self.packet.code = AccessRequest
-        self.packet.source = ('host', 'port')
+        self.packet.source = ('127.0.0.1', 'port')
 
     def testHandleAuthPacketUnknownHost(self):
-        self.packet.source = ('stranger', 'port')
+        self.packet.source = ('127.0.0.2', 'port')
         try:
             self.server._HandleAuthPacket(self.packet)
         except ServerPacketError as e:
@@ -188,14 +187,13 @@ class AuthPacketHandlingTests(unittest.TestCase):
 class AcctPacketHandlingTests(unittest.TestCase):
     def setUp(self):
         self.server = Server()
-        self.server.hosts['host'] = TrivialObject()
-        self.server.hosts['host'].secret = 'supersecret'
+        self.server.hosts['host'] = RemoteHost('127.0.0.1', 'supersecret', 'name')
         self.packet = TrivialObject()
         self.packet.code = AccountingRequest
-        self.packet.source = ('host', 'port')
+        self.packet.source = ('127.0.0.1', 'port')
 
     def testHandleAcctPacketUnknownHost(self):
-        self.packet.source = ('stranger', 'port')
+        self.packet.source = ('127.0.0.2', 'port')
         try:
             self.server._HandleAcctPacket(self.packet)
         except ServerPacketError as e:

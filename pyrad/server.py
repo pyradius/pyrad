@@ -199,7 +199,7 @@ class Server(host.Host):
         :type  ip: String
         """
         all_hosts = None
-        ip_addr = IPAddress(ip)
+        ip_addr = IPAddress(socket.gethostbyname(ip))
         for ref, host in self.hosts.items():
             if ip_addr in IPNetwork(host.address):
                 return host
