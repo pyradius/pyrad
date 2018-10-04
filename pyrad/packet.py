@@ -661,7 +661,7 @@ class AcctPacket(Packet):
     def VerifyAcctRequest(self):
         """Verify request authenticator.
 
-        :return: True if verification failed else False
+        :return: False if verification failed else True
         :rtype: boolean
         """
         assert(self.raw_packet)
