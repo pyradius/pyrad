@@ -1,5 +1,6 @@
 import fcntl
 import os
+
 from pyrad.packet import PacketError
 
 
@@ -12,19 +13,20 @@ class MockPacket:
         self.verify = verify
         self.error = error
 
-    def CreateReply(self, packet=None):
+    def create_reply(self, packet=None):
         if self.error:
             raise PacketError
         return self.reply
 
-    def VerifyReply(self, reply, rawreply):
+    def verify_reply(self, reply, rawreply):
         return self.verify
 
-    def RequestPacket(self):
+    def request_packet(self):
         return "request packet"
 
     def __contains__(self, key):
         return key in self.data
+
     has_key = __contains__
 
     def __setitem__(self, key, value):

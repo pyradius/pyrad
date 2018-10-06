@@ -7,13 +7,14 @@
 
 __docformat__ = 'epytext en'
 
-from twisted.internet import protocol
-from twisted.internet import reactor
-from twisted.python import log
 import sys
+
 from pyrad import dictionary
 from pyrad import host
 from pyrad import packet
+from twisted.internet import protocol
+from twisted.internet import reactor
+from twisted.python import log
 
 
 class PacketError(Exception):
@@ -61,7 +62,7 @@ class RADIUSAccess(RADIUS):
     def processPacket(self, pkt):
         if pkt.code != packet.AccessRequest:
             raise PacketError(
-                    'non-AccessRequest packet on authentication socket')
+                'non-AccessRequest packet on authentication socket')
 
 
 class RADIUSAccounting(RADIUS):
@@ -71,7 +72,7 @@ class RADIUSAccounting(RADIUS):
     def processPacket(self, pkt):
         if pkt.code != packet.AccountingRequest:
             raise PacketError(
-                    'non-AccountingRequest packet on authentication socket')
+                'non-AccountingRequest packet on authentication socket')
 
 
 if __name__ == '__main__':

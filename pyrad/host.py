@@ -14,6 +14,7 @@ class Host(object):
     :ivar acctport: port to listen on for accounting packets
     :type acctport: integer
     """
+
     def __init__(self, authport=1812, acctport=1813, coaport=3799, dict=None):
         """Constructor
 
@@ -97,4 +98,4 @@ class Host(object):
         :param pkt: packet to send
         :type  pkt: Packet class instance
         """
-        fd.sendto(pkt.ReplyPacket(), pkt.source)
+        fd.sendto(pkt.reply_packet(), pkt.source)

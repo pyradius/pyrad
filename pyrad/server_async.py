@@ -4,17 +4,15 @@
 
 import asyncio
 import logging
-import traceback
-
 from abc import abstractmethod, ABCMeta
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+
 from pyrad.packet import Packet, AccessAccept, AccessReject, \
     AccountingRequest, AccountingResponse, \
     DisconnectACK, DisconnectNAK, DisconnectRequest, CoARequest, \
     CoAACK, CoANAK, AccessRequest, AuthPacket, AcctPacket, CoAPacket, \
     PacketError
-
 from pyrad.server import ServerPacketError
 
 
@@ -27,7 +25,7 @@ class ServerType(Enum):
 class DatagramProtocolServer(asyncio.Protocol):
 
     def __init__(self, ip, port, logger, server, server_type, hosts,
-                 request_callback):
+            request_callback):
         self.transport = None
         self.ip = ip
         self.port = port
@@ -48,7 +46,7 @@ class DatagramProtocolServer(asyncio.Protocol):
             self.logger.info('[%s:%d] Transport closed', self.ip, self.port)
 
     def send_response(self, reply, addr):
-        self.transport.sendto(reply.ReplyPacket(), addr)
+        self.transport.sendto(reply.reply_packet(), addr)
 
     def datagram_received(self, data, addr):
         self.logger.debug('[%s:%d] Received %d bytes from %s', self.ip, self.port, len(data), addr)
@@ -81,7 +79,7 @@ class DatagramProtocolServer(asyncio.Protocol):
                                  dict=self.server.dict,
                                  packet=data)
                 if self.server.enable_pkt_verify:
-                    if req.VerifyAuthRequest():
+                    if req.verify_auth_request():
                         raise PacketError('Packet verification failed')
 
             elif self.server_type == ServerType.Coa:
@@ -91,7 +89,7 @@ class DatagramProtocolServer(asyncio.Protocol):
                                 dict=self.server.dict,
                                 packet=data)
                 if self.server.enable_pkt_verify:
-                    if req.VerifyCoARequest():
+                    if req.verify_coa_request():
                         raise PacketError('Packet verification failed')
 
             elif self.server_type == ServerType.Acct:
@@ -102,7 +100,7 @@ class DatagramProtocolServer(asyncio.Protocol):
                                  dict=self.server.dict,
                                  packet=data)
                 if self.server.enable_pkt_verify:
-                    if req.VerifyAcctRequest():
+                    if req.verify_acct_request():
                         raise PacketError('Packet verification failed')
 
             # Call request callback
@@ -114,7 +112,7 @@ class DatagramProtocolServer(asyncio.Protocol):
                 self.logger.error('[%s:%d] Error for packet from %s: %s', self.ip, self.port, addr, exc)
 
         process_date = datetime.utcnow()
-        self.logger.debug('[%s:%d] Request from %s processed in %d ms', self.ip, self.port, addr, (process_date-receive_date).microseconds/1000)
+        self.logger.debug('[%s:%d] Request from %s processed in %d ms', self.ip, self.port, addr, (process_date - receive_date).microseconds / 1000)
 
     def error_received(self, exc):
         self.logger.error('[%s:%d] Error received: %s', self.ip, self.port, exc)
@@ -136,10 +134,10 @@ class DatagramProtocolServer(asyncio.Protocol):
 class ServerAsync(metaclass=ABCMeta):
 
     def __init__(self, auth_port=1812, acct_port=1813,
-                 coa_port=3799, hosts=None, dictionary=None,
-                 loop=None, logger_name='pyrad',
-                 enable_pkt_verify=False,
-                 debug=False):
+            coa_port=3799, hosts=None, dictionary=None,
+            loop=None, logger_name='pyrad',
+            enable_pkt_verify=False,
+            debug=False):
 
         if not loop:
             self.loop = asyncio.get_event_loop()
@@ -213,12 +211,12 @@ class ServerAsync(metaclass=ABCMeta):
         :param pkt:   original packet
         :type pkt:    Packet instance
         """
-        reply = pkt.CreateReply(**attributes)
+        reply = pkt.create_reply(**attributes)
         return reply
 
     async def initialize_transports(self, enable_acct=False,
-                                    enable_auth=False, enable_coa=False,
-                                    addresses=None):
+            enable_auth=False, enable_coa=False,
+            addresses=None):
 
         task_list = []
 

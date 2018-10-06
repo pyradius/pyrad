@@ -3,12 +3,12 @@
 # Bidirectional map
 
 
-class BiDict(object):
+class BiDict:
     def __init__(self):
         self.forward = {}
         self.backward = {}
 
-    def Add(self, one, two):
+    def add(self, one, two):
         self.forward[one] = two
         self.backward[two] = one
 
@@ -16,7 +16,7 @@ class BiDict(object):
         return len(self.forward)
 
     def __getitem__(self, key):
-        return self.GetForward(key)
+        return self.get_forward(key)
 
     def __delitem__(self, key):
         if key in self.forward:
@@ -26,14 +26,14 @@ class BiDict(object):
             del self.forward[self.backward[key]]
             del self.backward[key]
 
-    def GetForward(self, key):
+    def get_forward(self, key):
         return self.forward[key]
 
-    def HasForward(self, key):
+    def has_forward(self, key):
         return key in self.forward
 
-    def GetBackward(self, key):
+    def get_backward(self, key):
         return self.backward[key]
 
-    def HasBackward(self, key):
+    def has_backward(self, key):
         return key in self.backward

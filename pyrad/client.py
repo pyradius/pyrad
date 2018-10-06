@@ -7,7 +7,7 @@ __docformat__ = "epytext en"
 import select
 import socket
 import time
-import six
+
 from pyrad import host
 from pyrad import packet
 
@@ -28,8 +28,8 @@ class Client(host.Host):
     :ivar timeout: number of seconds to wait for an answer
     :type timeout: integer
     """
-    def __init__(self, server, authport=1812, acctport=1813,
-            coaport=3799, secret=six.b(''), dict=None):
+
+    def __init__(self, server, authport=1812, acctport=1813, coaport=3799, secret=b'', dict=None):
 
         """Constructor.
 
@@ -74,7 +74,7 @@ class Client(host.Host):
             family = socket.AF_INET
         if not self._socket:
             self._socket = socket.socket(family,
-                                       socket.SOCK_DGRAM)
+                                         socket.SOCK_DGRAM)
             self._socket.setsockopt(socket.SOL_SOCKET,
                                     socket.SO_REUSEADDR, 1)
             self._poll.register(self._socket, select.POLLIN)
@@ -138,14 +138,14 @@ class Client(host.Host):
             if attempt and pkt.code == packet.AccountingRequest:
                 if "Acct-Delay-Time" in pkt:
                     pkt["Acct-Delay-Time"] = \
-                            pkt["Acct-Delay-Time"][0] + self.timeout
+                        pkt["Acct-Delay-Time"][0] + self.timeout
                 else:
                     pkt["Acct-Delay-Time"] = self.timeout
 
             now = time.time()
             waitto = now + self.timeout
 
-            self._socket.sendto(pkt.RequestPacket(), (self.server, port))
+            self._socket.sendto(pkt.request_packet(), (self.server, port))
 
             while now < waitto:
                 ready = self._poll.poll((waitto - now) * 1000)
@@ -157,8 +157,8 @@ class Client(host.Host):
                     continue
 
                 try:
-                    reply = pkt.CreateReply(packet=rawreply)
-                    if pkt.VerifyReply(reply, rawreply):
+                    reply = pkt.create_reply(packet=rawreply)
+                    if pkt.verify_reply(reply, rawreply):
                         return reply
                 except packet.PacketError:
                     pass

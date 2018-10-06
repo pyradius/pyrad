@@ -4,11 +4,10 @@
 
 __docformat__ = "epytext en"
 
-from datetime import datetime
 import asyncio
-import six
 import logging
 import random
+from datetime import datetime
 
 from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket
 
@@ -16,7 +15,7 @@ from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket
 class DatagramProtocolClient(asyncio.Protocol):
 
     def __init__(self, server, port, logger,
-                 client, retries=3, timeout=30):
+            client, retries=3, timeout=30):
         self.transport = None
         self.port = port
         self.server = server
@@ -59,7 +58,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                             req['send_date'] = now
                             req['retries'] += 1
                             self.logger.debug('[%s:%d] For request %d execute retry %d', self.server, self.port, id, req['retries'])
-                            self.transport.sendto(req['packet'].RequestPacket())
+                            self.transport.sendto(req['packet'].request_packet())
                     elif next_weak_up > secs:
                         next_weak_up = secs
 
@@ -87,16 +86,16 @@ class DatagramProtocolClient(asyncio.Protocol):
         }
 
         # In queue packet raw on socket buffer
-        self.transport.sendto(packet.RequestPacket())
+        self.transport.sendto(packet.request_packet())
 
     def connection_made(self, transport):
         self.transport = transport
         socket = transport.get_extra_info('socket')
         self.logger.info(
             '[%s:%d] Transport created with binding in %s:%d',
-                self.server, self.port,
-                socket.getsockname()[0],
-                socket.getsockname()[1]
+            self.server, self.port,
+            socket.getsockname()[0],
+            socket.getsockname()[1]
         )
 
         pre_loop = asyncio.get_event_loop()
@@ -121,19 +120,19 @@ class DatagramProtocolClient(asyncio.Protocol):
         try:
             reply = Packet(packet=data, dict=self.client.dict)
 
-            if reply and reply.id in self.pending_requests:
-                req = self.pending_requests[reply.id]
+            if reply and reply.packet_id in self.pending_requests:
+                req = self.pending_requests[reply.packet_id]
                 packet = req['packet']
 
                 reply.dict = packet.dict
                 reply.secret = packet.secret
 
-                if packet.VerifyReply(reply, data):
+                if packet.verify_reply(reply, data):
                     req['future'].set_result(reply)
                     # Remove request for map
-                    del self.pending_requests[reply.id]
+                    del self.pending_requests[reply.packet_id]
                 else:
-                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d. %s', self.server, self.port, reply.id)
+                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d. %s', self.server, self.port, reply.packet_id)
             else:
                 self.logger.warn('[%s:%d] Ignore invalid reply: %d', self.server, self.port, data)
 
@@ -173,11 +172,12 @@ class ClientAsync:
     :ivar timeout: number of seconds to wait for an answer
     :type timeout: integer
     """
+
     # noinspection PyShadowingBuiltins
     def __init__(self, server, auth_port=1812, acct_port=1813,
-                 coa_port=3799, secret=six.b(''), dict=None,
-                 loop=None, retries=3, timeout=30,
-                 logger_name='pyrad'):
+            coa_port=3799, secret=b'', dict=None,
+            loop=None, retries=3, timeout=30,
+            logger_name='pyrad'):
 
         """Constructor.
 
@@ -218,9 +218,9 @@ class ClientAsync:
         self.coa_port = coa_port
 
     async def initialize_transports(self, enable_acct=False,
-                                    enable_auth=False, enable_coa=False,
-                                    local_addr=None, local_auth_port=None,
-                                    local_acct_port=None, local_coa_port=None):
+            enable_auth=False, enable_coa=False,
+            local_addr=None, local_auth_port=None,
+            local_acct_port=None, local_coa_port=None):
 
         task_list = []
 
@@ -297,8 +297,8 @@ class ClientAsync:
 
     # noinspection SpellCheckingInspection
     async def deinitialize_transports(self, deinit_coa=True,
-                                      deinit_auth=True,
-                                      deinit_acct=True):
+            deinit_auth=True,
+            deinit_acct=True):
         if self.protocol_coa and deinit_coa:
             await self.protocol_coa.close_transport()
             del self.protocol_coa
@@ -327,7 +327,7 @@ class ClientAsync:
             raise Exception('Transport not initialized')
 
         return AuthPacket(dict=self.dict,
-                          id=self.protocol_auth.create_id(),
+                          packet_id=self.protocol_auth.create_id(),
                           secret=self.secret, **args)
 
     # noinspection PyPep8Naming
@@ -344,7 +344,7 @@ class ClientAsync:
         if not self.protocol_acct:
             raise Exception('Transport not initialized')
 
-        return AcctPacket(id=self.protocol_acct.create_id(),
+        return AcctPacket(packet_id=self.protocol_acct.create_id(),
                           dict=self.dict,
                           secret=self.secret, **args)
 
@@ -363,7 +363,7 @@ class ClientAsync:
         if not self.protocol_acct:
             raise Exception('Transport not initialized')
 
-        return CoAPacket(id=self.protocol_coa.create_id(),
+        return CoAPacket(packet_id=self.protocol_coa.create_id(),
                          dict=self.dict,
                          secret=self.secret, **args)
 
@@ -373,7 +373,7 @@ class ClientAsync:
         if not id:
             raise Exception('Missing mandatory packet id')
 
-        return Packet(id=id, dict=self.dict,
+        return Packet(packet_id=id, dict=self.dict,
                       secret=self.secret, **args)
 
     # noinspection PyPep8Naming

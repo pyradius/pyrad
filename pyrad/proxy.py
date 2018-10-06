@@ -4,11 +4,12 @@
 #
 # A RADIUS proxy as defined in RFC 2138
 
-from pyrad.server import ServerPacketError
-from pyrad.server import Server
-from pyrad import packet
 import select
 import socket
+
+from pyrad import packet
+from pyrad.server import Server
+from pyrad.server import ServerPacketError
 
 
 class Proxy(Server):
@@ -25,7 +26,7 @@ class Proxy(Server):
         self._proxyfd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self._fdmap[self._proxyfd.fileno()] = self._proxyfd
         self._poll.register(self._proxyfd.fileno(),
-                (select.POLLIN | select.POLLPRI | select.POLLERR))
+                            (select.POLLIN | select.POLLPRI | select.POLLERR))
 
     def _HandleProxyPacket(self, pkt):
         """Process a packet received on the reply socket.
@@ -41,7 +42,7 @@ class Proxy(Server):
         pkt.secret = self.hosts[pkt.source[0]].secret
 
         if pkt.code not in [packet.AccessAccept, packet.AccessReject,
-                packet.AccountingResponse]:
+                            packet.AccountingResponse]:
             raise ServerPacketError('Received non-response on proxy socket')
 
     def _ProcessInput(self, fd):

@@ -1,5 +1,6 @@
 import operator
 import unittest
+
 from pyrad.bidict import BiDict
 
 
@@ -14,43 +15,43 @@ class BiDictTests(unittest.TestCase):
 
     def testLength(self):
         self.assertEqual(len(self.bidict), 0)
-        self.bidict.Add("from", "to")
+        self.bidict.add("from", "to")
         self.assertEqual(len(self.bidict), 1)
         del self.bidict["from"]
         self.assertEqual(len(self.bidict), 0)
 
     def testDeletion(self):
         self.assertRaises(KeyError, operator.delitem, self.bidict, "missing")
-        self.bidict.Add("missing", "present")
+        self.bidict.add("missing", "present")
         del self.bidict["missing"]
 
     def testBackwardDeletion(self):
         self.assertRaises(KeyError, operator.delitem, self.bidict, "missing")
-        self.bidict.Add("missing", "present")
+        self.bidict.add("missing", "present")
         del self.bidict["present"]
-        self.assertEqual(self.bidict.HasForward("missing"), False)
+        self.assertEqual(self.bidict.has_forward("missing"), False)
 
     def testForwardAccess(self):
-        self.bidict.Add("shake", "vanilla")
-        self.bidict.Add("pie", "custard")
-        self.assertEqual(self.bidict.HasForward("shake"), True)
-        self.assertEqual(self.bidict.GetForward("shake"), "vanilla")
-        self.assertEqual(self.bidict.HasForward("pie"), True)
-        self.assertEqual(self.bidict.GetForward("pie"), "custard")
-        self.assertEqual(self.bidict.HasForward("missing"), False)
-        self.assertRaises(KeyError, self.bidict.GetForward, "missing")
+        self.bidict.add("shake", "vanilla")
+        self.bidict.add("pie", "custard")
+        self.assertEqual(self.bidict.has_forward("shake"), True)
+        self.assertEqual(self.bidict.get_forward("shake"), "vanilla")
+        self.assertEqual(self.bidict.has_forward("pie"), True)
+        self.assertEqual(self.bidict.get_forward("pie"), "custard")
+        self.assertEqual(self.bidict.has_forward("missing"), False)
+        self.assertRaises(KeyError, self.bidict.get_forward, "missing")
 
     def testBackwardAccess(self):
-        self.bidict.Add("shake", "vanilla")
-        self.bidict.Add("pie", "custard")
-        self.assertEqual(self.bidict.HasBackward("vanilla"), True)
-        self.assertEqual(self.bidict.GetBackward("vanilla"), "shake")
-        self.assertEqual(self.bidict.HasBackward("missing"), False)
-        self.assertRaises(KeyError, self.bidict.GetBackward, "missing")
+        self.bidict.add("shake", "vanilla")
+        self.bidict.add("pie", "custard")
+        self.assertEqual(self.bidict.has_backward("vanilla"), True)
+        self.assertEqual(self.bidict.get_backward("vanilla"), "shake")
+        self.assertEqual(self.bidict.has_backward("missing"), False)
+        self.assertRaises(KeyError, self.bidict.get_backward, "missing")
 
     def testItemAccessor(self):
-        self.bidict.Add("shake", "vanilla")
-        self.bidict.Add("pie", "custard")
+        self.bidict.add("shake", "vanilla")
+        self.bidict.add("pie", "custard")
         self.assertRaises(KeyError, operator.getitem, self.bidict, "missing")
-        self.assertEquals(self.bidict["shake"], "vanilla")
-        self.assertEquals(self.bidict["pie"], "custard")
+        self.assertEqual(self.bidict["shake"], "vanilla")
+        self.assertEqual(self.bidict["pie"], "custard")

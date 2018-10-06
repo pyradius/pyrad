@@ -2,12 +2,12 @@
 #
 # Copyright 2003-2004,2007,2016 Wichert Akkerman <wichert@wiggy.net>
 
+import logging
 import select
 import socket
+
 from pyrad import host
 from pyrad import packet
-import logging
-
 
 logger = logging.getLogger('pyrad')
 
@@ -65,7 +65,7 @@ class Server(host.Host):
     MaxPacketSize = 8192
 
     def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=3799,
-                 hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False):
+            hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False):
         """Constructor.
 
         :param     addresses: IP addresses to listen on
@@ -123,9 +123,8 @@ class Server(host.Host):
 
         return results
 
-
     def BindToAddress(self, addr):
-        """Add an address to listen to.
+        """add an address to listen to.
         An empty string indicated you want to listen on all addresses.
 
         :param addr: IP address to listen on
@@ -150,7 +149,6 @@ class Server(host.Host):
                 coafd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 coafd.bind((address, self.coaport))
                 self.coafds.append(coafd)
-
 
     def HandleAuthPacket(self, pkt):
         """Authentication packet handler.
@@ -193,7 +191,7 @@ class Server(host.Host):
         """
 
     def _AddSecret(self, pkt):
-        """Add secret to packets received and raise ServerPacketError
+        """add secret to packets received and raise ServerPacketError
         for unknown hosts.
 
         :param pkt: packet to process
@@ -234,7 +232,7 @@ class Server(host.Host):
         if pkt.code not in [packet.AccountingRequest,
                             packet.AccountingResponse]:
             raise ServerPacketError(
-                    'Received non-accounting packet on accounting port')
+                'Received non-accounting packet on accounting port')
         self.HandleAcctPacket(pkt)
 
     def _HandleCoaPacket(self, pkt):
@@ -254,7 +252,6 @@ class Server(host.Host):
             self.HandleDisconnectPacket(pkt)
         else:
             raise ServerPacketError('Received non-coa packet on coa port')
-
 
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.
@@ -292,7 +289,7 @@ class Server(host.Host):
         :param pkt:   original packet
         :type pkt:    Packet instance
         """
-        reply = pkt.CreateReply(**attributes)
+        reply = pkt.create_reply(**attributes)
         reply.source = pkt.source
         return reply
 
