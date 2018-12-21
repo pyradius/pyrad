@@ -616,7 +616,7 @@ class AuthPacket(Packet):
     def VerifyAuthRequest(self):
         """Verify request authenticator.
 
-        :return: True if verification failed else False
+        :return: True if verification passed else False
         :rtype: boolean
         """
         assert(self.raw_packet)
@@ -661,7 +661,7 @@ class AcctPacket(Packet):
     def VerifyAcctRequest(self):
         """Verify request authenticator.
 
-        :return: True if verification failed else False
+        :return: True if verification passed else False
         :rtype: boolean
         """
         assert(self.raw_packet)
@@ -724,7 +724,7 @@ class CoAPacket(Packet):
     def VerifyCoARequest(self):
         """Verify request authenticator.
 
-        :return: True if verification failed else False
+        :return: True if verification passed else False
         :rtype: boolean
         """
         assert(self.raw_packet)
