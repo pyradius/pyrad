@@ -332,6 +332,11 @@ class PacketTests(unittest.TestCase):
             six.b('\x01\x02\x00\x1b1234567890123456\x01\x07value'))
         self.assertEqual(self.packet[1], [six.b('value')])
 
+    def testDecodePacketWithUnknownAttribute(self):
+        self.packet.DecodePacket(
+            six.b('\x01\x02\x00\x1b1234567890123456\x09\x07value'))
+        self.assertEqual(self.packet[9], [six.b('value')])
+
     def testDecodePacketWithTlvAttribute(self):
         self.packet.DecodePacket(
             six.b('\x01\x02\x00\x1d1234567890123456\x04\x09\x01\x07value'))
