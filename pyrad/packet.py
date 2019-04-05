@@ -333,7 +333,7 @@ class Packet(dict):
     def _PktEncodeAttributes(self):
         result = six.b('')
         for (code, datalst) in self.items():
-            if self.dict.attributes[self._DecodeKey(code)].type == 'tlv':
+            if self._PktIsTlvAttribute(code):
                 result += self._PktEncodeTlv(code, datalst)
             else:
                 for data in datalst:
@@ -349,7 +349,7 @@ class Packet(dict):
         (vendor, type, length) = struct.unpack('!LBB', data[:6])[0:3]
 
         try:
-            if self.dict.attributes[self._DecodeKey((vendor, type))].type == 'tlv':
+            if self._PktIsTlvAttribute((vendor, type)):
                 self._PktDecodeTlvAttribute((vendor, type), data[6:length + 4])
                 tlvs = []  # tlv is added to the packet inside _PktDecodeTlvAttribute
             else:
@@ -376,6 +376,10 @@ class Packet(dict):
             type, length = struct.unpack('!BB', data[loc:loc+2])[0:2]
             sub_attributes.setdefault(type, []).append(data[loc+2:loc+length])
             loc += length
+
+    def _PktIsTlvAttribute(self, code):
+        attr = self.dict.attributes.get(self._DecodeKey(code))
+        return (attr is not None and attr.type == 'tlv')
 
     def DecodePacket(self, packet):
         """Initialize the object from raw packet data.  Decode a packet as
@@ -412,7 +416,7 @@ class Packet(dict):
             if key == 26:
                 for (key, value) in self._PktDecodeVendorAttribute(value):
                     self.setdefault(key, []).append(value)
-            elif self.dict.attributes[self._DecodeKey(key)].type == 'tlv':
+            elif self._PktIsTlvAttribute(key):
                 self._PktDecodeTlvAttribute(key,value)
             else:
                 self.setdefault(key, []).append(value)

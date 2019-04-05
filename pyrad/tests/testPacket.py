@@ -342,6 +342,11 @@ class PacketTests(unittest.TestCase):
             six.b('\x01\x02\x00\x1d1234567890123456\x04\x09\x01\x07value'))
         self.assertEqual(self.packet[4], {1:[six.b('value')]})
 
+    def testDecodePacketIsTlvAttribute(self):
+        self.packet.DecodePacket(
+            six.b('\x01\x02\x00\x1d1234567890123456\x04\x09\x01\x07value'))
+        self.assertTrue(self.packet._PktIsTlvAttribute(4))
+
     def testDecodePacketWithVendorTlvAttribute(self):
         self.packet.DecodePacket(
             six.b('\x01\x02\x00\x231234567890123456\x1a\x0f\x00\x00\x00\x10\x03\x09\x01\x07value'))
@@ -535,4 +540,3 @@ class AcctPacketTests(unittest.TestCase):
                 '\xfe\x99\xd0P')
         pkt = packet.AcctPacket(dict=dictObj, packet=raw)
         self.assertEqual(pkt.raw_packet, raw)
-        self.assertEqual(pkt.RequestPacket(), raw)
