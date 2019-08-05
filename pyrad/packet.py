@@ -185,6 +185,9 @@ class Packet(dict):
 
         encoded.extend(value)
 
+    def get(self, key, failobj=None):
+        return self.__getitem__(key) or failobj
+
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
             return dict.__getitem__(self, key)
