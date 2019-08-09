@@ -611,7 +611,8 @@ class AuthPacket(Packet):
         if 'CHAP-Challenge' in self:
             challenge = self['CHAP-Challenge'][0]
 
-        return password == md5_constructor("%s%s%s" % (chapid, userpwd, challenge)).digest()
+        passwd_string = "%s%s%s" % (chapid, userpwd, challenge)
+        return password == md5_constructor(passwd_string.encode('latin-1')).digest()
 
     def VerifyAuthRequest(self):
         """Verify request authenticator.
