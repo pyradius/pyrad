@@ -28,11 +28,6 @@ class EncodingTests(unittest.TestCase):
     def testIntegerEncoding(self):
         self.assertEqual(tools.EncodeInteger(0x01020304), six.b('\x01\x02\x03\x04'))
 
-    def testInteger64Encoding(self):
-        self.assertEqual(
-            tools.EncodeInteger64(0xFFFFFFFFFFFFFFFF), six.b('\xff' * 8)
-        )
-
     def testUnsignedIntegerEncoding(self):
         self.assertEqual(tools.EncodeInteger(0xFFFFFFFF), six.b('\xff\xff\xff\xff'))
 
@@ -65,11 +60,6 @@ class EncodingTests(unittest.TestCase):
                 tools.DecodeInteger(six.b('\x01\x02\x03\x04')),
                 0x01020304)
 
-    def testInteger64Decoding(self):
-        self.assertEqual(
-            tools.DecodeInteger64(six.b('\xff' * 8)), 0xFFFFFFFFFFFFFFFF
-        )
-
     def testDateDecoding(self):
         self.assertEqual(
                 tools.DecodeDate(six.b('\x01\x02\x03\x04')),
@@ -97,9 +87,6 @@ class EncodingTests(unittest.TestCase):
         self.assertEqual(
                 tools.EncodeAttr('date', 0x01020304),
                 six.b('\x01\x02\x03\x04'))
-        self.assertEqual(
-                tools.EncodeAttr('integer64', 0xFFFFFFFFFFFFFFFF),
-                six.b('\xff'*8))
 
     def testDecodeFunction(self):
         self.assertEqual(
@@ -114,9 +101,6 @@ class EncodingTests(unittest.TestCase):
         self.assertEqual(
                 tools.DecodeAttr('integer', six.b('\x01\x02\x03\x04')),
                 0x01020304)
-        self.assertEqual(
-                tools.DecodeAttr('integer64', six.b('\xff'*8)),
-                0xFFFFFFFFFFFFFFFF)
         self.assertEqual(
                 tools.DecodeAttr('date', six.b('\x01\x02\x03\x04')),
                 0x01020304)

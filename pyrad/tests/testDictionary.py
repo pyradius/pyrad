@@ -15,14 +15,12 @@ class AttributeTests(unittest.TestCase):
         self.assertRaises(ValueError, Attribute, 'name', 'code', 'datatype')
 
     def testConstructionParameters(self):
-        attr = Attribute('name', 'code', 'integer', False, 'vendor')
+        attr = Attribute('name', 'code', 'integer', 'vendor')
         self.assertEqual(attr.name, 'name')
         self.assertEqual(attr.code, 'code')
         self.assertEqual(attr.type, 'integer')
-        self.assertEqual(attr.is_sub_attribute, False)
         self.assertEqual(attr.vendor, 'vendor')
         self.assertEqual(len(attr.values), 0)
-        self.assertEqual(len(attr.sub_attributes), 0)
 
     def testNamedConstructionParameters(self):
         attr = Attribute(name='name', code='code', datatype='integer',
@@ -34,7 +32,7 @@ class AttributeTests(unittest.TestCase):
         self.assertEqual(len(attr.values), 0)
 
     def testValues(self):
-        attr = Attribute('name', 'code', 'integer', False, 'vendor',
+        attr = Attribute('name', 'code', 'integer', 'vendor',
                 dict(pie='custard', shake='vanilla'))
         self.assertEqual(len(attr.values), 2)
         self.assertEqual(attr.values['shake'], 'vanilla')
@@ -65,22 +63,6 @@ class DictionaryInterfaceTests(unittest.TestCase):
 
 
 class DictionaryParsingTests(unittest.TestCase):
-
-    simple_dict_values = [
-        ('Test-String', 1, 'string'),
-        ('Test-Octets', 2, 'octets'),
-        ('Test-Integer', 3, 'integer'),
-        ('Test-Ip-Address', 4, 'ipaddr'),
-        ('Test-Ipv6-Address', 5, 'ipv6addr'),
-        ('Test-If-Id', 6, 'ifid'),
-        ('Test-Date', 7, 'date'),
-        ('Test-Abinary', 8, 'abinary'),
-        ('Test-Tlv', 9, 'tlv'),
-        ('Test-Tlv-Str', 1, 'string'),
-        ('Test-Tlv-Int', 2, 'integer'),
-        ('Test-Integer64', 10, 'integer64')
-    ]
-
     def setUp(self):
         self.path = os.path.join(home, 'tests', 'data')
         self.dict = Dictionary(os.path.join(self.path, 'simple'))
@@ -98,8 +80,19 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(len(dict), 2)
 
     def testParseSimpleDictionary(self):
-        self.assertEqual(len(self.dict),len(self.simple_dict_values))
-        for (attr, code, type) in self.simple_dict_values:
+        self.assertEqual(len(self.dict), 8)
+        values = [
+                ('Test-String', 1, 'string'),
+                ('Test-Octets', 2, 'octets'),
+                ('Test-Integer', 3, 'integer'),
+                ('Test-Ip-Address', 4, 'ipaddr'),
+                ('Test-Ipv6-Address', 5, 'ipv6addr'),
+                ('Test-If-Id', 6, 'ifid'),
+                ('Test-Date', 7, 'date'),
+                ('Test-Abinary', 8, 'abinary'),
+                ]
+
+        for (attr, code, type) in values:
             attr = self.dict[attr]
             self.assertEqual(attr.code, code)
             self.assertEqual(attr.type, type)
@@ -170,15 +163,6 @@ class DictionaryParsingTests(unittest.TestCase):
                     self.dict['Test-Integer'].values['Value-Six']),
                 5)
 
-    def testInteger64ValueParsing(self):
-        self.assertEqual(len(self.dict['Test-Integer64'].values), 0)
-        self.dict.ReadDictionary(StringIO('VALUE Test-Integer64 Value-Six 5'))
-        self.assertEqual(len(self.dict['Test-Integer64'].values), 1)
-        self.assertEqual(
-                DecodeAttr('integer64',
-                    self.dict['Test-Integer64'].values['Value-Six']),
-                5)
-
     def testStringValueParsing(self):
         self.assertEqual(len(self.dict['Test-String'].values), 0)
         self.dict.ReadDictionary(StringIO(
@@ -188,27 +172,6 @@ class DictionaryParsingTests(unittest.TestCase):
                 DecodeAttr('string',
                     self.dict['Test-String'].values['Value-Custard']),
                 'custardpie')
-
-    def testTlvParsing(self):
-        self.assertEqual(len(self.dict['Test-Tlv'].sub_attributes), 2)
-        self.assertEqual(self.dict['Test-Tlv'].sub_attributes, {1:'Test-Tlv-Str', 2: 'Test-Tlv-Int'})
-
-    def testSubTlvParsing(self):
-        for (attr, _, _) in self.simple_dict_values:
-            if attr.startswith('Test-Tlv-'):
-                self.assertEqual(self.dict[attr].is_sub_attribute, True)
-                self.assertEqual(self.dict[attr].parent, self.dict['Test-Tlv'])
-            else:
-                self.assertEqual(self.dict[attr].is_sub_attribute, False)
-                self.assertEqual(self.dict[attr].parent, None)
-
-        # tlv with vendor
-        full_dict = Dictionary(os.path.join(self.path, 'full'))
-        self.assertEqual(full_dict['Simplon-Tlv-Str'].is_sub_attribute, True)
-        self.assertEqual(full_dict['Simplon-Tlv-Str'].parent, full_dict['Simplon-Tlv'])
-        self.assertEqual(full_dict['Simplon-Tlv-Int'].is_sub_attribute, True)
-        self.assertEqual(full_dict['Simplon-Tlv-Int'].parent, full_dict['Simplon-Tlv'])
-
 
     def testVenderTooFewColumnsError(self):
         try:
@@ -225,7 +188,7 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(self.dict.vendors['Simplon'], 42)
         self.dict.ReadDictionary(StringIO(
                         'ATTRIBUTE Test-Type 1 integer Simplon'))
-        self.assertEqual(self.dict.attrindex['Test-Type'], (42, 1))
+        self.assertEquals(self.dict.attrindex['Test-Type'], (42, 1))
 
     def testVendorOptionError(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
@@ -280,7 +243,7 @@ class DictionaryParsingTests(unittest.TestCase):
                         'VENDOR Simplon 42\n'
                         'BEGIN-VENDOR Simplon\n'
                         'ATTRIBUTE Test-Type 1 integer'))
-        self.assertEqual(self.dict.attrindex['Test-Type'], (42, 1))
+        self.assertEquals(self.dict.attrindex['Test-Type'], (42, 1))
 
     def testEndVendorUnknownVendor(self):
         try:
@@ -307,7 +270,7 @@ class DictionaryParsingTests(unittest.TestCase):
                         'BEGIN-VENDOR Simplon\n'
                         'END-VENDOR Simplon\n'
                         'ATTRIBUTE Test-Type 1 integer'))
-        self.assertEqual(self.dict.attrindex['Test-Type'], 1)
+        self.assertEquals(self.dict.attrindex['Test-Type'], 1)
 
     def testInclude(self):
         try:
@@ -327,14 +290,14 @@ class DictionaryParsingTests(unittest.TestCase):
                 'VENDOR Simplon 42\n'))
         for _ in f:
             pass
-        self.assertEqual(f.File(), '')
-        self.assertEqual(f.Line(), -1)
+        self.assertEquals(f.File(), '')
+        self.assertEquals(f.Line(), -1)
 
     def testDictFileParseError(self):
         tmpdict = Dictionary()
         try:
             tmpdict.ReadDictionary(os.path.join(self.path, 'dictfiletest'))
         except ParseError as e:
-            self.assertEqual('dictfiletest' in str(e), True)
+            self.assertEquals('dictfiletest' in str(e), True)
         else:
             self.fail()

@@ -53,7 +53,6 @@ class Client(host.Host):
         self._socket = None
         self.retries = 3
         self.timeout = 5
-        self._poll = select.poll()
 
     def bind(self, addr):
         """Bind socket to an address.
@@ -68,20 +67,14 @@ class Client(host.Host):
         self._socket.bind(addr)
 
     def _SocketOpen(self):
-        try:
-            family = socket.getaddrinfo(self.server, 'www')[0][0]
-        except:
-            family = socket.AF_INET
         if not self._socket:
-            self._socket = socket.socket(family,
+            self._socket = socket.socket(socket.AF_INET,
                                        socket.SOCK_DGRAM)
             self._socket.setsockopt(socket.SOL_SOCKET,
                                     socket.SO_REUSEADDR, 1)
-            self._poll.register(self._socket, select.POLLIN)
 
     def _CloseSocket(self):
         if self._socket:
-            self._poll.unregister(self._socket)
             self._socket.close()
             self._socket = None
 
@@ -93,7 +86,7 @@ class Client(host.Host):
         dictionary and secret used for the client.
 
         :return: a new empty packet instance
-        :rtype:  pyrad.packet.AuthPacket
+        :rtype:  pyrad.packet.Packet
         """
         return host.Host.CreateAuthPacket(self, secret=self.secret, **args)
 
@@ -108,7 +101,7 @@ class Client(host.Host):
         :rtype:  pyrad.packet.Packet
         """
         return host.Host.CreateAcctPacket(self, secret=self.secret, **args)
-
+        
     def CreateCoAPacket(self, **args):
         """Create a new RADIUS packet.
         This utility function creates a new RADIUS packet which can
@@ -141,16 +134,16 @@ class Client(host.Host):
                             pkt["Acct-Delay-Time"][0] + self.timeout
                 else:
                     pkt["Acct-Delay-Time"] = self.timeout
+            self._socket.sendto(pkt.RequestPacket(), (self.server, port))
 
             now = time.time()
             waitto = now + self.timeout
 
-            self._socket.sendto(pkt.RequestPacket(), (self.server, port))
-
             while now < waitto:
-                ready = self._poll.poll((waitto - now) * 1000)
+                ready = select.select([self._socket], [], [],
+                                    (waitto - now))
 
-                if ready:
+                if ready[0]:
                     rawreply = self._socket.recv(4096)
                 else:
                     now = time.time()

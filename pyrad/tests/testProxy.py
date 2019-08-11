@@ -33,7 +33,7 @@ class SocketTests(unittest.TestCase):
         self.failUnless(isinstance(self.proxy._proxyfd, MockSocket))
         self.assertEqual(list(self.proxy._fdmap.keys()), [1])
         self.assertEqual(self.proxy._poll.registry,
-                {1: select.POLLIN | select.POLLPRI | select.POLLERR})
+                [(1, select.POLLIN | select.POLLPRI | select.POLLERR)])
 
 
 class ProxyPacketHandlingTests(unittest.TestCase):
