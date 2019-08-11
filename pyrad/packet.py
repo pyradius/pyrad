@@ -333,7 +333,7 @@ class Packet(dict):
     def _PktEncodeAttributes(self):
         result = six.b('')
         for (code, datalst) in self.items():
-            if self.dict.attributes[self._DecodeKey(code)].type == 'tlv':
+            if self.dict and self.dict.attributes[self._DecodeKey(code)].type == 'tlv':
                 result += self._PktEncodeTlv(code, datalst)
             else:
                 for data in datalst:
