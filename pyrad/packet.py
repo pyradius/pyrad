@@ -333,7 +333,7 @@ class Packet(dict):
     def _PktEncodeAttributes(self):
         result = six.b('')
         for (code, datalst) in self.items():
-            if self.dict and self.dict.attributes[self._DecodeKey(code)].type == 'tlv':
+            if getattr(self, 'dict', None) and self.dict.attributes[self._DecodeKey(code)].type == 'tlv':
                 result += self._PktEncodeTlv(code, datalst)
             else:
                 for data in datalst:
@@ -412,7 +412,7 @@ class Packet(dict):
             if key == 26:
                 for (key, value) in self._PktDecodeVendorAttribute(value):
                     self.setdefault(key, []).append(value)
-            elif self.dict.attributes[self._DecodeKey(key)].type == 'tlv':
+            elif getattr(self, 'dict', None) and self.dict.attributes[self._DecodeKey(key)].type == 'tlv':
                 self._PktDecodeTlvAttribute(key,value)
             else:
                 self.setdefault(key, []).append(value)
