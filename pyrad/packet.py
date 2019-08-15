@@ -605,13 +605,14 @@ class AuthPacket(Packet):
             return False
 
         chapid = chap_password[0]
+        if six.PY3:
+            chapid = chr(chapid).encode('utf-8')
         password = chap_password[1:]
 
         challenge = self.authenticator
         if 'CHAP-Challenge' in self:
             challenge = self['CHAP-Challenge'][0]
-
-        return password == md5_constructor(b"%s%s%s" % (chr(chapid).encode('utf-8'), userpwd, challenge)).digest()
+        return password == md5_constructor(b'%s%s%s' % (chapid, userpwd, challenge)).digest()
 
     def VerifyAuthRequest(self):
         """Verify request authenticator.
