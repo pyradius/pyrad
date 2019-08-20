@@ -55,6 +55,10 @@ The datatypes currently supported are:
 +---------------+----------------------------------------------+
 | byte          | 8 bits unsigned number                       |
 +---------------+----------------------------------------------+
+| tlv           | Nested tag-length-value                      |
++---------------+----------------------------------------------+
+| integer64     | 64 bits unsigned number                      |
++---------------+----------------------------------------------+
 
 These datatypes are parsed but not supported:
 
@@ -78,7 +82,7 @@ __docformat__ = 'epytext en'
 
 DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date', 'octets',
                        'abinary', 'ipv6addr', 'ipv6prefix', 'short', 'byte',
-                       'signed', 'ifid', 'ether'])
+                       'signed', 'ifid', 'ether', 'tlv', 'integer64'])
 
 
 class ParseError(Exception):
@@ -111,7 +115,7 @@ class ParseError(Exception):
 
 
 class Attribute(object):
-    def __init__(self, name, code, datatype, vendor='', values={},
+    def __init__(self, name, code, datatype, is_sub_attribute=False, vendor='', values=None,
                  encrypt=0, has_tag=False):
         if datatype not in DATATYPES:
             raise ValueError('Invalid data type')
@@ -122,8 +126,12 @@ class Attribute(object):
         self.encrypt = encrypt
         self.has_tag = has_tag
         self.values = bidict.BiDict()
-        for (key, value) in values.items():
-            self.values.Add(key, value)
+        self.sub_attributes = {}
+        self.parent = None
+        self.is_sub_attribute = is_sub_attribute
+        if values:
+            for (key, value) in values.items():
+                self.values.Add(key, value)
 
 
 class Dictionary(object):
@@ -211,11 +219,16 @@ class Dictionary(object):
 
         (attribute, code, datatype) = tokens[1:4]
 
-        try:
-            # todo: check if float like for extended attributes
-            code = int(code, 0)
-        except:
-            return None
+        codes = code.split('.')
+        is_sub_attribute = (len(codes) > 1)
+        if len(codes) == 2:
+            code = int(codes[1])
+            parent_code = int(codes[0])
+        elif len(codes) == 1:
+            code = int(codes[0])
+            parent_code = None
+        else:
+            raise ParseError('nested tlvs are not supported')
 
         datatype = datatype.split("[")[0]
 
@@ -224,12 +237,25 @@ class Dictionary(object):
                              file=state['file'],
                              line=state['line'])
         if vendor:
-            key = (self.vendors.GetForward(vendor), code)
+            if is_sub_attribute:
+                key = (self.vendors.GetForward(vendor), parent_code, code)
+            else:
+                key = (self.vendors.GetForward(vendor), code)
         else:
-            key = code
+            if is_sub_attribute:
+                key = (parent_code, code)
+            else:
+                key = code
 
         self.attrindex.Add(attribute, key)
-        self.attributes[attribute] = Attribute(attribute, code, datatype, vendor, encrypt=encrypt, has_tag=has_tag)
+        self.attributes[attribute] = Attribute(attribute, code, datatype, is_sub_attribute, vendor, encrypt=encrypt, has_tag=has_tag)
+        if datatype == 'tlv':
+            # save attribute in tlvs
+            state['tlvs'][code] = self.attributes[attribute]
+        if is_sub_attribute:
+            # save sub attribute in parent tlv and update their parent field
+            state['tlvs'][parent_code].sub_attributes[code] = attribute
+            self.attributes[attribute].parent = state['tlvs'][parent_code]
 
     def __ParseValue(self, state, tokens, defer):
         if len(tokens) != 4:
@@ -249,7 +275,7 @@ class Dictionary(object):
                              file=state['file'],
                              line=state['line'])
 
-        if adef.type in ['integer','signed','short','byte']:
+        if adef.type in ['integer', 'signed', 'short', 'byte', 'integer64']:
             value = int(value, 0)
         value = tools.EncodeAttr(adef.type, value)
         self.attributes[attr].values.Add(key, value)
@@ -332,7 +358,7 @@ class Dictionary(object):
 
         state = {}
         state['vendor'] = ''
-
+        state['tlvs'] = {}
         self.defer_parse = []
         for line in fil:
             state['file'] = fil.File()

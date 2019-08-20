@@ -9,7 +9,7 @@ from pyrad.dictionary import Dictionary
 class UtilityTests(unittest.TestCase):
     def testGenerateID(self):
         id = packet.CreateID()
-        self.failUnless(isinstance(id, int))
+        self.assertTrue(isinstance(id, int))
         newid = packet.CreateID()
         self.assertNotEqual(id, newid)
 
@@ -23,9 +23,9 @@ class PacketConstructionTests(unittest.TestCase):
 
     def testBasicConstructor(self):
         pkt = self.klass()
-        self.failUnless(isinstance(pkt.code, int))
-        self.failUnless(isinstance(pkt.id, int))
-        self.failUnless(isinstance(pkt.secret, six.binary_type))
+        self.assertTrue(isinstance(pkt.code, int))
+        self.assertTrue(isinstance(pkt.id, int))
+        self.assertTrue(isinstance(pkt.secret, six.binary_type))
 
     def testNamedConstructor(self):
         pkt = self.klass(code=26, id=38, secret=six.b('secret'),
@@ -39,19 +39,27 @@ class PacketConstructionTests(unittest.TestCase):
 
     def testConstructWithDictionary(self):
         pkt = self.klass(dict=self.dict)
-        self.failUnless(pkt.dict is self.dict)
+        self.assertTrue(pkt.dict is self.dict)
 
     def testConstructorIgnoredParameters(self):
         marker = []
         pkt = self.klass(fd=marker)
-        self.failIf(getattr(pkt, 'fd', None) is marker)
+        self.assertFalse(getattr(pkt, 'fd', None) is marker)
 
     def testSecretMustBeBytestring(self):
         self.assertRaises(TypeError, self.klass, secret=six.u('secret'))
 
     def testConstructorWithAttributes(self):
-        pkt = self.klass(dict=self.dict, Test_String='this works')
+        pkt = self.klass(**{'Test-String' :'this works', 'dict' : self.dict})
         self.assertEqual(pkt['Test-String'], ['this works'])
+
+    def testConstructorWithTlvAttribute(self):
+        pkt = self.klass(**{
+            'Test-Tlv-Str': 'this works',
+            'Test-Tlv-Int': 10,
+            'dict': self.dict
+        })
+        self.assertEqual(pkt['Test-Tlv'], {'Test-Tlv-Str': ['this works'], 'Test-Tlv-Int' : [10]} )
 
 
 class PacketTests(unittest.TestCase):
@@ -62,7 +70,7 @@ class PacketTests(unittest.TestCase):
                 authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
 
     def testCreateReply(self):
-        reply = self.packet.CreateReply(Test_Integer=10)
+        reply = self.packet.CreateReply(**{'Test-Integer' : 10})
         self.assertEqual(reply.id, self.packet.id)
         self.assertEqual(reply.secret, self.packet.secret)
         self.assertEqual(reply.authenticator, self.packet.authenticator)
@@ -94,9 +102,9 @@ class PacketTests(unittest.TestCase):
     def testRawAttributeAccess(self):
         marker = [six.b('')]
         self.packet[1] = marker
-        self.failUnless(self.packet[1] is marker)
+        self.assertTrue(self.packet[1] is marker)
         self.packet[(16, 1)] = marker
-        self.failUnless(self.packet[(16, 1)] is marker)
+        self.assertTrue(self.packet[(16, 1)] is marker)
 
     def testHasKey(self):
         self.assertEqual(self.packet.has_key('Test-String'), False)
@@ -130,7 +138,7 @@ class PacketTests(unittest.TestCase):
 
     def testCreateAuthenticator(self):
         a = packet.Packet.CreateAuthenticator()
-        self.failUnless(isinstance(a, six.binary_type))
+        self.assertTrue(isinstance(a, six.binary_type))
         self.assertEqual(len(a), 16)
 
         b = packet.Packet.CreateAuthenticator()
@@ -138,7 +146,7 @@ class PacketTests(unittest.TestCase):
 
     def testGenerateID(self):
         id = self.packet.CreateID()
-        self.failUnless(isinstance(id, int))
+        self.assertTrue(isinstance(id, int))
         newid = self.packet.CreateID()
         self.assertNotEqual(id, newid)
 
@@ -176,15 +184,48 @@ class PacketTests(unittest.TestCase):
                 encode((1, 2), six.b('value')),
                 six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value'))
 
+    def testPktEncodeTlvAttribute(self):
+        encode = self.packet._PktEncodeTlv
+
+        # Encode a normal tlv attribute
+        self.assertEqual(
+                encode(4, {1:[six.b('value')], 2:[six.b('\x00\x00\x00\x02')]}),
+                six.b('\x04\x0f\x01\x07value\x02\x06\x00\x00\x00\x02'))
+
+        # Encode a normal tlv attribute with several sub attribute instances
+        self.assertEqual(
+                encode(4, {1:[six.b('value'), six.b('other')], 2:[six.b('\x00\x00\x00\x02')]}),
+                six.b('\x04\x16\x01\x07value\x02\x06\x00\x00\x00\x02\x01\x07other'))
+        # Encode a vendor tlv attribute
+        self.assertEqual(
+                encode((16, 3), {1:[six.b('value')], 2:[six.b('\x00\x00\x00\x02')]}),
+                six.b('\x1a\x15\x00\x00\x00\x10\x03\x0f\x01\x07value\x02\x06\x00\x00\x00\x02'))
+
+    def testPktEncodeLongTlvAttribute(self):
+        encode = self.packet._PktEncodeTlv
+
+        long_str = 'a' * 245
+        # Encode a long tlv attribute - check it is split between AVPs
+        self.assertEqual(
+                encode(4, {1:[six.b('value'), six.b(long_str)], 2:[six.b('\x00\x00\x00\x02')]}),
+                six.b('\x04\x0f\x01\x07value\x02\x06\x00\x00\x00\x02\x04\xf9\x01\xf7' + long_str))
+
+        # Encode a long vendor tlv attribute
+        first_avp = '\x1a\x15\x00\x00\x00\x10\x03\x0f\x01\x07value\x02\x06\x00\x00\x00\x02'
+        second_avp = '\x1a\xff\x00\x00\x00\x10\x03\xf9\x01\xf7' + long_str
+        self.assertEqual(
+                encode((16, 3), {1:[six.b('value'), six.b(long_str)], 2:[six.b('\x00\x00\x00\x02')]}),
+                six.b(first_avp + second_avp))
+
     def testPktEncodeAttributes(self):
         self.packet[1] = [six.b('value')]
         self.assertEqual(self.packet._PktEncodeAttributes(),
                 six.b('\x01\x07value'))
 
         self.packet.clear()
-        self.packet[(1, 2)] = [six.b('value')]
+        self.packet[(16, 2)] = [six.b('value')]
         self.assertEqual(self.packet._PktEncodeAttributes(),
-                six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value'))
+                six.b('\x1a\x0d\x00\x00\x00\x10\x02\x07value'))
 
         self.packet.clear()
         self.packet[1] = [six.b('one'), six.b('two'), six.b('three')]
@@ -193,10 +234,10 @@ class PacketTests(unittest.TestCase):
 
         self.packet.clear()
         self.packet[1] = [six.b('value')]
-        self.packet[(1, 2)] = [six.b('value')]
+        self.packet[(16, 2)] = [six.b('value')]
         self.assertEqual(
                 self.packet._PktEncodeAttributes(),
-                six.b('\x1a\x0d\x00\x00\x00\x01\x02\x07value\x01\x07value'))
+                six.b('\x01\x07value\x1a\x0d\x00\x00\x00\x10\x02\x07value'))
 
     def testPktDecodeVendorAttribute(self):
         decode = self.packet._PktDecodeVendorAttribute
@@ -212,14 +253,31 @@ class PacketTests(unittest.TestCase):
 
         # Proper RFC2865 recommended form
         self.assertEqual(
-                decode(six.b('\x00\x00\x00\x01\x02\x07value')),
-                [((1, 2), six.b('value'))])
+                decode(six.b('\x00\x00\x00\x10\x02\x07value')),
+                [((16, 2), six.b('value'))])
+
+    def testPktDecodeTlvAttribute(self):
+        decode = self.packet._PktDecodeTlvAttribute
+
+        decode(4,six.b('\x01\x07value'))
+        self.assertEqual(self.packet[4], {1: [six.b('value')]})
+
+        #add another instance of the same sub attribute
+        decode(4,six.b('\x01\x07other'))
+        self.assertEqual(self.packet[4], {1: [six.b('value'), six.b('other')]})
+
+        #add a different sub attribute
+        decode(4,six.b('\x02\x07\x00\x00\x00\x01'))
+        self.assertEqual(self.packet[4], {
+            1: [six.b('value'), six.b('other')],
+            2: [six.b('\x00\x00\x00\x01')]
+        })
 
     def testDecodePacketWithEmptyPacket(self):
         try:
             self.packet.DecodePacket(six.b(''))
         except packet.PacketError as e:
-            self.failUnless('header is corrupt' in str(e))
+            self.assertTrue('header is corrupt' in str(e))
         else:
             self.fail()
 
@@ -227,7 +285,7 @@ class PacketTests(unittest.TestCase):
         try:
             self.packet.DecodePacket(six.b('\x00\x00\x00\x001234567890123456'))
         except packet.PacketError as e:
-            self.failUnless('invalid length' in str(e))
+            self.assertTrue('invalid length' in str(e))
         else:
             self.fail()
 
@@ -235,7 +293,7 @@ class PacketTests(unittest.TestCase):
         try:
             self.packet.DecodePacket(six.b('\x00\x00\x24\x00') + (0x2400 - 4) * six.b('X'))
         except packet.PacketError as e:
-            self.failUnless('too long' in str(e))
+            self.assertTrue('too long' in str(e))
         else:
             self.fail()
 
@@ -244,7 +302,7 @@ class PacketTests(unittest.TestCase):
             self.packet.DecodePacket(
                     six.b('\x01\x02\x00\x151234567890123456\x00'))
         except packet.PacketError as e:
-            self.failUnless('header is corrupt' in str(e))
+            self.assertTrue('header is corrupt' in str(e))
         else:
             self.fail()
 
@@ -260,30 +318,49 @@ class PacketTests(unittest.TestCase):
             self.packet.DecodePacket(
                     six.b('\x01\x02\x00\x161234567890123456\x00\x01'))
         except packet.PacketError as e:
-            self.failUnless('too small' in str(e))
+            self.assertTrue('too small' in str(e))
         else:
             self.fail()
 
     def testDecodePacketWithEmptyAttribute(self):
         self.packet.DecodePacket(
-                six.b('\x01\x02\x00\x161234567890123456\x00\x02'))
-        self.assertEqual(self.packet[0], [six.b('')])
+                six.b('\x01\x02\x00\x161234567890123456\x01\x02'))
+        self.assertEqual(self.packet[1], [six.b('')])
 
     def testDecodePacketWithAttribute(self):
         self.packet.DecodePacket(
-            six.b('\x01\x02\x00\x1b1234567890123456\x00\x07value'))
-        self.assertEqual(self.packet[0], [six.b('value')])
+            six.b('\x01\x02\x00\x1b1234567890123456\x01\x07value'))
+        self.assertEqual(self.packet[1], [six.b('value')])
+
+    def testDecodePacketWithTlvAttribute(self):
+        self.packet.DecodePacket(
+            six.b('\x01\x02\x00\x1d1234567890123456\x04\x09\x01\x07value'))
+        self.assertEqual(self.packet[4], {1:[six.b('value')]})
+
+    def testDecodePacketWithVendorTlvAttribute(self):
+        self.packet.DecodePacket(
+            six.b('\x01\x02\x00\x231234567890123456\x1a\x0f\x00\x00\x00\x10\x03\x09\x01\x07value'))
+        self.assertEqual(self.packet[(16,3)], {1:[six.b('value')]})
+
+    def testDecodePacketWithTlvAttributeWith2SubAttributes(self):
+        self.packet.DecodePacket(
+            six.b('\x01\x02\x00\x231234567890123456\x04\x0f\x01\x07value\x02\x06\x00\x00\x00\x09'))
+        self.assertEqual(self.packet[4], {1:[six.b('value')], 2:[six.b('\x00\x00\x00\x09')]})
+
+    def testDecodePacketWithSplitTlvAttribute(self):
+        self.packet.DecodePacket(
+            six.b('\x01\x02\x00\x251234567890123456\x04\x09\x01\x07value\x04\x09\x02\x06\x00\x00\x00\x09'))
+        self.assertEqual(self.packet[4], {1:[six.b('value')], 2:[six.b('\x00\x00\x00\x09')]})
 
     def testDecodePacketWithMultiValuedAttribute(self):
         self.packet.DecodePacket(
-            six.b('\x01\x02\x00\x1e1234567890123456\x00\x05one\x00\x05two'))
-        self.assertEqual(self.packet[0], [six.b('one'), six.b('two')])
+            six.b('\x01\x02\x00\x1e1234567890123456\x01\x05one\x01\x05two'))
+        self.assertEqual(self.packet[1], [six.b('one'), six.b('two')])
 
     def testDecodePacketWithTwoAttributes(self):
         self.packet.DecodePacket(
-            six.b('\x01\x02\x00\x1e1234567890123456\x00\x05one\x01\x05two'))
-        self.assertEqual(self.packet[0], [six.b('one')])
-        self.assertEqual(self.packet[1], [six.b('two')])
+            six.b('\x01\x02\x00\x1e1234567890123456\x01\x05one\x01\x05two'))
+        self.assertEqual(self.packet[1], [six.b('one'), six.b('two')])
 
     def testDecodePacketWithVendorAttribute(self):
         self.packet.DecodePacket(
@@ -297,12 +374,12 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet._EncodeKey(1), 1)
 
     def testAddAttribute(self):
-        self.packet.AddAttribute(1, 1)
-        self.assertEqual(dict.__getitem__(self.packet, 1), [1])
-        self.packet.AddAttribute(1, 1)
-        self.assertEqual(dict.__getitem__(self.packet, 1), [1, 1])
-        self.packet.AddAttribute(1, [2, 3])
-        self.assertEqual(dict.__getitem__(self.packet, 1), [1, 1, 2, 3])
+        self.packet.AddAttribute('Test-String', '1')
+        self.assertEqual(self.packet['Test-String'], ['1'])
+        self.packet.AddAttribute('Test-String', '1')
+        self.assertEqual(self.packet['Test-String'], ['1', '1'])
+        self.packet.AddAttribute('Test-String', ['2', '3'])
+        self.assertEqual(self.packet['Test-String'], ['1', '1', '2', '3'])
 
 class AuthPacketConstructionTests(PacketConstructionTests):
     klass = packet.AuthPacket
@@ -320,7 +397,7 @@ class AuthPacketTests(unittest.TestCase):
                 authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
 
     def testCreateReply(self):
-        reply = self.packet.CreateReply(Test_Integer=10)
+        reply = self.packet.CreateReply(**{'Test-Integer' : 10})
         self.assertEqual(reply.code, packet.AccessAccept)
         self.assertEqual(reply.id, self.packet.id)
         self.assertEqual(reply.secret, self.packet.secret)
@@ -334,12 +411,12 @@ class AuthPacketTests(unittest.TestCase):
     def testRequestPacketCreatesAuthenticator(self):
         self.packet.authenticator = None
         self.packet.RequestPacket()
-        self.failUnless(self.packet.authenticator is not None)
+        self.assertTrue(self.packet.authenticator is not None)
 
     def testRequestPacketCreatesID(self):
         self.packet.id = None
         self.packet.RequestPacket()
-        self.failUnless(self.packet.id is not None)
+        self.assertTrue(self.packet.id is not None)
 
     def testPwCryptEmptyPassword(self):
         self.assertEqual(self.packet.PwCrypt(''), six.b(''))
@@ -351,7 +428,7 @@ class AuthPacketTests(unittest.TestCase):
     def testPwCryptSetsAuthenticator(self):
         self.packet.authenticator = None
         self.packet.PwCrypt(six.u(''))
-        self.failUnless(self.packet.authenticator is not None)
+        self.assertTrue(self.packet.authenticator is not None)
 
     def testPwDecryptEmptyPassword(self):
         self.assertEqual(self.packet.PwDecrypt(six.b('')), six.u(''))
@@ -384,7 +461,7 @@ class AcctPacketTests(unittest.TestCase):
                 authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
 
     def testCreateReply(self):
-        reply = self.packet.CreateReply(Test_Integer=10)
+        reply = self.packet.CreateReply(**{'Test-Integer' : 10})
         self.assertEqual(reply.code, packet.AccountingResponse)
         self.assertEqual(reply.id, self.packet.id)
         self.assertEqual(reply.secret, self.packet.secret)
@@ -410,4 +487,4 @@ class AcctPacketTests(unittest.TestCase):
     def testRequestPacketSetsId(self):
         self.packet.id = None
         self.packet.RequestPacket()
-        self.failUnless(self.packet.id is not None)
+        self.assertTrue(self.packet.id is not None)

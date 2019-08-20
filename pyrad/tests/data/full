@@ -10,15 +10,25 @@ VALUE      Test-Integer      Two     2
 VALUE      Test-Integer      Three   3
 VALUE      Test-Integer      Four    4
 
+ATTRIBUTE  Test-Tlv       4     tlv
+ATTRIBUTE  Test-Tlv-Str   4.1   string
+ATTRIBUTE  Test-Tlv-Int   4.2   integer
+
 VENDOR Simplon 16
 
 
 BEGIN-VENDOR Simplon
 ATTRIBUTE  Simplon-Number    1     integer
+ATTRIBUTE  Simplon-String    2     string
 
 VALUE      Simplon-Number     Zero    0
 VALUE      Simplon-Number     One     1
 VALUE      Simplon-Number     Two     2
 VALUE      Simplon-Number     Three   3
 VALUE      Simplon-Number     Four    4
+
+ATTRIBUTE  Simplon-Tlv       3     tlv
+ATTRIBUTE  Simplon-Tlv-Str   3.1   string
+ATTRIBUTE  Simplon-Tlv-Int   3.2   integer
+
 END-VENDOR Simplon
