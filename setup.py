@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 
-version = '2.1.1'
+version = '2.1.2'
 
 
 setup(name='pyrad',
@@ -20,6 +20,7 @@ setup(name='pyrad',
        'License :: OSI Approved :: BSD License',
        'Programming Language :: Python :: 2.7',
        'Programming Language :: Python :: 3.2',
+       'Programming Language :: Python :: 3.7',
        'Programming Language :: Python :: 3.6',
        'Topic :: Software Development :: Libraries :: Python Modules',
        'Topic :: System :: Systems Administration :: Authentication/Directory',
