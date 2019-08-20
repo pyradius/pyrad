@@ -549,8 +549,8 @@ class AuthPacket(Packet):
 
         passwd_string = "%s%s%s" % (
             chapid,
-            userpwd.encode('latin-1'),
-            challenge.encode('latin-1')
+            (userpwd if type(userpwd) == str else userpwd.decode('latin-1')),
+            (challenge if type(userpwd) == str else challenge.decode('latin-1'))
         )
         return password == md5_constructor(passwd_string.encode('latin-1')).digest()
 
