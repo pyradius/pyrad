@@ -91,16 +91,6 @@ class SocketTests(unittest.TestCase):
         self.assertEqual(self.server.acctfds[0].address,
                 ('192.168.13.13', 1813))
 
-    def testBindv6(self):
-        self.server.BindToAddress('2001:db8:123::1')
-        self.assertEqual(len(self.server.authfds), 1)
-        self.assertEqual(self.server.authfds[0].address,
-                ('2001:db8:123::1', 1812))
-
-        self.assertEqual(len(self.server.acctfds), 1)
-        self.assertEqual(self.server.acctfds[0].address,
-                ('2001:db8:123::1', 1813))
-
     def testGrabPacket(self):
         def gen(data):
             res = TrivialObject()
@@ -119,7 +109,7 @@ class SocketTests(unittest.TestCase):
         self.server._poll = MockPoll()
         self.server._PrepareSockets()
 
-        self.assertEqual(self.server._poll.registry, {})
+        self.assertEqual(self.server._poll.registry, [])
         self.assertEqual(self.server._realauthfds, [])
         self.assertEqual(self.server._realacctfds, [])
 
@@ -131,8 +121,8 @@ class SocketTests(unittest.TestCase):
 
         self.assertEqual(list(self.server._fdmap.keys()), [12, 14])
         self.assertEqual(self.server._poll.registry,
-                {12: select.POLLIN | select.POLLPRI | select.POLLERR,
-                 14: select.POLLIN | select.POLLPRI | select.POLLERR})
+                [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
+                 (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
 
     def testPrepareSocketAcctFds(self):
         self.server._poll = MockPoll()
@@ -142,8 +132,8 @@ class SocketTests(unittest.TestCase):
 
         self.assertEqual(list(self.server._fdmap.keys()), [12, 14])
         self.assertEqual(self.server._poll.registry,
-                {12: select.POLLIN | select.POLLPRI | select.POLLERR,
-                 14: select.POLLIN | select.POLLPRI | select.POLLERR})
+                [(12, select.POLLIN | select.POLLPRI | select.POLLERR),
+                 (14, select.POLLIN | select.POLLPRI | select.POLLERR)])
 
 
 class AuthPacketHandlingTests(unittest.TestCase):
