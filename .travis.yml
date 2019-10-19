@@ -6,3 +6,5 @@ python:
 install: "pip install six nose coverage netaddr"
 # command to run tests
 script: nosetests -v --with-coverage
+after_success:
+  - coveralls

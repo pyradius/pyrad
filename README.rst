@@ -1,12 +1,18 @@
-.. image:: https://travis-ci.org/wichert/pyrad.svg?branch=master
-    :target: https://travis-ci.org/wichert/pyrad
+.. image:: https://travis-ci.org/pyradius/pyrad.svg?branch=master
+    :target: https://travis-ci.org/pyradius/pyrad
+.. image:: https://coveralls.io/repos/github/pyradius/pyrad/badge.svg?branch=master
+    :target: https://coveralls.io/github/pyradius/pyrad?branch=master
 .. image:: https://img.shields.io/pypi/v/pyrad.svg
+    :target: https://pypi.python.org/pypi/pyrad
+.. image:: https://img.shields.io/pypi/pyversions/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
 .. image:: https://img.shields.io/pypi/dm/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
 .. image:: https://readthedocs.org/projects/pyrad/badge/?version=latest
     :target: http://pyrad.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
+.. image:: https://img.shields.io/pypi/l/pyrad.svg
+    :target: https://pypi.python.org/pypi/pyrad
 
 Introduction
 ============
@@ -69,4 +75,4 @@ The current version and documentation can be found on pypi:
 https://pypi.org/project/pyrad/
 
 Bugs and wishes can be submitted in the pyrad issue tracker on github:
-https://github.com/wichert/pyrad/issues
+https://github.com/pyradius/pyrad/issues
