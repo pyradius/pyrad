@@ -1,13 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 from setuptools import setup, find_packages
 
-
-version = '2.1'
-
+import pyrad
 
 setup(name='pyrad',
-      version=version,
+      version=pyrad.__version__,
       author='Wichert Akkerman',
       author_email='wichert@wiggy.net',
       url='https://github.com/wichert/pyrad',
@@ -15,15 +13,15 @@ setup(name='pyrad',
       description='RADIUS tools',
       long_description=open('README.rst').read(),
       classifiers=[
-       'Development Status :: 6 - Mature',
-       'Intended Audience :: Developers',
-       'License :: OSI Approved :: BSD License',
-       'Programming Language :: Python :: 2.7',
-       'Programming Language :: Python :: 3.2',
-       'Programming Language :: Python :: 3.6',
-       'Topic :: Software Development :: Libraries :: Python Modules',
-       'Topic :: System :: Systems Administration :: Authentication/Directory',
-       ],
+          'Development Status :: 6 - Mature',
+          'Intended Audience :: Developers',
+          'License :: OSI Approved :: BSD License',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3.2',
+          'Programming Language :: Python :: 3.6',
+          'Topic :: Software Development :: Libraries :: Python Modules',
+          'Topic :: System :: Systems Administration :: Authentication/Directory',
+      ],
       packages=find_packages(exclude=['tests']),
       keywords=['radius', 'authentication'],
       zip_safe=True,
