@@ -409,10 +409,11 @@ class Packet(dict):
                         'Attribute length is too small (%d)' % attrlen)
 
             value = packet[2:attrlen]
+            key_decoded = self._DecodeKey(key)
             if key == 26:
                 for (key, value) in self._PktDecodeVendorAttribute(value):
                     self.setdefault(key, []).append(value)
-            elif self.dict.attributes[self._DecodeKey(key)].type == 'tlv':
+            elif key_decoded in self.dict.attributes and self.dict.attributes[key_decoded].type == 'tlv':
                 self._PktDecodeTlvAttribute(key,value)
             else:
                 self.setdefault(key, []).append(value)
