@@ -239,7 +239,7 @@ class Packet(dict):
         """
 
         data = []
-        for i in range(16):
+        for _ in range(16):
             data.append(random_generator.randrange(0, 256))
         if six.PY3:
             return bytes(data)
