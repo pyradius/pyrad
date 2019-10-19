@@ -131,6 +131,9 @@ class Packet(dict):
     def _EncodeKeyValues(self, key, values):
         if not isinstance(key, str):
             return (key, values)
+        
+        if not isinstance(values, (list, tuple)):
+            values = [values]
 
         key, _, tag = key.partition(":")
         attr = self.dict.attributes[key]
@@ -172,10 +175,7 @@ class Packet(dict):
         """
         attr = self.dict.attributes[key]
 
-        if isinstance(value, list):
-            (key, value) = self._EncodeKeyValues(key, value)
-        else:
-            (key, value) = self._EncodeKeyValues(key, [value])
+        (key, value) = self._EncodeKeyValues(key, value)
 
         if attr.is_sub_attribute:
             tlv = self.setdefault(self._EncodeKey(attr.parent.name), {})
@@ -218,7 +218,7 @@ class Packet(dict):
 
     def __setitem__(self, key, item):
         if isinstance(key, six.string_types):
-            (key, item) = self._EncodeKeyValues(key, [item])
+            (key, item) = self._EncodeKeyValues(key, item)
             dict.__setitem__(self, key, item)
         else:
             assert isinstance(item, list)
