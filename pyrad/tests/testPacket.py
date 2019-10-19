@@ -465,12 +465,8 @@ class AuthPacketChapTests(unittest.TestCase):
     def testVerifyChapPasswd(self):
         chap_id = b'9'
         chap_challenge = b'987654321'
-        chap_password = b'%s%s' % (chap_id, md5_constructor(
-            b'%s%s%s' % (
-                chap_id,
-                b'test_password',
-                chap_challenge
-            )).digest())
+        chap_password = chap_id + md5_constructor(
+                chap_id + b'test_password' + chap_challenge).digest()
         pkt = self.client.CreateAuthPacket(
             code=packet.AccessChallenge,
             authenticator=b'ABCDEFG',
