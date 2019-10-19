@@ -1,7 +1,9 @@
 language: python
 python:
   - "2.7"
-  - "3.5"
+  - "3.2"
+  - "3.6"
+  - "3.8"
 # command to install dependencies
 install: "pip install six nose coverage netaddr python-coveralls"
 # command to run tests
