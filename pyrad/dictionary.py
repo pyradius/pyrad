@@ -90,7 +90,7 @@ class ParseError(Exception):
 
     :ivar msg:        Error message
     :type msg:        string
-    :ivar linenumber: Line number on which the error occured
+    :ivar linenumber: Line number on which the error occurred
     :type linenumber: integer
     """
 

@@ -67,7 +67,7 @@ class Packet(dict):
         :type dict:    pyrad.dictionary.Dictionary class
         :param secret: secret needed to communicate with a RADIUS server
         :type secret:  string
-        :param id:     packet identifaction number
+        :param id:     packet identification number
         :type id:      integer (8 bits)
         :param code:   packet type code
         :type code:    integer (8bits)
@@ -229,7 +229,7 @@ class Packet(dict):
 
     @staticmethod
     def CreateAuthenticator():
-        """Create a packet autenticator. All RADIUS packets contain a sixteen
+        """Create a packet authenticator. All RADIUS packets contain a sixteen
         byte authenticator which is used to authenticate replies from the
         RADIUS server and in the password hiding algorithm. This function
         returns a suitable random string that can be used as an authenticator.
@@ -468,7 +468,7 @@ class AuthPacket(Packet):
 
         :param code:   packet type code
         :type code:    integer (8bits)
-        :param id:     packet identifaction number
+        :param id:     packet identification number
         :type id:      integer (8 bits)
         :param secret: secret needed to communicate with a RADIUS server
         :type secret:  string
@@ -514,7 +514,7 @@ class AuthPacket(Packet):
         return header + attr
 
     def PwDecrypt(self, password):
-        """Unobfuscate a RADIUS password. RADIUS hides passwords in packets by
+        """Obfuscate a RADIUS password. RADIUS hides passwords in packets by
         using an algorithm based on the MD5 hash of the packet authenticator
         and RADIUS secret. This function reverses the obfuscation process.
 
@@ -553,7 +553,7 @@ class AuthPacket(Packet):
         will not work.
 
         :param password: plaintext password
-        :type password:  unicode stringn
+        :type password:  unicode string
         :return:         obfuscated version of the password
         :rtype:          binary string
         """
@@ -638,7 +638,7 @@ class AcctPacket(Packet):
         :type dict:    pyrad.dictionary.Dictionary class
         :param secret: secret needed to communicate with a RADIUS server
         :type secret:  string
-        :param id:     packet identifaction number
+        :param id:     packet identification number
         :type id:      integer (8 bits)
         :param code:   packet type code
         :type code:    integer (8bits)
@@ -701,7 +701,7 @@ class CoAPacket(Packet):
         :type dict:    pyrad.dictionary.Dictionary class
         :param secret: secret needed to communicate with a RADIUS server
         :type secret:  string
-        :param id:     packet identifaction number
+        :param id:     packet identification number
         :type id:      integer (8 bits)
         :param code:   packet type code
         :type code:    integer (8bits)
