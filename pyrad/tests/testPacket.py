@@ -1,6 +1,8 @@
 import os
 import unittest
 import six
+
+from collections import OrderedDict
 from pyrad import packet
 from pyrad.client import Client
 from pyrad.tests import home
@@ -37,8 +39,8 @@ class PacketConstructionTests(unittest.TestCase):
 
     def testNamedConstructor(self):
         pkt = self.klass(code=26, id=38, secret=six.b('secret'),
-                authenticator=six.b('authenticator'),
-                dict='fakedict')
+                         authenticator=six.b('authenticator'),
+                         dict='fakedict')
         self.assertEqual(pkt.code, 26)
         self.assertEqual(pkt.id, 38)
         self.assertEqual(pkt.secret, six.b('secret'))
@@ -67,15 +69,19 @@ class PacketConstructionTests(unittest.TestCase):
             'Test-Tlv-Int': 10,
             'dict': self.dict
         })
-        self.assertEqual(pkt['Test-Tlv'], {'Test-Tlv-Str': ['this works'], 'Test-Tlv-Int' : [10]} )
+        self.assertEqual(
+            pkt['Test-Tlv'],
+            {'Test-Tlv-Str': ['this works'], 'Test-Tlv-Int' : [10]}
+        )
 
 
 class PacketTests(unittest.TestCase):
     def setUp(self):
         self.path = os.path.join(home, 'tests', 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
-        self.packet = packet.Packet(id=0, secret=six.b('secret'),
-                authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
+        self.packet = packet.Packet(
+            id=0, secret=six.b('secret'),
+            authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
 
     def testCreateReply(self):
         reply = self.packet.CreateReply(**{'Test-Integer' : 10})
@@ -140,7 +146,7 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet.keys(), ['Test-String'])
         self.packet['Test-Integer'] = 10
         self.assertEqual(self.packet.keys(), ['Test-String', 'Test-Integer'])
-        dict.__setitem__(self.packet, 12345, None)
+        OrderedDict.__setitem__(self.packet, 12345, None)
         self.assertEqual(self.packet.keys(),
                         ['Test-String', 'Test-Integer', 12345])
 

@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* Add message authenticator support (attribute 80)
+
 * Add support for multiple values of the same attribute (#95)
 
 * Add experimental async client and server implementation for python >=3.5.

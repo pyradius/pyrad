@@ -4,9 +4,11 @@
 #
 # A RADIUS packet as defined in RFC 2138
 
-
+from collections import OrderedDict
 import struct
 import random
+# Hmac needed for Message-Authenticator
+import hmac
 try:
     import hashlib
     md5_constructor = hashlib.md5
@@ -44,7 +46,7 @@ class PacketError(Exception):
     pass
 
 
-class Packet(dict):
+class Packet(OrderedDict):
     """Packet acts like a standard python map to provide simple access
     to the RADIUS attributes. Since RADIUS allows for repeated
     attributes the value will always be a sequence. pyrad makes sure
@@ -60,7 +62,8 @@ class Packet(dict):
     :obj:`AuthPacket` or :obj:`AcctPacket` classes.
     """
 
-    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None, **attributes):
+    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None,
+                 **attributes):
         """Constructor
 
         :param dict:   RADIUS dictionary
@@ -74,7 +77,7 @@ class Packet(dict):
         :param packet: raw packet to decode
         :type packet:  string
         """
-        dict.__init__(self)
+        OrderedDict.__init__(self)
         self.code = code
         if id is not None:
             self.id = id
@@ -87,6 +90,7 @@ class Packet(dict):
                 not isinstance(authenticator, six.binary_type):
             raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
+        self.message_authenticator = None
 
         if 'dict' in attributes:
             self.dict = attributes['dict']
@@ -94,11 +98,115 @@ class Packet(dict):
         if 'packet' in attributes:
             self.DecodePacket(attributes['packet'])
 
+        if 'message_authenticator' in attributes:
+            self.message_authenticator = attributes['message_authenticator']
+
         for (key, value) in attributes.items():
-            if key in ['dict', 'fd', 'packet']:
+            if key in [
+                'dict', 'fd', 'packet',
+                'message_authenticator',
+            ]:
                 continue
             key = key.replace('_', '-')
             self.AddAttribute(key, value)
+
+    def add_message_authenticator(self):
+
+        self.message_authenticator = True
+        # Maintain a zero octets content for md5 and hmac calculation.
+        self['Message-Authenticator'] = 16 * six.b('\00')
+
+        if self.id is None:
+            self.id = self.CreateID()
+
+        if self.authenticator is None and self.code == AccessRequest:
+            self.authenticator = self.CreateAuthenticator()
+            self._refresh_message_authenticator()
+
+    def get_message_authenticator(self):
+        self._refresh_message_authenticator()
+        return self.message_authenticator
+
+    def _refresh_message_authenticator(self):
+        hmac_constructor = hmac.new(self.secret)
+
+        # Maintain a zero octets content for md5 and hmac calculation.
+        self['Message-Authenticator'] = 16 * six.b('\00')
+        attr = self._PktEncodeAttributes()
+
+        header = struct.pack('!BBH', self.code, self.id,
+                             (20 + len(attr)))
+
+        hmac_constructor.update(header[0:4])
+        if self.code in (AccountingRequest, DisconnectRequest,
+                         CoARequest, AccountingResponse):
+            hmac_constructor.update(16 * six.b('\00'))
+        else:
+            # NOTE: self.authenticator on reply packet is initialized
+            #       with request authenticator by design.
+            #       For AccessAccept, AccessReject and AccessChallenge
+            #       it is needed use original Authenticator.
+            #       For AccessAccept, AccessReject and AccessChallenge
+            #       it is needed use original Authenticator.
+            if self.authenticator is None:
+                raise Exception('No authenticator found')
+            hmac_constructor.update(self.authenticator)
+
+        hmac_constructor.update(attr)
+        self['Message-Authenticator'] = hmac_constructor.digest()
+
+    def verify_message_authenticator(self, secret=None,
+                                     original_authenticator=None,
+                                     original_code=None):
+        """Verify packet Message-Authenticator.
+
+        :return: False if verification failed else True
+        :rtype: boolean
+        """
+        if self.message_authenticator is None:
+            raise Exception('No Message-Authenticator AVP present')
+
+        prev_ma = self['Message-Authenticator']
+        # Set zero bytes for Message-Authenticator for md5 calculation
+        if secret is None and self.secret is None:
+            raise Exception('Missing secret for HMAC/MD5 verification')
+
+        if secret:
+            key = secret
+        else:
+            key = self.secret
+
+        self['Message-Authenticator'] = 16 * six.b('\00')
+        attr = self._PktEncodeAttributes()
+
+        header = struct.pack('!BBH', self.code, self.id,
+                             (20 + len(attr)))
+
+        hmac_constructor = hmac.new(key)
+        hmac_constructor.update(header)
+        if self.code in (AccountingRequest, DisconnectRequest,
+                         CoARequest, AccountingResponse):
+            if original_code is None or original_code != StatusServer:
+                # TODO: Handle Status-Server response correctly.
+                hmac_constructor.update(16 * six.b('\00'))
+        elif self.code in (AccessAccept, AccessChallenge,
+                           AccessReject):
+            if original_authenticator is None:
+                if self.authenticator:
+                    # NOTE: self.authenticator on reply packet is initialized
+                    #       with request authenticator by design.
+                    original_authenticator = self.authenticator
+                else:
+                    raise Exception('Missing original authenticator')
+
+            hmac_constructor.update(original_authenticator)
+        else:
+            # On Access-Request and Status-Server use dynamic authenticator
+            hmac_constructor.update(self.authenticator)
+
+        hmac_constructor.update(attr)
+        self['Message-Authenticator'] = prev_ma[0]
+        return prev_ma[0] == hmac_constructor.digest()
 
     def CreateReply(self, **attributes):
         """Create a new packet as a reply to this one. This method
@@ -187,9 +295,9 @@ class Packet(dict):
 
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
-            return dict.__getitem__(self, key)
+            return OrderedDict.__getitem__(self, key)
 
-        values = dict.__getitem__(self, self._EncodeKey(key))
+        values = OrderedDict.__getitem__(self, self._EncodeKey(key))
         attr = self.dict.attributes[key]
         if attr.type == 'tlv':  # return map from sub attribute code to its values
             res = {}
@@ -207,25 +315,24 @@ class Packet(dict):
 
     def __contains__(self, key):
         try:
-            return dict.__contains__(self, self._EncodeKey(key))
+            return OrderedDict.__contains__(self, self._EncodeKey(key))
         except KeyError:
             return False
 
     has_key = __contains__
 
     def __delitem__(self, key):
-        dict.__delitem__(self, self._EncodeKey(key))
+        OrderedDict.__delitem__(self, self._EncodeKey(key))
 
     def __setitem__(self, key, item):
         if isinstance(key, six.string_types):
             (key, item) = self._EncodeKeyValues(key, item)
-            dict.__setitem__(self, key, item)
+            OrderedDict.__setitem__(self, key, item)
         else:
-            assert isinstance(item, list)
-            dict.__setitem__(self, key, item)
+            OrderedDict.__setitem__(self, key, item)
 
     def keys(self):
-        return [self._DecodeKey(key) for key in dict.keys(self)]
+        return [self._DecodeKey(key) for key in OrderedDict.keys(self)]
 
     @staticmethod
     def CreateAuthenticator():
@@ -269,11 +376,15 @@ class Packet(dict):
         assert(self.authenticator)
         assert(self.secret is not None)
 
+        if self.message_authenticator:
+            self._refresh_message_authenticator()
+
         attr = self._PktEncodeAttributes()
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
 
         authenticator = md5_constructor(header[0:4] + self.authenticator
-                              + attr + self.secret).digest()
+                                        + attr + self.secret).digest()
+
         return header + authenticator + attr
 
     def VerifyReply(self, reply, rawreply=None):
@@ -283,8 +394,17 @@ class Packet(dict):
         if rawreply is None:
             rawreply = reply.ReplyPacket()
 
+        attr = reply._PktEncodeAttributes()
+        #  The Authenticator field in an Accounting-Response packet is called
+        #  the Response Authenticator, and contains a one-way MD5 hash
+        #  calculated over a stream of octets consisting of the Accounting
+        #  Response Code, Identifier, Length, the Request Authenticator field
+        #  from the Accounting-Request packet being replied to, and the
+        #  response attributes if any, followed by the shared secret.  The
+        #  resulting 16 octet MD5 hash value is stored in the Authenticator
+        # field of the Accounting-Response packet.
         hash = md5_constructor(rawreply[0:4] + self.authenticator +
-                     rawreply[20:] + self.secret).digest()
+                               attr  + self.secret).digest()
 
         if hash != rawreply[4:20]:
             return False
@@ -368,7 +488,6 @@ class Packet(dict):
         return tlvs
 
     def _PktDecodeTlvAttribute(self, code, data):
-
         sub_attributes = self.setdefault(code, {})
         loc = 0
 
@@ -412,6 +531,11 @@ class Packet(dict):
             if key == 26:
                 for (key, value) in self._PktDecodeVendorAttribute(value):
                     self.setdefault(key, []).append(value)
+            elif key == 80:
+                # POST: Message Authenticator AVP is present.
+                self.message_authenticator = True
+                self.setdefault(key, []).append(value)
+
             elif self.dict.attributes[self._DecodeKey(key)].type == 'tlv':
                 self._PktDecodeTlvAttribute(key,value)
             else:
@@ -489,8 +613,8 @@ class AuthPacket(Packet):
         to the new instance.
         """
         return AuthPacket(AccessAccept, self.id,
-            self.secret, self.authenticator, dict=self.dict,
-            **attributes)
+                          self.secret, self.authenticator, dict=self.dict,
+                          **attributes)
 
     def RequestPacket(self):
         """Create a ready-to-transmit authentication request packet.
@@ -500,16 +624,18 @@ class AuthPacket(Packet):
         :return: raw packet
         :rtype:  string
         """
-        attr = self._PktEncodeAttributes()
-
         if self.authenticator is None:
             self.authenticator = self.CreateAuthenticator()
 
         if self.id is None:
             self.id = self.CreateID()
 
+        if self.message_authenticator:
+            self._refresh_message_authenticator()
+
+        attr = self._PktEncodeAttributes()
         header = struct.pack('!BBH16s', self.code, self.id,
-            (20 + len(attr)), self.authenticator)
+                             (20 + len(attr)), self.authenticator)
 
         return header + attr
 
@@ -631,7 +757,7 @@ class AcctPacket(Packet):
     """
 
     def __init__(self, code=AccountingRequest, id=None, secret=six.b(''),
-            authenticator=None, **attributes):
+                 authenticator=None, **attributes):
         """Constructor
 
         :param dict:   RADIUS dictionary
@@ -655,18 +781,20 @@ class AcctPacket(Packet):
         to the new instance.
         """
         return AcctPacket(AccountingResponse, self.id,
-            self.secret, self.authenticator, dict=self.dict,
-            **attributes)
+                          self.secret, self.authenticator, dict=self.dict,
+                          **attributes)
 
     def VerifyAcctRequest(self):
         """Verify request authenticator.
 
-        :return: True if verification failed else False
+        :return: False if verification failed else True
         :rtype: boolean
         """
         assert(self.raw_packet)
+
         hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
-                self.raw_packet[20:] + self.secret).digest()
+                               self.raw_packet[20:] + self.secret).digest()
+
         return hash == self.authenticator
 
     def RequestPacket(self):
@@ -678,15 +806,21 @@ class AcctPacket(Packet):
         :rtype:  string
         """
 
-        attr = self._PktEncodeAttributes()
-
         if self.id is None:
             self.id = self.CreateID()
 
+        if self.message_authenticator:
+            self._refresh_message_authenticator()
+
+        attr = self._PktEncodeAttributes()
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
-        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') + attr
-            + self.secret).digest()
-        return header + self.authenticator + attr
+        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
+                                             attr + self.secret).digest()
+
+        ans = header + self.authenticator + attr
+
+        return ans
+
 
 class CoAPacket(Packet):
     """RADIUS CoA packets. This class is a specialization
@@ -718,13 +852,13 @@ class CoAPacket(Packet):
         to the new instance.
         """
         return CoAPacket(CoAACK, self.id,
-            self.secret, self.authenticator, dict=self.dict,
-            **attributes)
+                         self.secret, self.authenticator, dict=self.dict,
+                         **attributes)
 
     def VerifyCoARequest(self):
         """Verify request authenticator.
 
-        :return: True if verification failed else False
+        :return: False if verification failed else True
         :rtype: boolean
         """
         assert(self.raw_packet)
@@ -747,9 +881,17 @@ class CoAPacket(Packet):
             self.id = self.CreateID()
 
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
-        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') + attr
-            + self.secret).digest()
+        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
+                                             attr + self.secret).digest()
+
+        if self.message_authenticator:
+            self._refresh_message_authenticator()
+            attr = self._PktEncodeAttributes()
+            self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
+                                                 attr + self.secret).digest()
+
         return header + self.authenticator + attr
+
 
 def CreateID():
     """Generate a packet ID.
