@@ -1,6 +1,9 @@
 Changelog
 =========
 
+2.2 - Oct 19, 2019
+------------------
+
 * Add message authenticator support (attribute 80)
 
 * Add support for multiple values of the same attribute (#95)
