@@ -3,7 +3,7 @@ python:
   - "2.7"
   - "3.5"
 # command to install dependencies
-install: "pip install six nose coverage netaddr"
+install: "pip install six nose coverage netaddr python-coveralls"
 # command to run tests
 script: nosetests -v --with-coverage
 after_success:
