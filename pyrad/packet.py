@@ -567,7 +567,6 @@ class AuthPacket(Packet):
         if len(password) % 16 != 0:
             buf += six.b('\x00') * (16 - (len(password) % 16))
 
-        hash = md5_constructor(self.secret + self.authenticator).digest()
         result = six.b('')
 
         last = self.authenticator
