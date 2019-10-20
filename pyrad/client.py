@@ -53,7 +53,10 @@ class Client(host.Host):
         self._socket = None
         self.retries = 3
         self.timeout = 5
-        self._poll = select.poll()
+        if hasattr(select, 'poll'):
+            self._poll = select.poll()
+        else:
+            self._kqueue = select.kqueue()
 
     def bind(self, addr):
         """Bind socket to an address.
@@ -73,15 +76,20 @@ class Client(host.Host):
         except:
             family = socket.AF_INET
         if not self._socket:
-            self._socket = socket.socket(family,
-                                       socket.SOCK_DGRAM)
-            self._socket.setsockopt(socket.SOL_SOCKET,
-                                    socket.SO_REUSEADDR, 1)
-            self._poll.register(self._socket, select.POLLIN)
+            self._socket = socket.socket(family, socket.SOCK_DGRAM)
+            self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if hasattr(select, 'poll'):
+                self._poll.register(self._socket, select.POLLIN)
+            else:
+                ev = select.kevent(self._socket,
+                                   filter=select.KQ_FILTER_READ,
+                                   flags=select.KQ_EV_ADD | select.KQ_EV_ENABLE)
+                self._kqueue.control([ev], 0, 0)
 
     def _CloseSocket(self):
         if self._socket:
-            self._poll.unregister(self._socket)
+            if hasattr(select, 'poll'):
+                self._poll.unregister(self._socket)
             self._socket.close()
             self._socket = None
 
@@ -148,7 +156,10 @@ class Client(host.Host):
             self._socket.sendto(pkt.RequestPacket(), (self.server, port))
 
             while now < waitto:
-                ready = self._poll.poll((waitto - now) * 1000)
+                if hasattr(select, 'poll'):
+                    ready = self._poll.poll((waitto - now) * 1000)
+                else:
+                    ready = self._kqueue.control([], 1, (waitto - now))
 
                 if ready:
                     rawreply = self._socket.recv(4096)

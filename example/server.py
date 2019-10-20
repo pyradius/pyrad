@@ -25,7 +25,6 @@ class FakeServer(server.Server):
         self.SendReplyPacket(pkt.fd, reply)
 
     def HandleAcctPacket(self, pkt):
-
         print("Received an accounting request")
         print("Attributes: ")
         for attr in pkt.keys():
@@ -35,7 +34,6 @@ class FakeServer(server.Server):
         self.SendReplyPacket(pkt.fd, reply)
 
     def HandleCoaPacket(self, pkt):
-
         print("Received an coa request")
         print("Attributes: ")
         for attr in pkt.keys():
@@ -45,7 +43,6 @@ class FakeServer(server.Server):
         self.SendReplyPacket(pkt.fd, reply)
 
     def HandleDisconnectPacket(self, pkt):
-
         print("Received an disconnect request")
         print("Attributes: ")
         for attr in pkt.keys():
@@ -56,6 +53,7 @@ class FakeServer(server.Server):
         reply.code = 45
         self.SendReplyPacket(pkt.fd, reply)
 
+
 if __name__ == '__main__':
 
     # create server and read dictionary
@@ -63,6 +61,7 @@ if __name__ == '__main__':
 
     # add clients (address, secret, name)
     srv.hosts["127.0.0.1"] = server.RemoteHost("127.0.0.1", b"Kah3choteereethiejeimaeziecumi", "localhost")
+    srv.hosts["::1"] = server.RemoteHost("::1", b"Kah3choteereethiejeimaeziecumi", "localhost")
     srv.BindToAddress("")
 
     # start server
