@@ -346,10 +346,20 @@ class PacketTests(unittest.TestCase):
             six.b('\x01\x02\x00\x1b1234567890123456\x01\x07value'))
         self.assertEqual(self.packet[1], [six.b('value')])
 
+    def testDecodePacketWithUnknownAttribute(self):
+        self.packet.DecodePacket(
+            six.b('\x01\x02\x00\x1b1234567890123456\x09\x07value'))
+        self.assertEqual(self.packet[9], [six.b('value')])
+
     def testDecodePacketWithTlvAttribute(self):
         self.packet.DecodePacket(
             six.b('\x01\x02\x00\x1d1234567890123456\x04\x09\x01\x07value'))
         self.assertEqual(self.packet[4], {1:[six.b('value')]})
+
+    def testDecodePacketIsTlvAttribute(self):
+        self.packet.DecodePacket(
+            six.b('\x01\x02\x00\x1d1234567890123456\x04\x09\x01\x07value'))
+        self.assertTrue(self.packet._PktIsTlvAttribute(4))
 
     def testDecodePacketWithVendorTlvAttribute(self):
         self.packet.DecodePacket(
@@ -528,3 +538,45 @@ class AcctPacketTests(unittest.TestCase):
         self.packet.id = None
         self.packet.RequestPacket()
         self.assertTrue(self.packet.id is not None)
+
+    def testRealisticUnknownAttributes(self):
+        """ Test a realistic Accounting Packet from raw
+        User-Name: [u'user@example.com']
+        NAS-IP-Address: ['1.2.3.4']
+        Service-Type: ['Framed-User']
+        Framed-Protocol: ['NAS-Prompt-User']
+        Framed-IP-Address: ['1.2.3.4']
+        Acct-Status-Type: ['Interim-Update']
+        Acct-Delay-Time: [0]
+        Acct-Input-Octets: [1290826858]
+        Acct-Output-Octets: [3551101035]
+        Acct-Session-Id: [u'90dbd65a18b0a6c']
+        Acct-Authentic: ['RADIUS']
+        Acct-Session-Time: [769500]
+        Acct-Input-Packets: [7403861]
+        Acct-Output-Packets: [10928170]
+        Acct-Link-Count: [1]
+        Acct-Input-Gigawords: [0]
+        Acct-Output-Gigawords: [2]
+        Event-Timestamp: [1554155989]
+        # vendor specific
+        NAS-Port-Type: ['Virtual']
+        (26, 594, 1): [u'UNKNOWN_PRODUCT']
+        # implementation specific fields
+        224: ['24P\x10\x00\x22\x96\xc9']
+        228: ['\xfe\x99\xd0P']
+        """
+        path = os.path.join(home, 'tests', 'data')
+        dictObj = Dictionary(os.path.join(path, 'realistic'))
+        raw = six.b('\x04\x8e\x00\xc4\xb2\xf8z\xdb\xac\xfd9l\x9dI?E\x8c%\xe9'\
+                '\xf5\x01\x12user@example.com\x04\x06\x01\x02\x03\x04\x06\x06'\
+                '\x00\x00\x00\x02\x07\x06\x00\x00\x00\x07\x08\x06\x01\x02\x03'\
+                '\x04(\x06\x00\x00\x00\x03)\x06\x00\x00\x00\x00*\x06L\xf0tj+'\
+                '\x06\xd3\xa9\x80k,\x1190dbd65a18b0a6c-\x06\x00\x00\x00\x01.'\
+                '\x06\x00\x0b\xbd\xdc/\x06\x00p\xf9U0\x06\x00\xa6\xc0*3\x06'\
+                '\x00\x00\x00\x014\x06\x00\x00\x00\x005\x06\x00\x00\x00\x027'\
+                '\x06\\\xa2\x89\xd5=\x06\x00\x00\x00\x05\x1a\x17\x00\x00\x02R'\
+                '\x01\x11UNKNOWN_PRODUCT\xe0\n24P\x10\x00\x22\x96\xc9\xe4\x06'\
+                '\xfe\x99\xd0P')
+        pkt = packet.AcctPacket(dict=dictObj, packet=raw)
+        self.assertEqual(pkt.raw_packet, raw)
