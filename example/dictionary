@@ -51,7 +51,7 @@
 #$INCLUDE dictionary.usr
 #$INCLUDE dictionary.versanet
 #$INCLUDE dictionary.erx
-#$INCLUDE dictionary.freeradius
+$INCLUDE dictionary.freeradius
 #$INCLUDE dictionary.alcatel
 
 #
@@ -264,7 +264,7 @@ VALUE		Login-Service		PortMaster		3
 VALUE		Login-Service		LAT			4
 VALUE		Login-Service		X25-PAD			5
 VALUE		Login-Service		X25-T3POS		6
-VALUE		Login-Service		TCP-Clear-Quiet		7
+VALUE		Login-Service		TCP-Clear-Quiet		8
 
 #	Login-TCP-Port		(see /etc/services for more examples)
 

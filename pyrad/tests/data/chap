@@ -1,0 +1,6 @@
+# A simple dictionary
+
+ATTRIBUTE  User-Name         1       string
+ATTRIBUTE  User-Password     2       string encrypt=1
+ATTRIBUTE  CHAP-Password     3       octets
+ATTRIBUTE  CHAP-Challenge    60      octets
