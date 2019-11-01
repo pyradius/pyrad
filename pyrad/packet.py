@@ -5,6 +5,7 @@
 # A RADIUS packet as defined in RFC 2138
 
 from collections import OrderedDict
+from datetime import datetime
 import struct
 import random
 # Hmac needed for Message-Authenticator
@@ -63,6 +64,7 @@ class Packet(OrderedDict):
     """
 
     def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None,
+                 creation_date=datetime.utcnow(),
                  **attributes):
         """Constructor
 
@@ -91,6 +93,7 @@ class Packet(OrderedDict):
             raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
         self.message_authenticator = None
+        self.creation_date = creation_date
 
         if 'dict' in attributes:
             self.dict = attributes['dict']
@@ -100,11 +103,14 @@ class Packet(OrderedDict):
 
         if 'message_authenticator' in attributes:
             self.message_authenticator = attributes['message_authenticator']
+        if 'creation_date' in attributes:
+            self.creation_date = attributes['creation_date']
+        self.sent_date = None
 
         for (key, value) in attributes.items():
             if key in [
                 'dict', 'fd', 'packet',
-                'message_authenticator',
+                'message_authenticator', 'creation_date'
             ]:
                 continue
             key = key.replace('_', '-')
@@ -329,7 +335,7 @@ class Packet(OrderedDict):
 
     def __setitem__(self, key, item):
         if isinstance(key, six.string_types):
-            (key, item) = self._EncodeKeyValues(key, item)
+            (key, item) = self._EncodeKeyValues(key, [item])
             OrderedDict.__setitem__(self, key, item)
         else:
             OrderedDict.__setitem__(self, key, item)
@@ -734,24 +740,21 @@ class AuthPacket(Packet):
 
         chapid = chap_password[0]
         if six.PY3:
-            chapid = chr(chapid).encode('utf-8')
+            chapid = six.b(str(chr(chapid)))
         password = chap_password[1:]
 
         challenge = self.authenticator
         if 'CHAP-Challenge' in self:
             challenge = self['CHAP-Challenge'][0]
-        return password == md5_constructor(chapid + userpwd + challenge).digest()
 
-    def VerifyAuthRequest(self):
-        """Verify request authenticator.
+        c = "%s%s%s" % (chapid, userpwd, challenge)
+        md5 = md5_constructor(
+            chapid +
+            userpwd +
+            challenge
+        ).digest()
 
-        :return: True if verification failed else False
-        :rtype: boolean
-        """
-        assert(self.raw_packet)
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
-                               self.raw_packet[20:] + self.secret).digest()
-        return hash == self.authenticator
+        return password == md5
 
 
 class AcctPacket(Packet):
@@ -820,10 +823,7 @@ class AcctPacket(Packet):
         self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
                                              attr + self.secret).digest()
 
-        ans = header + self.authenticator + attr
-
-        return ans
-
+        return header + self.authenticator + attr
 
 class CoAPacket(Packet):
     """RADIUS CoA packets. This class is a specialization

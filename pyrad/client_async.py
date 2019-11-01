@@ -9,6 +9,7 @@ import asyncio
 import six
 import logging
 import random
+import traceback
 
 from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket
 
@@ -24,6 +25,8 @@ class DatagramProtocolClient(asyncio.Protocol):
         self.retries = retries
         self.timeout = timeout
         self.client = client
+        self.errors = 0
+        self.retries_counter = 0
 
         # Map of pending requests
         self.pending_requests = {}
@@ -40,25 +43,43 @@ class DatagramProtocolClient(asyncio.Protocol):
 
             while True:
 
+                socket = self.transport.get_extra_info('socket') \
+                    if self.transport else None
                 req2delete = []
-                now = datetime.now()
                 next_weak_up = self.timeout
                 # noinspection PyShadowingBuiltins
                 for id, req in self.pending_requests.items():
 
-                    secs = (req['send_date'] - now).seconds
+                    now = datetime.now()
+                    secs = (now - req['sent_date']).seconds
                     if secs > self.timeout:
                         if req['retries'] == self.retries:
-                            self.logger.debug('[%s:%d] For request %d execute all retries', self.server, self.port, id)
+                            self.logger.debug(
+                                '[%s:%d:%d] For request %d execute all retries' % (
+                                    self.server, self.port,
+                                    socket.getsockname()[1] if socket else '',
+                                    id
+                                )
+                            )
                             req['future'].set_exception(
                                 TimeoutError('Timeout on Reply')
                             )
                             req2delete.append(id)
                         else:
                             # Send again packet
-                            req['send_date'] = now
+                            req['sent_date'] = now
+                            req['packet'].sent_date = now
                             req['retries'] += 1
-                            self.logger.debug('[%s:%d] For request %d execute retry %d', self.server, self.port, id, req['retries'])
+                            self.retries_counter += 1
+                            self.logger.debug(
+                                '[%s:%d:%d] For request %d reached %s secs. %s' % (
+                                    self.server, self.port,
+                                    socket.getsockname()[1] if socket else '',
+                                    id, secs,
+                                    'I execute retry %d.' % req['retries']
+                                )
+                            )
+
                             self.transport.sendto(req['packet'].RequestPacket())
                     elif next_weak_up > secs:
                         next_weak_up = secs
@@ -77,15 +98,17 @@ class DatagramProtocolClient(asyncio.Protocol):
         if packet.id in self.pending_requests:
             raise Exception('Packet with id %d already present' % packet.id)
 
+        sent_date = datetime.now()
         # Store packet on pending requests map
         self.pending_requests[packet.id] = {
             'packet': packet,
-            'creation_date': datetime.now(),
+            'creation_date': sent_date,
             'retries': 0,
             'future': future,
-            'send_date': datetime.now()
+            'sent_date': sent_date
         }
 
+        packet.sent_date = sent_date
         # In queue packet raw on socket buffer
         self.transport.sendto(packet.RequestPacket())
 
@@ -94,9 +117,9 @@ class DatagramProtocolClient(asyncio.Protocol):
         socket = transport.get_extra_info('socket')
         self.logger.info(
             '[%s:%d] Transport created with binding in %s:%d',
-                self.server, self.port,
-                socket.getsockname()[0],
-                socket.getsockname()[1]
+            self.server, self.port,
+            socket.getsockname()[0],
+            socket.getsockname()[1]
         )
 
         pre_loop = asyncio.get_event_loop()
@@ -118,31 +141,83 @@ class DatagramProtocolClient(asyncio.Protocol):
 
     # noinspection PyUnusedLocal
     def datagram_received(self, data, addr):
-        try:
-            reply = Packet(packet=data, dict=self.client.dict)
 
-            if reply and reply.id in self.pending_requests:
+        socket = self.transport.get_extra_info('socket') \
+            if self.transport else None
+        try:
+
+            received_date = datetime.now()
+            reply = Packet(packet=data, dict=self.client.dict,
+                           creation_date=received_date)
+
+            if reply is not None and reply.id in self.pending_requests:
                 req = self.pending_requests[reply.id]
                 packet = req['packet']
 
-                reply.dict = packet.dict
                 reply.secret = packet.secret
 
                 if packet.VerifyReply(reply, data):
-                    req['future'].set_result(reply)
-                    # Remove request for map
-                    del self.pending_requests[reply.id]
+
+                    if reply.message_authenticator and not \
+                        reply.verify_message_authenticator(
+                            original_authenticator=packet.authenticator):
+                        self.logger.warn(
+                            '[%s:%d:%d] Received invalid reply for id %d. %s' % (
+                                self.server, self.port,
+                                socket.getsockname()[1] if socket else '',
+                                reply.id,
+                                'Invalid Message-Authenticator. Ignoring it.'
+                            )
+                        )
+                        self.errors += 1
+                    else:
+
+                        req['future'].set_result(reply)
+                        # Remove request for map
+                        del self.pending_requests[reply.id]
                 else:
-                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d. %s', self.server, self.port, reply.id)
+                    self.logger.warn(
+                        '[%s:%d:%d] Received invalid reply for id %d. %s' % (
+                            self.server, self.port,
+                            socket.getsockname()[1] if socket else '',
+                            reply.id,
+                            'Ignoring it.'
+                        )
+                    )
+                    self.errors += 1
             else:
-                self.logger.warn('[%s:%d] Ignore invalid reply: %d', self.server, self.port, data)
+                self.logger.warn(
+                    '[%s:%d:%d] Received invalid reply with id %d: %s.\nIgnoring it.' % (
+                        self.server, self.port,
+                        socket.getsockname()[1] if socket else '',
+                        (-1, reply.id)[reply is not None],
+                        data.hex(),
+                    )
+                )
+                self.errors += 1
 
         except Exception as exc:
-            self.logger.error('[%s:%d] Error on decode packet: %s', self.server, self.port, exc)
+            self.logger.error(
+                '[%s:%d:%d] Error on decode packet: %s.' % (
+                    self.server, self.port,
+                    socket.getsockname()[1] if socket else '',
+                    (exc, '\n'.join(traceback.format_exc().splitlines()))[
+                        self.client.debug
+                    ]
+                )
+            )
 
     async def close_transport(self):
         if self.transport:
-            self.logger.debug('[%s:%d] Closing transport...', self.server, self.port)
+
+            socket = self.transport.get_extra_info('socket') \
+                if self.transport else None
+            self.logger.debug(
+                '[%s:%d:%d] Closing transport...' % (
+                    self.server, self.port,
+                    socket.getsockname()[1] if socket else ''
+                )
+            )
             self.transport.close()
             self.transport = None
         if self.timeout_future:
@@ -177,7 +252,7 @@ class ClientAsync:
     def __init__(self, server, auth_port=1812, acct_port=1813,
                  coa_port=3799, secret=six.b(''), dict=None,
                  loop=None, retries=3, timeout=30,
-                 logger_name='pyrad'):
+                 logger_name='pyrad', debug=False):
 
         """Constructor.
 
@@ -217,10 +292,13 @@ class ClientAsync:
         self.protocol_coa = None
         self.coa_port = coa_port
 
+        self.debug = debug
+
     async def initialize_transports(self, enable_acct=False,
                                     enable_auth=False, enable_coa=False,
                                     local_addr=None, local_auth_port=None,
-                                    local_acct_port=None, local_coa_port=None):
+                                    local_acct_port=None, local_coa_port=None,
+                                    reuse_address=True, reuse_port=True):
 
         task_list = []
 
@@ -241,7 +319,7 @@ class ClientAsync:
 
             acct_connect = self.loop.create_datagram_endpoint(
                 self.protocol_acct,
-                reuse_address=True, reuse_port=True,
+                reuse_address=reuse_address, reuse_port=reuse_port,
                 remote_addr=(self.server, self.acct_port),
                 local_addr=bind_addr
             )
@@ -398,9 +476,14 @@ class ClientAsync:
             if not self.protocol_acct:
                 raise Exception('Transport not initialized')
 
+            self.protocol_acct.send_packet(pkt, ans)
+
         elif isinstance(pkt, CoAPacket):
             if not self.protocol_coa:
                 raise Exception('Transport not initialized')
+
+            self.protocol_coa.send_packet(pkt, ans)
+
         else:
             raise Exception('Unsupported packet')
 

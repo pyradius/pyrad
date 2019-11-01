@@ -6,9 +6,11 @@ import socket
 import sys
 import pyrad.packet
 
-srv = Client(server="localhost", secret=b"Kah3choteereethiejeimaeziecumi", dict=Dictionary("dictionary"))
+srv = Client(server="localhost", secret=b"Kah3choteereethiejeimaeziecumi",
+             dict=Dictionary("dictionary"))
 
-req = srv.CreateAuthPacket(code=pyrad.packet.AccessRequest, User_Name="wichert")
+req = srv.CreateAuthPacket(code=pyrad.packet.AccessRequest,
+                           User_Name="wichert")
 
 req["NAS-IP-Address"] = "192.168.1.10"
 req["NAS-Port"] = 0
