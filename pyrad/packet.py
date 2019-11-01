@@ -740,17 +740,21 @@ class AuthPacket(Packet):
 
         chapid = chap_password[0]
         if six.PY3:
-            chapid = chr(chapid).encode('utf-8')
+            chapid = six.b(str(chr(chapid)))
         password = chap_password[1:]
 
         challenge = self.authenticator
         if 'CHAP-Challenge' in self:
             challenge = self['CHAP-Challenge'][0]
 
-        return password == md5_constructor(
-            "%s%s%s" % (
-                chapid, userpwd, challenge)
+        c = "%s%s%s" % (chapid, userpwd, challenge)
+        md5 = md5_constructor(
+            chapid +
+            userpwd +
+            challenge
         ).digest()
+
+        return password == md5
 
 
 class AcctPacket(Packet):
