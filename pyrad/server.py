@@ -7,6 +7,7 @@ import socket
 from pyrad import host
 from pyrad import packet
 import logging
+from netaddr import IPNetwork, IPAddress
 
 
 logger = logging.getLogger('pyrad')
@@ -18,7 +19,7 @@ class RemoteHost:
     def __init__(self, address, secret, name, authport=1812, acctport=1813, coaport=3799):
         """Constructor.
 
-        :param   address: IP address
+        :param   address: IP address, CIDR or hostname of client(s)
         :type    address: string
         :param    secret: RADIUS secret
         :type     secret: string
@@ -31,7 +32,11 @@ class RemoteHost:
         :param   coaport: port used for CoA packets
         :type    coaport: integer
         """
-        self.address = address
+        try:
+            # allow addresses to map to hostnames
+            self.address = socket.gethostbyname(address)
+        except socket.gaierror:
+            self.address = address
         self.secret = secret
         self.authport = authport
         self.acctport = acctport
@@ -192,6 +197,20 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
 
+    def _get_remote_host(self, ip):
+        """Checks if an IP is in an IP range.
+        :param ip: an IPv4 or IPv6 address
+        :type  ip: String
+        """
+        all_hosts = None
+        ip_addr = IPAddress(ip)
+        for ref, host in self.hosts.items():
+            if ip_addr in IPNetwork(host.address):
+                return host
+            elif host.address in ['0.0.0.0', '0.0.0.0/0', '0/0']:
+                all_hosts = host
+        return all_hosts
+
     def _AddSecret(self, pkt):
         """Add secret to packets received and raise ServerPacketError
         for unknown hosts.
@@ -199,12 +218,11 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] in self.hosts:
-            pkt.secret = self.hosts[pkt.source[0]].secret
-        elif '0.0.0.0' in self.hosts:
-            pkt.secret = self.hosts['0.0.0.0'].secret
+        remote_host = self._get_remote_host(pkt.source[0])
+        if remote_host:
+            pkt.secret = remote_host.secret
         else:
-            raise ServerPacketError('Received packet from unknown host')
+            raise ServerPacketError('Received packet from unknown host {}'.format(pkt.source[0]))
 
     def _HandleAuthPacket(self, pkt):
         """Process a packet received on the authentication port.
@@ -247,7 +265,6 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
         self._AddSecret(pkt)
-        pkt.secret = self.hosts[pkt.source[0]].secret
         if pkt.code == packet.CoARequest:
             self.HandleCoaPacket(pkt)
         elif pkt.code == packet.DisconnectRequest:
@@ -276,7 +293,13 @@ class Server(host.Host):
         """
         for fd in self.authfds + self.acctfds + self.coafds:
             self._fdmap[fd.fileno()] = fd
-            self._poll.register(fd.fileno(), select.POLLIN | select.POLLPRI | select.POLLERR)
+            if hasattr(self, '_poll'):
+                self._poll.register(fd.fileno(), select.POLLIN | select.POLLPRI | select.POLLERR)
+            else:
+                ev = select.kevent(fd.fileno(),
+                                   filter=select.KQ_FILTER_READ,
+                                   flags=select.KQ_EV_ADD | select.KQ_EV_ENABLE)
+                self._kqueue.control([ev], 0, 0)
         if self.auth_enabled:
             self._realauthfds = list(map(lambda x: x.fileno(), self.authfds))
         if self.acct_enabled:
@@ -321,16 +344,7 @@ class Server(host.Host):
         else:
             raise ServerPacketError('Received packet for unknown handler')
 
-    def Run(self):
-        """Main loop.
-        This method is the main loop for a RADIUS server. It waits
-        for packets to arrive via the network and calls other methods
-        to process them.
-        """
-        self._poll = select.poll()
-        self._fdmap = {}
-        self._PrepareSockets()
-
+    def _poll_run(self):
         while True:
             for (fd, event) in self._poll.poll():
                 if event == select.POLLIN:
@@ -343,3 +357,37 @@ class Server(host.Host):
                         logger.info('Received a broken packet: ' + str(err))
                 else:
                     logger.error('Unexpected event in server main loop')
+
+    def _kqueue_run(self):
+        while True:
+            revents = self._kqueue.control([], 1, None)
+            for event in revents:
+                if event.filter == select.KQ_FILTER_READ:
+                    try:
+                        fd = event.ident
+                        fdo = self._fdmap[fd]
+                        self._ProcessInput(fdo)
+                    except ServerPacketError as err:
+                        logger.info('Dropping packet: ' + str(err))
+                    except packet.PacketError as err:
+                        logger.info('Received a broken packet: ' + str(err))
+                else:
+                    logger.error('Unexpected event in server main loop')
+
+    
+    def Run(self):
+        """Main loop.
+        This method is the main loop for a RADIUS server. It waits
+        for packets to arrive via the network and calls other methods
+        to process them.
+        """
+        self._fdmap = {}
+
+        if hasattr(select, 'poll'):
+            self._poll = select.poll()
+            self._PrepareSockets()
+            self._poll_run()
+        else:
+            self._kqueue = select.kqueue()
+            self._PrepareSockets()
+            self._kqueue_run()
