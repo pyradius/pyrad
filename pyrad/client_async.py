@@ -398,6 +398,8 @@ class ClientAsync:
             if not self.protocol_acct:
                 raise Exception('Transport not initialized')
 
+            self.protocol_acct.send_packet(pkt, ans)
+
         elif isinstance(pkt, CoAPacket):
             if not self.protocol_coa:
                 raise Exception('Transport not initialized')
