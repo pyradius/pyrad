@@ -58,7 +58,7 @@ class DatagramProtocolServer(asyncio.Protocol):
         if addr[0] in self.hosts:
             remote_host = self.hosts[addr[0]]
         elif '0.0.0.0' in self.hosts:
-            remote_host = self.hosts['0.0.0.0'].secret
+            remote_host = self.hosts['0.0.0.0']
         else:
             self.logger.warn('[%s:%d] Drop package from unknown source %s', self.ip, self.port, addr)
             return
