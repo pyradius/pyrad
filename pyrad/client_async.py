@@ -403,6 +403,9 @@ class ClientAsync:
         elif isinstance(pkt, CoAPacket):
             if not self.protocol_coa:
                 raise Exception('Transport not initialized')
+
+            self.protocol_coa.send_packet(pkt, ans)
+
         else:
             raise Exception('Unsupported packet')
 
