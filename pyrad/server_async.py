@@ -243,7 +243,7 @@ class ServerAsync(metaclass=ABCMeta):
                 bind_addr = (addr, self.acct_port)
                 acct_connect = self.loop.create_datagram_endpoint(
                     protocol_acct,
-                    reuse_address=True, reuse_port=True,
+                    reuse_port=True,
                     local_addr=bind_addr
                 )
                 self.acct_protocols.append(protocol_acct)
@@ -262,7 +262,7 @@ class ServerAsync(metaclass=ABCMeta):
 
                 auth_connect = self.loop.create_datagram_endpoint(
                     protocol_auth,
-                    reuse_address=True, reuse_port=True,
+                    reuse_port=True,
                     local_addr=bind_addr
                 )
                 self.auth_protocols.append(protocol_auth)
@@ -281,7 +281,7 @@ class ServerAsync(metaclass=ABCMeta):
 
                 coa_connect = self.loop.create_datagram_endpoint(
                     protocol_coa,
-                    reuse_address=True, reuse_port=True,
+                    reuse_port=True,
                     local_addr=bind_addr
                 )
                 self.coa_protocols.append(protocol_coa)
