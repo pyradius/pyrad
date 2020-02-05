@@ -477,7 +477,7 @@ class Packet(OrderedDict):
                 self._PktDecodeTlvAttribute((vendor, atype), data[6:length + 4])
                 tlvs = []  # tlv is added to the packet inside _PktDecodeTlvAttribute
             else:
-                tlvs = [((vendor, type), data[6:length + 4])]
+                tlvs = [((vendor, atype), data[6:length + 4])]
         except:
             return [(26, data)]
 
