@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     # add clients (address, secret, name)
     srv.hosts["127.0.0.1"] = server.RemoteHost("127.0.0.1", b"Kah3choteereethiejeimaeziecumi", "localhost")
-    srv.BindToAddress("")
+    srv.BindToAddress("0.0.0.0")
 
     # start server
     srv.Run()
