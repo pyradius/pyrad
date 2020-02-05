@@ -456,7 +456,8 @@ class Packet(OrderedDict):
     def _PktEncodeAttributes(self):
         result = six.b('')
         for (code, datalst) in self.items():
-            if self.dict.attributes[self._DecodeKey(code)].type == 'tlv':
+            attribute = self.dict.attributes.get(self._DecodeKey(code))
+            if attribute and attribute.type == 'tlv':
                 result += self._PktEncodeTlv(code, datalst)
             else:
                 for data in datalst:
@@ -469,11 +470,11 @@ class Packet(OrderedDict):
         if len(data) < 6:
             return [(26, data)]
 
-        (vendor, type, length) = struct.unpack('!LBB', data[:6])[0:3]
-
+        (vendor, atype, length) = struct.unpack('!LBB', data[:6])[0:3]
+        attribute = self.dict.attributes.get(self._DecodeKey((vendor, atype)))
         try:
-            if self.dict.attributes[self._DecodeKey((vendor, type))].type == 'tlv':
-                self._PktDecodeTlvAttribute((vendor, type), data[6:length + 4])
+            if attribute and attribute.type == 'tlv':
+                self._PktDecodeTlvAttribute((vendor, atype), data[6:length + 4])
                 tlvs = []  # tlv is added to the packet inside _PktDecodeTlvAttribute
             else:
                 tlvs = [((vendor, type), data[6:length + 4])]
@@ -483,10 +484,10 @@ class Packet(OrderedDict):
         sumlength = 4 + length
         while len(data) > sumlength:
             try:
-                type, length = struct.unpack('!BB', data[sumlength:sumlength+2])[0:2]
+                atype, length = struct.unpack('!BB', data[sumlength:sumlength+2])[0:2]
             except:
                 return [(26, data)]
-            tlvs.append(((vendor, type), data[sumlength+2:sumlength+length]))
+            tlvs.append(((vendor, atype), data[sumlength+2:sumlength+length]))
             sumlength += length
         return tlvs
 
@@ -495,8 +496,8 @@ class Packet(OrderedDict):
         loc = 0
 
         while loc < len(data):
-            type, length = struct.unpack('!BB', data[loc:loc+2])[0:2]
-            sub_attributes.setdefault(type, []).append(data[loc+2:loc+length])
+            atype, length = struct.unpack('!BB', data[loc:loc+2])[0:2]
+            sub_attributes.setdefault(atype, []).append(data[loc+2:loc+length])
             loc += length
 
     def DecodePacket(self, packet):
@@ -531,6 +532,7 @@ class Packet(OrderedDict):
                         'Attribute length is too small (%d)' % attrlen)
 
             value = packet[2:attrlen]
+            attribute = self.dict.attributes.get(self._DecodeKey(key))
             if key == 26:
                 for (key, value) in self._PktDecodeVendorAttribute(value):
                     self.setdefault(key, []).append(value)
@@ -538,8 +540,7 @@ class Packet(OrderedDict):
                 # POST: Message Authenticator AVP is present.
                 self.message_authenticator = True
                 self.setdefault(key, []).append(value)
-
-            elif self.dict.attributes[self._DecodeKey(key)].type == 'tlv':
+            elif attribute and attribute.type == 'tlv':
                 self._PktDecodeTlvAttribute(key,value)
             else:
                 self.setdefault(key, []).append(value)

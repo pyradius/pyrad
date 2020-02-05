@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* Fixed #121 Unknown attribute key error
+
 2.2 - Oct 19, 2019
 ------------------
 
