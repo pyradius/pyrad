@@ -239,7 +239,7 @@ class Packet(OrderedDict):
     def _EncodeKeyValues(self, key, values):
         if not isinstance(key, str):
             return (key, values)
-        
+
         if not isinstance(values, (list, tuple)):
             values = [values]
 
@@ -563,15 +563,27 @@ class Packet(OrderedDict):
             # self.authenticator = self.CreateAuthenticator()
             self.authenticator = 16 * six.b('\x00')
 
-        salt = struct.pack('!H', random_generator.randrange(0, 65535))
-        salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
+        if six.PY3:
+            random_value = 32768 + random_generator.randrange(0, 32767)
+            salt_raw = struct.pack('!H', random_value )
+            salt_str = chr(salt_raw[0]) + chr(salt_raw[0])
+            salt = six.b(salt_str)
+            result = salt
+        else:
+            random_value = random_generator.randrange(0, 65535)
+            salt = struct.pack('!H', random_value )
+            salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
+            result = six.b(salt)
+
+        #salt = struct.pack('!H', random_generator.randrange(0, 65535))
+        #salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
 
         length = struct.pack("B", len(value))
         buf = length + value
         if len(buf) % 16 != 0:
             buf += six.b('\x00') * (16 - (len(buf) % 16))
 
-        result = six.b(salt)
+        #result = six.b(salt)
 
         last = self.authenticator + salt
         while buf:
