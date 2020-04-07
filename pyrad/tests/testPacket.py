@@ -1,9 +1,19 @@
 import os
 import unittest
 import six
+
+from collections import OrderedDict
 from pyrad import packet
+from pyrad.client import Client
 from pyrad.tests import home
 from pyrad.dictionary import Dictionary
+try:
+    import hashlib
+    md5_constructor = hashlib.md5
+except ImportError:
+    # BBB for python 2.4
+    import md5
+    md5_constructor = md5.new
 
 
 class UtilityTests(unittest.TestCase):
@@ -29,8 +39,8 @@ class PacketConstructionTests(unittest.TestCase):
 
     def testNamedConstructor(self):
         pkt = self.klass(code=26, id=38, secret=six.b('secret'),
-                authenticator=six.b('authenticator'),
-                dict='fakedict')
+                         authenticator=six.b('authenticator'),
+                         dict='fakedict')
         self.assertEqual(pkt.code, 26)
         self.assertEqual(pkt.id, 38)
         self.assertEqual(pkt.secret, six.b('secret'))
@@ -59,15 +69,19 @@ class PacketConstructionTests(unittest.TestCase):
             'Test-Tlv-Int': 10,
             'dict': self.dict
         })
-        self.assertEqual(pkt['Test-Tlv'], {'Test-Tlv-Str': ['this works'], 'Test-Tlv-Int' : [10]} )
+        self.assertEqual(
+            pkt['Test-Tlv'],
+            {'Test-Tlv-Str': ['this works'], 'Test-Tlv-Int' : [10]}
+        )
 
 
 class PacketTests(unittest.TestCase):
     def setUp(self):
         self.path = os.path.join(home, 'tests', 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
-        self.packet = packet.Packet(id=0, secret=six.b('secret'),
-                authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
+        self.packet = packet.Packet(
+            id=0, secret=six.b('secret'),
+            authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
 
     def testCreateReply(self):
         reply = self.packet.CreateReply(**{'Test-Integer' : 10})
@@ -132,7 +146,7 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet.keys(), ['Test-String'])
         self.packet['Test-Integer'] = 10
         self.assertEqual(self.packet.keys(), ['Test-String', 'Test-Integer'])
-        dict.__setitem__(self.packet, 12345, None)
+        OrderedDict.__setitem__(self.packet, 12345, None)
         self.assertEqual(self.packet.keys(),
                         ['Test-String', 'Test-Integer', 12345])
 
@@ -437,6 +451,32 @@ class AuthPacketTests(unittest.TestCase):
         self.assertEqual(self.packet.PwDecrypt(
                 six.b('\xd3U;\xb23\r\x11\xba\x07\xe3\xa8*\xa8x\x14\x01')),
                 six.u('Simplon'))
+
+
+class AuthPacketChapTests(unittest.TestCase):
+    def setUp(self):
+        self.path = os.path.join(home, 'tests', 'data')
+        self.dict = Dictionary(os.path.join(self.path, 'chap'))
+        # self.packet = packet.Packet(id=0, secret=six.b('secret'),
+        #                             dict=self.dict)
+        self.client = Client(server='localhost', secret=six.b('secret'),
+                             dict=self.dict)
+
+    def testVerifyChapPasswd(self):
+        chap_id = b'9'
+        chap_challenge = b'987654321'
+        chap_password = chap_id + md5_constructor(
+                chap_id + b'test_password' + chap_challenge).digest()
+        pkt = self.client.CreateAuthPacket(
+            code=packet.AccessChallenge,
+            authenticator=b'ABCDEFG',
+            User_Name='test_name',
+            CHAP_Challenge=chap_challenge,
+            CHAP_Password=chap_password
+        )
+        self.assertEqual(pkt['CHAP-Challenge'][0], chap_challenge)
+        self.assertEqual(pkt['CHAP-Password'][0], chap_password)
+        self.assertEqual(pkt.VerifyChapPasswd('test_password'), True)
 
 
 class AcctPacketConstructionTests(PacketConstructionTests):

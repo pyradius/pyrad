@@ -38,8 +38,9 @@ This package contains four modules:
 
 __docformat__ = 'epytext en'
 
-__author__ = 'Wichert Akkerman <wichert@wiggy.net>'
-__url__ = 'http://www.wiggy.net/code/pyrad.xhtml'
-__copyright__ = 'Copyright 2002-2007 Wichert Akkerman'
+__author__ = 'Christian Giese <developer@gicnet.de>'
+__url__ = 'http://pyrad.readthedocs.io/en/latest/?badge=latest'
+__copyright__ = 'Copyright 2002-2020 Wichert Akkerman and Christian Giese. All rights reserved.'
+__version__ = '2.3'
 
 __all__ = ['client', 'dictionary', 'packet', 'server', 'tools', 'dictfile']

@@ -1,6 +1,20 @@
 Changelog
 =========
 
+2.3 - Feb 6, 2020
+------------------
+
+* Fixed #124 remove reuse_address=True from async server/client
+
+* Fixed #121 Unknown attribute key error
+
+2.2 - Oct 19, 2019
+------------------
+
+* Add message authenticator support (attribute 80)
+
+* Add support for multiple values of the same attribute (#95)
+
 * Add experimental async client and server implementation for python >=3.5.
 
 * Add IPv6 bind support for client and server.

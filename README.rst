@@ -1,12 +1,18 @@
-.. image:: https://travis-ci.org/wichert/pyrad.svg?branch=master
-    :target: https://travis-ci.org/wichert/pyrad
+.. image:: https://travis-ci.org/pyradius/pyrad.svg?branch=master
+    :target: https://travis-ci.org/pyradius/pyrad
+.. image:: https://coveralls.io/repos/github/pyradius/pyrad/badge.svg?branch=master
+    :target: https://coveralls.io/github/pyradius/pyrad?branch=master
 .. image:: https://img.shields.io/pypi/v/pyrad.svg
+    :target: https://pypi.python.org/pypi/pyrad
+.. image:: https://img.shields.io/pypi/pyversions/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
 .. image:: https://img.shields.io/pypi/dm/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
 .. image:: https://readthedocs.org/projects/pyrad/badge/?version=latest
     :target: http://pyrad.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
+.. image:: https://img.shields.io/pypi/l/pyrad.svg
+    :target: https://pypi.python.org/pypi/pyrad
 
 Introduction
 ============
@@ -47,7 +53,7 @@ Here is an example of doing a authentication request::
 Requirements & Installation
 ===========================
 
-pyrad requires Python 2.6 or later, or Python 3.2 or later
+pyrad requires Python 2.7, or Python 3.4 or later
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::
@@ -58,14 +64,15 @@ Python modules::
 Author, Copyright, Availability
 ===============================
 
-pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by Christian Giese (GIC-de). 
+pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by 
+Christian Giese (GIC-de) and Istvan Ruzman (Istvan91). 
 
 This project is licensed under a BSD license.
 
 Copyright and license information can be found in the LICENSE.txt file.
 
 The current version and documentation can be found on pypi:
-http://pypi.python.org/pypi/pyrad
+https://pypi.org/project/pyrad/
 
 Bugs and wishes can be submitted in the pyrad issue tracker on github:
-https://github.com/wichert/pyrad/issues
+https://github.com/pyradius/pyrad/issues
