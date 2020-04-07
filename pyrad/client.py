@@ -31,7 +31,7 @@ class Client(host.Host):
     :ivar retries: number of times to retry sending a RADIUS request
     :type retries: integer
     :ivar timeout: number of seconds to wait for an answer
-    :type timeout: integer
+    :type timeout: float
     """
     def __init__(self, server, authport=1812, acctport=1813,
             coaport=3799, secret=six.b(''), dict=None, retries=3, timeout=5):
