@@ -29,7 +29,7 @@ class Client(host.Host):
     :type timeout: integer
     """
     def __init__(self, server, authport=1812, acctport=1813,
-            coaport=3799, secret=six.b(''), dict=None):
+            coaport=3799, secret=six.b(''), dict=None, retries=3, timeout=5):
 
         """Constructor.
 
@@ -51,8 +51,8 @@ class Client(host.Host):
         self.server = server
         self.secret = secret
         self._socket = None
-        self.retries = 3
-        self.timeout = 5
+        self.retries = retries
+        self.timeout = timeout
         self._poll = select.poll()
 
     def bind(self, addr):
