@@ -48,6 +48,7 @@ class Client(host.Host):
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
 
+        self._max_packet_size = 4096
         self.server = server
         self.secret = secret
         self._socket = None
@@ -151,7 +152,7 @@ class Client(host.Host):
                 ready = self._poll.poll((waitto - now) * 1000)
 
                 if ready:
-                    rawreply = self._socket.recv(4096)
+                    rawreply = self._socket.recv(self._max_packet_size)
                 else:
                     now = time.time()
                     continue
