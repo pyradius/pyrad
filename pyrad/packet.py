@@ -7,7 +7,6 @@
 from collections import OrderedDict
 import struct
 import random
-# Hmac needed for Message-Authenticator
 import hmac
 try:
     import hashlib
@@ -591,7 +590,7 @@ class Packet(OrderedDict):
 
 class AuthPacket(Packet):
     def __init__(self, code=AccessRequest, id=None, secret=six.b(''),
-            authenticator=None, **attributes):
+            authenticator=None, auth_type='pap', **attributes):
         """Constructor
 
         :param code:   packet type code
@@ -607,7 +606,9 @@ class AuthPacket(Packet):
         :param packet: raw packet to decode
         :type packet:  string
         """
+
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
+        self.auth_type = auth_type
         if 'packet' in attributes:
             self.raw_packet = attributes['packet']
 
@@ -618,7 +619,7 @@ class AuthPacket(Packet):
         """
         return AuthPacket(AccessAccept, self.id,
                           self.secret, self.authenticator, dict=self.dict,
-                          **attributes)
+                          auth_type=self.auth_type, **attributes)
 
     def RequestPacket(self):
         """Create a ready-to-transmit authentication request packet.
@@ -634,10 +635,26 @@ class AuthPacket(Packet):
         if self.id is None:
             self.id = self.CreateID()
 
+        attr = self._PktEncodeAttributes()
+        if self.auth_type == 'eap-md5':
+            header = struct.pack(
+                '!BBH16s', self.code, self.id, (20 + 18 + len(attr)), self.authenticator
+            )
+            digest = hmac.new(
+                self.secret,
+                header
+                + attr
+                + struct.pack('!BB16s', 80, struct.calcsize('!BB16s'), b''),
+            ).digest()
+            return (
+                header
+                + attr
+                + struct.pack('!BB16s', 80, struct.calcsize('!BB16s'), digest)
+            )
+
         if self.message_authenticator:
             self._refresh_message_authenticator()
 
-        attr = self._PktEncodeAttributes()
         header = struct.pack('!BBH16s', self.code, self.id,
                              (20 + len(attr)), self.authenticator)
 
