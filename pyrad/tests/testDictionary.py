@@ -69,7 +69,7 @@ class DictionaryParsingTests(unittest.TestCase):
     simple_dict_values = [
         ('Test-String', 1, 'string'),
         ('Test-Octets', 2, 'octets'),
-        ('Test-Integer', 3, 'integer'),
+        ('Test-Integer', 0x03, 'integer'),
         ('Test-Ip-Address', 4, 'ipaddr'),
         ('Test-Ipv6-Address', 5, 'ipv6addr'),
         ('Test-If-Id', 6, 'ifid'),
@@ -78,7 +78,9 @@ class DictionaryParsingTests(unittest.TestCase):
         ('Test-Tlv', 9, 'tlv'),
         ('Test-Tlv-Str', 1, 'string'),
         ('Test-Tlv-Int', 2, 'integer'),
-        ('Test-Integer64', 10, 'integer64')
+        ('Test-Integer64', 10, 'integer64'),
+        ('Test-Integer64-Hex', 10, 'integer64'),
+        ('Test-Integer64-Oct', 10, 'integer64'),
     ]
 
     def setUp(self):
