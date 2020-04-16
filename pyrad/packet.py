@@ -575,15 +575,10 @@ class Packet(OrderedDict):
             salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
             result = six.b(salt)
 
-        #salt = struct.pack('!H', random_generator.randrange(0, 65535))
-        #salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
-
         length = struct.pack("B", len(value))
         buf = length + value
         if len(buf) % 16 != 0:
             buf += six.b('\x00') * (16 - (len(buf) % 16))
-
-        #result = six.b(salt)
 
         last = self.authenticator + salt
         while buf:
