@@ -238,7 +238,7 @@ class Packet(OrderedDict):
     def _EncodeKeyValues(self, key, values):
         if not isinstance(key, str):
             return (key, values)
-        
+
         if not isinstance(values, (list, tuple)):
             values = [values]
 
@@ -280,7 +280,7 @@ class Packet(OrderedDict):
         :param value: value
         :type value:  depends on type of attribute
         """
-        attr = self.dict.attributes[key]
+        attr = self.dict.attributes[key.partition(':')[0]]
 
         (key, value) = self._EncodeKeyValues(key, value)
 
