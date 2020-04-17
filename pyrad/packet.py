@@ -293,7 +293,11 @@ class Packet(OrderedDict):
         encoded.extend(value)
 
     def get(self, key, failobj=None):
-        return self.__getitem__(key) or failobj
+        try:
+            res = self.__getitem__(key)
+        except KeyError:
+            res = failobj
+        return res
 
     def __getitem__(self, key):
         if not isinstance(key, six.string_types):
