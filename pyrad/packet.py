@@ -578,7 +578,7 @@ class Packet(OrderedDict):
         random_value = 32768 + random_generator.randrange(0, 32767)
         if six.PY3:
             salt_raw = struct.pack('!H', random_value )
-            salt = chr(salt_raw[0]) + chr(salt_raw[0])
+            salt = chr(salt_raw[0]) + chr(salt_raw[1])
         else:
             salt = struct.pack('!H', random_value )
             salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
