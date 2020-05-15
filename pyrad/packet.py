@@ -583,7 +583,7 @@ class Packet(OrderedDict):
         if len(buf) % 16 != 0:
             buf += six.b('\x00') * (16 - (len(buf) % 16))
 
-        last = self.authenticator + salt
+        last = self.authenticator + six.b(salt)
         while buf:
             hash = md5_constructor(self.secret + last).digest()
             if six.PY3:
