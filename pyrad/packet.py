@@ -6,7 +6,12 @@
 
 from collections import OrderedDict
 import struct
-import random
+try:
+    import secrets
+    random_generator = secrets.SystemRandom()
+except ImportError:
+    import random
+    random_generator = random.SystemRandom()
 import hmac
 try:
     import hashlib
@@ -33,9 +38,6 @@ DisconnectNAK = 42
 CoARequest = 43
 CoAACK = 44
 CoANAK = 45
-
-# Use cryptographic-safe random generator as provided by the OS.
-random_generator = random.SystemRandom()
 
 # Current ID
 CurrentID = random_generator.randrange(1, 255)
