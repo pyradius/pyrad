@@ -135,7 +135,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                 else:
                     self.logger.warn('[%s:%d] Ignore invalid reply for id %d. %s', self.server, self.port, reply.id)
             else:
-                self.logger.warn('[%s:%d] Ignore invalid reply: %d', self.server, self.port, data)
+                self.logger.warn('[%s:%d] Ignore invalid reply: %s', self.server, self.port, data)
 
         except Exception as exc:
             self.logger.error('[%s:%d] Error on decode packet: %s', self.server, self.port, exc)
