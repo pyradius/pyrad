@@ -300,18 +300,11 @@ class Packet(OrderedDict):
         return res
 
     def __getitem__(self, key):
-        key_name, key_number = None, None
-        if isinstance(key, six.string_types):
-            key_name = key
-            key_number = self._EncodeKey(key)
-        elif isinstance(key, six.integer_types):
-            key_name = self._DecodeKey(key)
-            key_number = key
-        if not key_name or not key_number:
+        if not isinstance(key, six.string_types):
             return OrderedDict.__getitem__(self, key)
 
-        values = OrderedDict.__getitem__(self, key_number)
-        attr = self.dict.attributes[key_name]
+        values = OrderedDict.__getitem__(self, self._EncodeKey(key))
+        attr = self.dict.attributes[key]
         if attr.type == 'tlv':  # return map from sub attribute code to its values
             res = {}
             for (sub_attr_key, sub_attr_val) in values.items():
