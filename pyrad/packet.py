@@ -651,6 +651,9 @@ class AuthPacket(Packet):
         if self.id is None:
             self.id = self.CreateID()
 
+        if self.message_authenticator:
+            self._refresh_message_authenticator()
+
         attr = self._PktEncodeAttributes()
         if self.auth_type == 'eap-md5':
             header = struct.pack(
@@ -667,9 +670,6 @@ class AuthPacket(Packet):
                 + attr
                 + struct.pack('!BB16s', 80, struct.calcsize('!BB16s'), digest)
             )
-
-        if self.message_authenticator:
-            self._refresh_message_authenticator()
 
         header = struct.pack('!BBH16s', self.code, self.id,
                              (20 + len(attr)), self.authenticator)
