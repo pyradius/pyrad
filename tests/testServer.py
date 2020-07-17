@@ -1,16 +1,16 @@
 import select
 import socket
 import unittest
+from .mock import MockFinished
+from .mock import MockFd
+from .mock import MockPoll
+from .mock import MockSocket
+from .mock import MockClassMethod
+from .mock import UnmockClassMethods
 from pyrad.packet import PacketError
 from pyrad.server import RemoteHost
 from pyrad.server import Server
 from pyrad.server import ServerPacketError
-from pyrad.tests.mock import MockFinished
-from pyrad.tests.mock import MockFd
-from pyrad.tests.mock import MockPoll
-from pyrad.tests.mock import MockSocket
-from pyrad.tests.mock import MockClassMethod
-from pyrad.tests.mock import UnmockClassMethods
 from pyrad.packet import AccessRequest
 from pyrad.packet import AccountingRequest
 

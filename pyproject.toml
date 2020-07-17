@@ -1,0 +1,41 @@
+[project]
+name = "pyrad"
+version=2.4
+description="RADIUS tools"
+
+readme = "README.rst"
+
+authors = [
+  { name = "Istvan Ruzman", email = "istvan@ruzman.eu" },
+  { name = "Christian Giese", email = "developer@gicnet.de" },
+]
+
+license = "BSD"
+
+keywords = ["AAA", "accounting", "authentication", "authorization", "RADIUS"]
+
+classifiers = [
+    "Development Status :: 6 - Mature",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3.4",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.8",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Systems Administration :: Authentication/Directory",
+]
+
+[project.urls]
+repository = "https://github.com/pyradius/pyrad"
+
+[project.dev-dependencies]
+nose = "^0.10.0b1"
+
+[project.dependencies]
+six = "*"
+netaddr = "*"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
