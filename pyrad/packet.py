@@ -92,12 +92,14 @@ class Packet(OrderedDict):
             raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
         self.message_authenticator = None
+        self.raw_packet = None
 
         if 'dict' in attributes:
             self.dict = attributes['dict']
 
         if 'packet' in attributes:
-            self.DecodePacket(attributes['packet'])
+            self.raw_packet = attributes['packet']
+            self.DecodePacket(self.raw_packet)
 
         if 'message_authenticator' in attributes:
             self.message_authenticator = attributes['message_authenticator']
@@ -177,8 +179,21 @@ class Packet(OrderedDict):
         else:
             key = self.secret
 
-        self['Message-Authenticator'] = 16 * six.b('\00')
-        attr = self._PktEncodeAttributes()
+        # If there's a raw packet, use that to calculate the expected
+        # Message-Authenticator. While the Packet class keeps multiple
+        # instances of an attribute grouped together in the attribute list,
+        # other applications may not. Using _PktEncodeAttributes to get
+        # the attributes could therefore end up changing the attribute order
+        # because of the grouping Packet does, which would cause
+        # Message-Authenticator verification to fail. Using the raw packet
+        # instead, if present, ensures the verification is done using the
+        # attributes exactly as sent.
+        if self.raw_packet:
+            attr = self.raw_packet[20:]
+            attr = attr.replace(prev_ma[0], 16 * six.b('\00'))
+        else:
+            self['Message-Authenticator'] = 16 * six.b('\00')
+            attr = self._PktEncodeAttributes()
 
         header = struct.pack('!BBH', self.code, self.id,
                              (20 + len(attr)))
@@ -620,8 +635,6 @@ class AuthPacket(Packet):
 
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
         self.auth_type = auth_type
-        if 'packet' in attributes:
-            self.raw_packet = attributes['packet']
 
     def CreateReply(self, **attributes):
         """Create a new packet as a reply to this one. This method
@@ -804,8 +817,6 @@ class AcctPacket(Packet):
         :type packet:  string
         """
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
-        if 'packet' in attributes:
-            self.raw_packet = attributes['packet']
 
     def CreateReply(self, **attributes):
         """Create a new packet as a reply to this one. This method
@@ -875,8 +886,6 @@ class CoAPacket(Packet):
         :type packet:  string
         """
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
-        if 'packet' in attributes:
-            self.raw_packet = attributes['packet']
 
     def CreateReply(self, **attributes):
         """Create a new packet as a reply to this one. This method
