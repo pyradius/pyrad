@@ -1,4 +1,6 @@
+import hmac
 import os
+import struct
 import unittest
 import six
 
@@ -82,6 +84,49 @@ class PacketTests(unittest.TestCase):
         self.packet = packet.Packet(
             id=0, secret=six.b('secret'),
             authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
+
+    def _create_reply_with_duplicate_attributes(self, request):
+        """
+        Creates a reply to the given request with multiple instances of the
+        same attribute that also do not appear sequentially in the list. Used
+        to ensure that methods providing authenticator and
+        Message-Authenticator verification can handle the case where multiple
+        instances of an given attribute do not appear sequentially in the
+        attributes list.
+        """
+        # Manually build the packet since using packet.Packet will always group
+        # attributes of the same type together
+        attributes = self._get_attribute_bytes('Test-String', 'test')
+        attributes += self._get_attribute_bytes('Test-Integer', 1)
+        attributes += self._get_attribute_bytes('Test-String', 'test')
+        attributes += self._get_attribute_bytes('Message-Authenticator',
+                                                16 * six.b('\00'))
+
+        header = struct.pack('!BBH', packet.AccessAccept,
+                             request.id, (20 + len(attributes)))
+
+        # Calculate the Message-Authenticator and update the attribute
+        hmac_constructor = hmac.new(request.secret, None, md5_constructor)
+        hmac_constructor.update(header + request.authenticator + attributes)
+        updated_message_authenticator = hmac_constructor.digest()
+        attributes = attributes.replace(six.b('\x00') * 16,
+                                        updated_message_authenticator)
+
+        # Calculate the response authenticator
+        authenticator = md5_constructor(header
+                                        + request.authenticator
+                                        + attributes
+                                        + request.secret).digest()
+
+        reply_bytes = header + authenticator + attributes
+        return packet.AuthPacket(packet=reply_bytes, dict=self.dict)
+
+    def _get_attribute_bytes(self, attr_name, value):
+        attr = self.dict.attributes[attr_name]
+        attr_key = attr.code
+        attr_value = packet.tools.EncodeAttr(attr.type, value)
+        attr_len = len(attr_value) + 2
+        return struct.pack('!BB', attr_key, attr_len) + attr_value
 
     def testCreateReply(self):
         reply = self.packet.CreateReply(**{'Test-Integer' : 10})
@@ -185,6 +230,42 @@ class PacketTests(unittest.TestCase):
         reply.authenticator = six.b('X') * 16
         self.assertEqual(self.packet.VerifyReply(reply), False)
         reply.authenticator = self.packet.authenticator
+
+    def testVerifyReplyDuplicateAttributes(self):
+        reply = self._create_reply_with_duplicate_attributes(self.packet)
+        self.assertTrue(self.packet.VerifyReply(
+            reply=reply,
+            rawreply=reply.raw_packet))
+
+    def testVerifyMessageAuthenticator(self):
+        reply = self.packet.CreateReply(**{
+            'Test-String': 'test',
+            'Test-Integer': 3,
+        })
+        reply.code = packet.AccessAccept
+        reply.add_message_authenticator()
+        reply._refresh_message_authenticator()
+        self.assertTrue(reply.verify_message_authenticator(
+            secret=six.b('secret'),
+            original_authenticator=self.packet.authenticator,
+            original_code=self.packet.code))
+
+        self.assertFalse(reply.verify_message_authenticator(
+            secret=six.b('bad_secret'),
+            original_authenticator=self.packet.authenticator,
+            original_code=self.packet.code))
+
+        self.assertFalse(reply.verify_message_authenticator(
+            secret=six.b('secret'),
+            original_authenticator=six.b('bad_authenticator'),
+            original_code=self.packet.code))
+
+    def testVerifyMessageAuthenticatorDuplicateAttributes(self):
+        reply = self._create_reply_with_duplicate_attributes(self.packet)
+        self.assertTrue(reply.verify_message_authenticator(
+            secret=six.b('secret'),
+            original_authenticator=self.packet.authenticator,
+            original_code=packet.AccessRequest))
 
     def testPktEncodeAttribute(self):
         encode = self.packet._PktEncodeAttribute

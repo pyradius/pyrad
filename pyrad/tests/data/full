@@ -14,6 +14,8 @@ ATTRIBUTE  Test-Tlv       4     tlv
 ATTRIBUTE  Test-Tlv-Str   4.1   string
 ATTRIBUTE  Test-Tlv-Int   4.2   integer
 
+ATTRIBUTE  Message-Authenticator 80  octets
+
 VENDOR Simplon 16
 
 
