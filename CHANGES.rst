@@ -10,6 +10,8 @@ Changelog
 
 * `.get` on Packets has an optional default parameter (to mimic dict.get())
 
+* Fix: digestmod is not optional in python3.8 anymore
+
 * Fix: authenthicator was refreshed before the packet was generated
 
 * Fix bug causing Message-Authenticator verification to fail if

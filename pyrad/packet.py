@@ -13,6 +13,13 @@ except ImportError:
     import random
     random_generator = random.SystemRandom()
 import hmac
+
+import sys
+if sys.version_info >= (3, 0):
+    hmac_new = lambda *x, **y: hmac.new(*x, digestmod='MD5', **y)
+else:
+    hmac_new = hmac.new
+
 try:
     import hashlib
     md5_constructor = hashlib.md5
@@ -131,7 +138,7 @@ class Packet(OrderedDict):
         return self.message_authenticator
 
     def _refresh_message_authenticator(self):
-        hmac_constructor = hmac.new(self.secret)
+        hmac_constructor = hmac_new(self.secret)
 
         # Maintain a zero octets content for md5 and hmac calculation.
         self['Message-Authenticator'] = 16 * six.b('\00')
@@ -198,7 +205,7 @@ class Packet(OrderedDict):
         header = struct.pack('!BBH', self.code, self.id,
                              (20 + len(attr)))
 
-        hmac_constructor = hmac.new(key)
+        hmac_constructor = hmac_new(key)
         hmac_constructor.update(header)
         if self.code in (AccountingRequest, DisconnectRequest,
                          CoARequest, AccountingResponse):
@@ -667,7 +674,7 @@ class AuthPacket(Packet):
             header = struct.pack(
                 '!BBH16s', self.code, self.id, (20 + 18 + len(attr)), self.authenticator
             )
-            digest = hmac.new(
+            digest = hmac_new(
                 self.secret,
                 header
                 + attr
