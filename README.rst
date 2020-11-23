@@ -1,3 +1,6 @@
+
+.. image:: https://github.com/pyradius/pyrad/workflows/Python%203.X%20test/badge.svg?branch=master
+    :target: https://github.com/pyradius/pyrad/workflows/Python%203.X%20test/badge.svg?branch=master
 .. image:: https://travis-ci.org/pyradius/pyrad.svg?branch=master
     :target: https://travis-ci.org/pyradius/pyrad
 .. image:: https://coveralls.io/repos/github/pyradius/pyrad/badge.svg?branch=master
@@ -13,6 +16,8 @@
     :alt: Documentation Status
 .. image:: https://img.shields.io/pypi/l/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
+
+
 
 Introduction
 ============
