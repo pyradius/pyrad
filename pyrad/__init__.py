@@ -41,6 +41,6 @@ __docformat__ = 'epytext en'
 __author__ = 'Christian Giese <developer@gicnet.de>'
 __url__ = 'http://pyrad.readthedocs.io/en/latest/?badge=latest'
 __copyright__ = 'Copyright 2002-2020 Wichert Akkerman and Christian Giese. All rights reserved.'
-__version__ = '2.3'
+__version__ = '2.4'
 
 __all__ = ['client', 'dictionary', 'packet', 'server', 'tools', 'dictfile']

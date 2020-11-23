@@ -1,16 +1,16 @@
 import select
 import socket
 import unittest
+from .mock import MockFd
+from .mock import MockPoll
+from .mock import MockSocket
+from .mock import MockClassMethod
+from .mock import UnmockClassMethods
 from pyrad.proxy import Proxy
 from pyrad.packet import AccessAccept
 from pyrad.packet import AccessRequest
 from pyrad.server import ServerPacketError
 from pyrad.server import Server
-from pyrad.tests.mock import MockFd
-from pyrad.tests.mock import MockPoll
-from pyrad.tests.mock import MockSocket
-from pyrad.tests.mock import MockClassMethod
-from pyrad.tests.mock import UnmockClassMethods
 
 
 class TrivialObject:

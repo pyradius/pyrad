@@ -1,6 +1,31 @@
 Changelog
 =========
 
+2.4 - July 18, 2020
+-------------------
+
+* Use poetry for for building this project
+
+* Use secrets.SysRandom instead of random.SystemRandom if possible
+
+* `.get` on Packets has an optional default parameter (to mimic dict.get())
+
+* Fix: digestmod is not optional in python3.8 anymore
+
+* Fix: authenthicator was refreshed before the packet was generated
+
+* Fix bug causing Message-Authenticator verification to fail if
+  multiple instances of an attribute do not appear sequentially in
+  the attributes list
+
+* Fixed #140 VerifyReply broken when multiple instances of same attribute are
+  not adjacent on reply
+
+* Fixed #135 Missing send_packet for asyn Client
+
+* Fixed #126 python3 support for SaltCrypt
+  (was previously broken)
+
 2.3 - Feb 6, 2020
 ------------------
 

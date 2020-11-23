@@ -2,7 +2,7 @@ import unittest
 import operator
 import os
 from six import StringIO
-from pyrad.tests import home
+from . import home
 from pyrad.dictionary import Attribute
 from pyrad.dictionary import Dictionary
 from pyrad.dictionary import ParseError
@@ -84,7 +84,7 @@ class DictionaryParsingTests(unittest.TestCase):
     ]
 
     def setUp(self):
-        self.path = os.path.join(home, 'tests', 'data')
+        self.path = os.path.join(home, 'data')
         self.dict = Dictionary(os.path.join(self.path, 'simple'))
 
     def testParseEmptyDictionary(self):
