@@ -360,7 +360,7 @@ class ClientAsync:
         :rtype:  pyrad.packet.Packet
         """
 
-        if not self.protocol_acct:
+        if not self.protocol_coa:
             raise Exception('Transport not initialized')
 
         return CoAPacket(id=self.protocol_coa.create_id(),
