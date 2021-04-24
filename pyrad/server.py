@@ -125,8 +125,8 @@ class Server(host.Host):
 
 
     def BindToAddress(self, addr):
-        """Add an address to listen to.
-        An empty string indicated you want to listen on all addresses.
+        """Add an address to listen on a specific interface.
+        String "0.0.0.0" indicates you want to listen on all interfaces.
 
         :param addr: IP address to listen on
         :type  addr: string
