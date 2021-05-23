@@ -18,19 +18,26 @@ def EncodeString(str):
 
 
 def EncodeOctets(octetstring):
-    if len(octetstring) > 253:
+    # Check for max length of the hex encoded with 0x prefix, as a sanity check
+    if len(octetstring) > 508:
         raise ValueError('Can only encode strings of <= 253 characters')
 
-    if type(octetstring) == bytes and octetstring.startswith(b'0x'):
+    if isinstance(octetstring, bytes) and octetstring.startswith(b'0x'):
         hexstring = octetstring.split(b'0x')[1]
-        return binascii.unhexlify(hexstring)
-    elif type(octetstring) == str and octetstring.startswith('0x'):
+        encoded_octets = binascii.unhexlify(hexstring)
+    elif isinstance(octetstring, str) and octetstring.startswith('0x'):
         hexstring = octetstring.split('0x')[1]
-        return binascii.unhexlify(hexstring)
-    elif type(octetstring) == str and octetstring.isdecimal():
-        return struct.pack('>L',int(octetstring)).lstrip((b'\x00'))
+        encoded_octets = binascii.unhexlify(hexstring)
+    elif isinstance(octetstring, str) and octetstring.isdecimal():
+        encoded_octets = struct.pack('>L',int(octetstring)).lstrip((b'\x00'))
     else:
-        return octetstring
+        encoded_octets = octetstring
+
+    # Check for the encoded value being longer than 253 chars
+    if len(encoded_octets) > 253:
+        raise ValueError('Can only encode strings of <= 253 characters')
+
+    return encoded_octets
 
 
 def EncodeAddress(addr):
