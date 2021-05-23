@@ -191,6 +191,22 @@ class DictionaryParsingTests(unittest.TestCase):
                     self.dict['Test-String'].values['Value-Custard']),
                 'custardpie')
 
+    def testOctetValueParsing(self):
+        self.assertEqual(len(self.dict['Test-Octets'].values), 0)
+        self.dict.ReadDictionary(StringIO(
+                        'ATTRIBUTE Test-Octets 1 octets\n'
+                        'VALUE Test-Octets Value-A 65\n'     # "A"
+                        'VALUE Test-Octets Value-B 0x42\n')) # "B"
+        self.assertEqual(len(self.dict['Test-Octets'].values), 2)
+        self.assertEqual(
+                DecodeAttr('octets',
+                    self.dict['Test-Octets'].values['Value-A']),
+                b'A')
+        self.assertEqual(
+                DecodeAttr('octets',
+                    self.dict['Test-Octets'].values['Value-B']),
+                b'B')
+
     def testTlvParsing(self):
         self.assertEqual(len(self.dict['Test-Tlv'].sub_attributes), 2)
         self.assertEqual(self.dict['Test-Tlv'].sub_attributes, {1:'Test-Tlv-Str', 2: 'Test-Tlv-Int'})

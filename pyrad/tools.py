@@ -17,15 +17,20 @@ def EncodeString(str):
         return str
 
 
-def EncodeOctets(str):
-    if len(str) > 253:
+def EncodeOctets(octetstring):
+    if len(octetstring) > 253:
         raise ValueError('Can only encode strings of <= 253 characters')
 
-    if str.startswith(b'0x'):
-        hexstring = str.split(b'0x')[1]
+    if type(octetstring) == bytes and octetstring.startswith(b'0x'):
+        hexstring = octetstring.split(b'0x')[1]
         return binascii.unhexlify(hexstring)
+    elif type(octetstring) == str and octetstring.startswith('0x'):
+        hexstring = octetstring.split('0x')[1]
+        return binascii.unhexlify(hexstring)
+    elif type(octetstring) == str and octetstring.isdecimal():
+        return struct.pack('>L',int(octetstring)).lstrip((b'\x00'))
     else:
-        return str
+        return octetstring
 
 
 def EncodeAddress(addr):
@@ -111,7 +116,7 @@ def EncodeAscendBinary(str):
 
     trailer = 8 * b'\x00'
 
-    result = b''.join((terms['family'], terms['action'], terms['direction'], b'\x00', 
+    result = b''.join((terms['family'], terms['action'], terms['direction'], b'\x00',
         terms['src'], terms['dst'], terms['srcl'], terms['dstl'], terms['proto'], b'\x00',
         terms['sport'], terms['dport'], terms['sportq'], terms['dportq'], b'\x00\x00', trailer))
     return result
