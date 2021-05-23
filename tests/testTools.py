@@ -75,6 +75,12 @@ class EncodingTests(unittest.TestCase):
                 tools.DecodeDate(six.b('\x01\x02\x03\x04')),
                 0x01020304)
 
+    def testOctetsEncoding(self):
+        self.assertEqual(tools.EncodeOctets('0x01020304'), six.b('\x01\x02\x03\x04'))
+        self.assertEqual(tools.EncodeOctets(b'0x01020304'), six.b('\x01\x02\x03\x04'))
+        self.assertEqual(tools.EncodeOctets('16909060'), six.b('\x01\x02\x03\x04'))
+        self.assertRaisesRegex(ValueError, 'Can only encode strings of <= 253 characters', tools.EncodeOctets, '0x0102030405060708090A0B0C0D0E0F100102030405060708090A0B0C0D0E0F100102030405060708090A0B0C0D0E0F100102030405060708090A0B0C0D0E0F100102030405060708090A0B0C0D0E0F100102030405060708090A0B0C0D0E0F100102030405060708090A0B0C0D0E0F100102030405060708090A0B0C0D0E0F10')
+
     def testUnknownTypeEncoding(self):
         self.assertRaises(ValueError, tools.EncodeAttr, 'unknown', None)
 
