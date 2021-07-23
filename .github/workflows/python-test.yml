@@ -26,7 +26,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install poetry
-        pip install flake8 nose coverage python-coveralls
+        pip install flake8 nose coverage coveralls
     - name: install pyrad
       run: |
         pip install .
@@ -40,3 +40,4 @@ jobs:
       run: |
         nosetests -v --with-coverage --cover-package=pyrad
         coveralls
+
