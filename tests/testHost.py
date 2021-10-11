@@ -32,20 +32,20 @@ class PacketCreationTests(unittest.TestCase):
 
     def testCreatePacket(self):
         packet = self.host.CreatePacket(id=15)
-        self.failUnless(isinstance(packet, Packet))
-        self.failUnless(packet.dict is self.host.dict)
+        self.assertTrue(isinstance(packet, Packet))
+        self.assertTrue(packet.dict is self.host.dict)
         self.assertEqual(packet.id, 15)
 
     def testCreateAuthPacket(self):
         packet = self.host.CreateAuthPacket(id=15)
-        self.failUnless(isinstance(packet, AuthPacket))
-        self.failUnless(packet.dict is self.host.dict)
+        self.assertTrue(isinstance(packet, AuthPacket))
+        self.assertTrue(packet.dict is self.host.dict)
         self.assertEqual(packet.id, 15)
 
     def testCreateAcctPacket(self):
         packet = self.host.CreateAcctPacket(id=15)
-        self.failUnless(isinstance(packet, AcctPacket))
-        self.failUnless(packet.dict is self.host.dict)
+        self.assertTrue(isinstance(packet, AcctPacket))
+        self.assertTrue(packet.dict is self.host.dict)
         self.assertEqual(packet.id, 15)
 
 
@@ -78,10 +78,10 @@ class PacketSendTest(unittest.TestCase):
 
     def testSendPacket(self):
         self.host.SendPacket(self.fd, self.packet)
-        self.failUnless(self.fd.data is self.packet.packet)
-        self.failUnless(self.fd.target is self.packet.source)
+        self.assertTrue(self.fd.data is self.packet.packet)
+        self.assertTrue(self.fd.target is self.packet.source)
 
     def testSendReplyPacket(self):
         self.host.SendReplyPacket(self.fd, self.packet)
-        self.failUnless(self.fd.data is self.packet.replypacket)
-        self.failUnless(self.fd.target is self.packet.source)
+        self.assertTrue(self.fd.data is self.packet.replypacket)
+        self.assertTrue(self.fd.target is self.packet.source)

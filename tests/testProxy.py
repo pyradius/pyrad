@@ -30,7 +30,7 @@ class SocketTests(unittest.TestCase):
     def testProxyFd(self):
         self.proxy._poll = MockPoll()
         self.proxy._PrepareSockets()
-        self.failUnless(isinstance(self.proxy._proxyfd, MockSocket))
+        self.assertTrue(isinstance(self.proxy._proxyfd, MockSocket))
         self.assertEqual(list(self.proxy._fdmap.keys()), [1])
         self.assertEqual(self.proxy._poll.registry,
                 {1: select.POLLIN | select.POLLPRI | select.POLLERR})
@@ -50,7 +50,7 @@ class ProxyPacketHandlingTests(unittest.TestCase):
         try:
             self.proxy._HandleProxyPacket(self.packet)
         except ServerPacketError as e:
-            self.failUnless('unknown host' in str(e))
+            self.assertTrue('unknown host' in str(e))
         else:
             self.fail()
 
@@ -63,7 +63,7 @@ class ProxyPacketHandlingTests(unittest.TestCase):
         try:
             self.proxy._HandleProxyPacket(self.packet)
         except ServerPacketError as e:
-            self.failUnless('non-response' in str(e))
+            self.assertTrue('non-response' in str(e))
         else:
             self.fail()
 

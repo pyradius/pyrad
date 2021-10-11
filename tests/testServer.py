@@ -110,10 +110,10 @@ class SocketTests(unittest.TestCase):
         fd = MockFd()
         fd.source = object()
         pkt = self.server._GrabPacket(gen, fd)
-        self.failUnless(isinstance(pkt, TrivialObject))
-        self.failUnless(pkt.fd is fd)
-        self.failUnless(pkt.source is fd.source)
-        self.failUnless(pkt.data is fd.data)
+        self.assertTrue(isinstance(pkt, TrivialObject))
+        self.assertTrue(pkt.fd is fd)
+        self.assertTrue(pkt.source is fd.source)
+        self.assertTrue(pkt.data is fd.data)
 
     def testPrepareSocketNoFds(self):
         self.server._poll = MockPoll()
@@ -160,7 +160,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
         try:
             self.server._HandleAuthPacket(self.packet)
         except ServerPacketError as e:
-            self.failUnless('unknown host' in str(e))
+            self.assertTrue('unknown host' in str(e))
         else:
             self.fail()
 
@@ -169,7 +169,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
         try:
             self.server._HandleAuthPacket(self.packet)
         except ServerPacketError as e:
-            self.failUnless('port' in str(e))
+            self.assertTrue('port' in str(e))
         else:
             self.fail()
 
@@ -180,7 +180,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
         Server.HandleAuthPacket = HandleAuthPacket
 
         self.server._HandleAuthPacket(self.packet)
-        self.failUnless(self.server.handled is self.packet)
+        self.assertTrue(self.server.handled is self.packet)
 
         Server.HandleAuthPacket = hap
 
@@ -199,7 +199,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
         try:
             self.server._HandleAcctPacket(self.packet)
         except ServerPacketError as e:
-            self.failUnless('unknown host' in str(e))
+            self.assertTrue('unknown host' in str(e))
         else:
             self.fail()
 
@@ -208,7 +208,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
         try:
             self.server._HandleAcctPacket(self.packet)
         except ServerPacketError as e:
-            self.failUnless('port' in str(e))
+            self.assertTrue('port' in str(e))
         else:
             self.fail()
 
@@ -219,7 +219,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
         Server.HandleAcctPacket = HandleAcctPacket
 
         self.server._HandleAcctPacket(self.packet)
-        self.failUnless(self.server.handled is self.packet)
+        self.assertTrue(self.server.handled is self.packet)
 
         Server.HandleAcctPacket = hap
 
@@ -242,8 +242,8 @@ class OtherTests(unittest.TestCase):
 
         reply = self.server.CreateReplyPacket(TrivialPacket(),
                 one='one', two='two')
-        self.failUnless(isinstance(reply, TrivialObject))
-        self.failUnless(reply.source is TrivialPacket.source)
+        self.assertTrue(isinstance(reply, TrivialObject))
+        self.assertTrue(reply.source is TrivialPacket.source)
         self.assertEqual(reply.kw, dict(one='one', two='two'))
 
     def testAuthProcessInput(self):
@@ -285,8 +285,8 @@ class ServerRunTests(unittest.TestCase):
         MockClassMethod(Server, '_PrepareSockets')
         self.assertRaises(MockFinished, self.server.Run)
         self.assertEqual(self.server.called, [('_PrepareSockets', (), {})])
-        self.failUnless(isinstance(self.server._fdmap, dict))
-        self.failUnless(isinstance(self.server._poll, MockPoll))
+        self.assertTrue(isinstance(self.server._fdmap, dict))
+        self.assertTrue(isinstance(self.server._poll, MockPoll))
 
     def testRunIgnoresPollErrors(self):
         self.server.authfds = [MockFd()]
