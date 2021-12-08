@@ -166,6 +166,13 @@ class PacketTests(unittest.TestCase):
         self.packet[(16, 1)] = marker
         self.assertTrue(self.packet[(16, 1)] is marker)
 
+    def testEncryptedAttributes(self):
+        self.packet['Test-Encrypted-String'] = 'dummy'
+        self.assertEqual(self.packet['Test-Encrypted-String'], ['dummy'])
+        
+        self.packet['Test-Encrypted-Integer'] = 10
+        self.assertEqual(self.packet['Test-Encrypted-Integer'], [10])
+
     def testHasKey(self):
         self.assertEqual(self.packet.has_key('Test-String'), False)
         self.assertEqual('Test-String' in self.packet, False)
