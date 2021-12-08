@@ -241,6 +241,11 @@ class Packet(OrderedDict):
                       **attributes)
 
     def _DecodeValue(self, attr, value):
+
+        if attr.encrypt == 2:
+            #salt decrypt attribute
+            value = self.SaltDecrypt(value)
+
         if attr.values.HasBackward(value):
             return attr.values.GetBackward(value)
         else:
@@ -574,11 +579,29 @@ class Packet(OrderedDict):
 
             packet = packet[attrlen:]
 
+
+    def _salt_en_decrypt(self, data, salt):
+        result = b''
+        last = self.authenticator + salt
+        while data:
+            hash = md5_constructor(self.secret + last).digest()
+            if six.PY3:
+                for i in range(16):
+                    result += bytes((hash[i] ^ data[i],))
+            else:
+                for i in range(16):
+                    result += chr(ord(hash[i]) ^ ord(data[i]))
+
+            last = result[-16:]
+            data = data[16:]
+        return result
+
+
     def SaltCrypt(self, value):
-        """Salt Encryption
+        """SaltEncrypt
 
         :param value:    plaintext value
-        :type password:  unicode string
+        :type:           unicode string
         :return:         obfuscated version of the value
         :rtype:          binary string
         """
@@ -590,6 +613,7 @@ class Packet(OrderedDict):
             # self.authenticator = self.CreateAuthenticator()
             self.authenticator = 16 * six.b('\x00')
 
+        #create salt
         random_value = 32768 + random_generator.randrange(0, 32767)
         if six.PY3:
             salt_raw = struct.pack('!H', random_value )
@@ -598,27 +622,35 @@ class Packet(OrderedDict):
             salt = struct.pack('!H', random_value )
             salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
 
-        result = six.b(salt)
-
+        #length prefixing
         length = struct.pack("B", len(value))
-        buf = length + value
-        if len(buf) % 16 != 0:
-            buf += six.b('\x00') * (16 - (len(buf) % 16))
+        value = length + value
 
-        last = self.authenticator + six.b(salt)
-        while buf:
-            hash = md5_constructor(self.secret + last).digest()
-            if six.PY3:
-                for i in range(16):
-                    result += bytes((hash[i] ^ buf[i],))
-            else:
-                for i in range(16):
-                    result += chr(ord(hash[i]) ^ ord(buf[i]))
+        #zero padding
+        if len(value) % 16 != 0:
+            value += six.b('\x00') * (16 - (len(value) % 16))
 
-            last = result[-16:]
-            buf = buf[16:]
+        return six.b(salt) + self._salt_en_decrypt(value, six.b(salt))
 
-        return result
+    def SaltDecrypt(self, value):
+        """ SaltDecrypt
+
+        :param value:   encrypted value including salt
+        :type:          binary string
+        :return:        decrypted plaintext string
+        :rtype:         unicode string
+        """
+        #extract salt
+        salt = value[:2]
+
+        #decrypt
+        value = self._salt_en_decrypt(value[2:], salt)
+
+        #remove padding
+        length = value[0]
+        value = value[1:length+1]
+
+        return value
 
 
 class AuthPacket(Packet):
