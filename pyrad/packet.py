@@ -60,7 +60,7 @@ class Packet(OrderedDict):
     attributes the value will always be a sequence. pyrad makes sure
     to preserve the ordering when encoding and decoding packets.
 
-    There are two ways to use the map intereface: if attribute
+    There are two ways to use the map interface: if attribute
     names are used pyrad take care of en-/decoding data. If
     the attribute type number (or a vendor ID/attribute type
     tuple for vendor attributes) is used you work with the
