@@ -121,7 +121,7 @@ class DatagramProtocolClient(asyncio.Protocol):
         try:
             reply = Packet(packet=data, dict=self.client.dict)
 
-            if reply and reply.id in self.pending_requests:
+            if reply.code and reply.id in self.pending_requests:
                 req = self.pending_requests[reply.id]
                 packet = req['packet']
 
