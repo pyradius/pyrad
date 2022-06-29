@@ -81,7 +81,7 @@ class DatagramProtocolServer(asyncio.Protocol):
                                  dict=self.server.dict,
                                  packet=data)
                 if self.server.enable_pkt_verify:
-                    if req.VerifyAuthRequest():
+                    if not req.VerifyAuthRequest():
                         raise PacketError('Packet verification failed')
 
             elif self.server_type == ServerType.Coa:
@@ -91,7 +91,7 @@ class DatagramProtocolServer(asyncio.Protocol):
                                 dict=self.server.dict,
                                 packet=data)
                 if self.server.enable_pkt_verify:
-                    if req.VerifyCoARequest():
+                    if not req.VerifyCoARequest():
                         raise PacketError('Packet verification failed')
 
             elif self.server_type == ServerType.Acct:
@@ -102,7 +102,7 @@ class DatagramProtocolServer(asyncio.Protocol):
                                  dict=self.server.dict,
                                  packet=data)
                 if self.server.enable_pkt_verify:
-                    if req.VerifyAcctRequest():
+                    if not req.VerifyAcctRequest():
                         raise PacketError('Packet verification failed')
 
             # Call request callback
