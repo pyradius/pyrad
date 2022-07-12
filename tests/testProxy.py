@@ -1,16 +1,16 @@
 import select
 import socket
 import unittest
+from .mock import MockFd
+from .mock import MockPoll
+from .mock import MockSocket
+from .mock import MockClassMethod
+from .mock import UnmockClassMethods
 from pyrad.proxy import Proxy
 from pyrad.packet import AccessAccept
 from pyrad.packet import AccessRequest
 from pyrad.server import ServerPacketError
 from pyrad.server import Server
-from pyrad.tests.mock import MockFd
-from pyrad.tests.mock import MockPoll
-from pyrad.tests.mock import MockSocket
-from pyrad.tests.mock import MockClassMethod
-from pyrad.tests.mock import UnmockClassMethods
 
 
 class TrivialObject:
@@ -30,7 +30,7 @@ class SocketTests(unittest.TestCase):
     def testProxyFd(self):
         self.proxy._poll = MockPoll()
         self.proxy._PrepareSockets()
-        self.failUnless(isinstance(self.proxy._proxyfd, MockSocket))
+        self.assertTrue(isinstance(self.proxy._proxyfd, MockSocket))
         self.assertEqual(list(self.proxy._fdmap.keys()), [1])
         self.assertEqual(self.proxy._poll.registry,
                 {1: select.POLLIN | select.POLLPRI | select.POLLERR})
@@ -50,7 +50,7 @@ class ProxyPacketHandlingTests(unittest.TestCase):
         try:
             self.proxy._HandleProxyPacket(self.packet)
         except ServerPacketError as e:
-            self.failUnless('unknown host' in str(e))
+            self.assertTrue('unknown host' in str(e))
         else:
             self.fail()
 
@@ -63,7 +63,7 @@ class ProxyPacketHandlingTests(unittest.TestCase):
         try:
             self.proxy._HandleProxyPacket(self.packet)
         except ServerPacketError as e:
-            self.failUnless('non-response' in str(e))
+            self.assertTrue('non-response' in str(e))
         else:
             self.fail()
 

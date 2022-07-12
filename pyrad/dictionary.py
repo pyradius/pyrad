@@ -90,7 +90,7 @@ class ParseError(Exception):
 
     :ivar msg:        Error message
     :type msg:        string
-    :ivar linenumber: Line number on which the error occured
+    :ivar linenumber: Line number on which the error occurred
     :type linenumber: integer
     """
 
@@ -220,6 +220,18 @@ class Dictionary(object):
         (attribute, code, datatype) = tokens[1:4]
 
         codes = code.split('.')
+
+        # Codes can be sent as hex, or octal or decimal string representations.
+        tmp = []
+        for c in codes:
+          if c.startswith('0x'):
+            tmp.append(int(c, 16))
+          elif c.startswith('0o'):
+            tmp.append(int(c, 8))
+          else:
+            tmp.append(int(c, 10))
+        codes = tmp
+
         is_sub_attribute = (len(codes) > 1)
         if len(codes) == 2:
             code = int(codes[1])

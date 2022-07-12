@@ -135,7 +135,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                 else:
                     self.logger.warn('[%s:%d] Ignore invalid reply for id %d. %s', self.server, self.port, reply.id)
             else:
-                self.logger.warn('[%s:%d] Ignore invalid reply: %d', self.server, self.port, data)
+                self.logger.warn('[%s:%d] Ignore invalid reply: %s', self.server, self.port, data)
 
         except Exception as exc:
             self.logger.error('[%s:%d] Error on decode packet: %s', self.server, self.port, exc)
@@ -241,7 +241,7 @@ class ClientAsync:
 
             acct_connect = self.loop.create_datagram_endpoint(
                 self.protocol_acct,
-                reuse_address=True, reuse_port=True,
+                reuse_port=True,
                 remote_addr=(self.server, self.acct_port),
                 local_addr=bind_addr
             )
@@ -261,7 +261,7 @@ class ClientAsync:
 
             auth_connect = self.loop.create_datagram_endpoint(
                 self.protocol_auth,
-                reuse_address=True, reuse_port=True,
+                reuse_port=True,
                 remote_addr=(self.server, self.auth_port),
                 local_addr=bind_addr
             )
@@ -281,7 +281,7 @@ class ClientAsync:
 
             coa_connect = self.loop.create_datagram_endpoint(
                 self.protocol_coa,
-                reuse_address=True, reuse_port=True,
+                reuse_port=True,
                 remote_addr=(self.server, self.coa_port),
                 local_addr=bind_addr
             )
@@ -360,7 +360,7 @@ class ClientAsync:
         :rtype:  pyrad.packet.Packet
         """
 
-        if not self.protocol_acct:
+        if not self.protocol_coa:
             raise Exception('Transport not initialized')
 
         return CoAPacket(id=self.protocol_coa.create_id(),
@@ -398,9 +398,14 @@ class ClientAsync:
             if not self.protocol_acct:
                 raise Exception('Transport not initialized')
 
+            self.protocol_acct.send_packet(pkt, ans)
+
         elif isinstance(pkt, CoAPacket):
             if not self.protocol_coa:
                 raise Exception('Transport not initialized')
+
+            self.protocol_coa.send_packet(pkt, ans)
+
         else:
             raise Exception('Unsupported packet')
 

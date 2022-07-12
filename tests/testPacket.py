@@ -1,9 +1,22 @@
+import hmac
 import os
+import struct
 import unittest
 import six
+
+from . import home
+
+from collections import OrderedDict
 from pyrad import packet
-from pyrad.tests import home
+from pyrad.client import Client
 from pyrad.dictionary import Dictionary
+try:
+    import hashlib
+    md5_constructor = hashlib.md5
+except ImportError:
+    # BBB for python 2.4
+    import md5
+    md5_constructor = md5.new
 
 
 class UtilityTests(unittest.TestCase):
@@ -18,7 +31,7 @@ class PacketConstructionTests(unittest.TestCase):
     klass = packet.Packet
 
     def setUp(self):
-        self.path = os.path.join(home, 'tests', 'data')
+        self.path = os.path.join(home, 'data')
         self.dict = Dictionary(os.path.join(self.path, 'simple'))
 
     def testBasicConstructor(self):
@@ -29,8 +42,8 @@ class PacketConstructionTests(unittest.TestCase):
 
     def testNamedConstructor(self):
         pkt = self.klass(code=26, id=38, secret=six.b('secret'),
-                authenticator=six.b('authenticator'),
-                dict='fakedict')
+                         authenticator=six.b('authenticator'),
+                         dict='fakedict')
         self.assertEqual(pkt.code, 26)
         self.assertEqual(pkt.id, 38)
         self.assertEqual(pkt.secret, six.b('secret'))
@@ -59,15 +72,62 @@ class PacketConstructionTests(unittest.TestCase):
             'Test-Tlv-Int': 10,
             'dict': self.dict
         })
-        self.assertEqual(pkt['Test-Tlv'], {'Test-Tlv-Str': ['this works'], 'Test-Tlv-Int' : [10]} )
+        self.assertEqual(
+            pkt['Test-Tlv'],
+            {'Test-Tlv-Str': ['this works'], 'Test-Tlv-Int' : [10]}
+        )
 
 
 class PacketTests(unittest.TestCase):
     def setUp(self):
-        self.path = os.path.join(home, 'tests', 'data')
+        self.path = os.path.join(home, 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
-        self.packet = packet.Packet(id=0, secret=six.b('secret'),
-                authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
+        self.packet = packet.Packet(
+            id=0, secret=six.b('secret'),
+            authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
+
+    def _create_reply_with_duplicate_attributes(self, request):
+        """
+        Creates a reply to the given request with multiple instances of the
+        same attribute that also do not appear sequentially in the list. Used
+        to ensure that methods providing authenticator and
+        Message-Authenticator verification can handle the case where multiple
+        instances of an given attribute do not appear sequentially in the
+        attributes list.
+        """
+        # Manually build the packet since using packet.Packet will always group
+        # attributes of the same type together
+        attributes = self._get_attribute_bytes('Test-String', 'test')
+        attributes += self._get_attribute_bytes('Test-Integer', 1)
+        attributes += self._get_attribute_bytes('Test-String', 'test')
+        attributes += self._get_attribute_bytes('Message-Authenticator',
+                                                16 * six.b('\00'))
+
+        header = struct.pack('!BBH', packet.AccessAccept,
+                             request.id, (20 + len(attributes)))
+
+        # Calculate the Message-Authenticator and update the attribute
+        hmac_constructor = hmac.new(request.secret, None, md5_constructor)
+        hmac_constructor.update(header + request.authenticator + attributes)
+        updated_message_authenticator = hmac_constructor.digest()
+        attributes = attributes.replace(six.b('\x00') * 16,
+                                        updated_message_authenticator)
+
+        # Calculate the response authenticator
+        authenticator = md5_constructor(header
+                                        + request.authenticator
+                                        + attributes
+                                        + request.secret).digest()
+
+        reply_bytes = header + authenticator + attributes
+        return packet.AuthPacket(packet=reply_bytes, dict=self.dict)
+
+    def _get_attribute_bytes(self, attr_name, value):
+        attr = self.dict.attributes[attr_name]
+        attr_key = attr.code
+        attr_value = packet.tools.EncodeAttr(attr.type, value)
+        attr_len = len(attr_value) + 2
+        return struct.pack('!BB', attr_key, attr_len) + attr_value
 
     def testCreateReply(self):
         reply = self.packet.CreateReply(**{'Test-Integer' : 10})
@@ -106,6 +166,13 @@ class PacketTests(unittest.TestCase):
         self.packet[(16, 1)] = marker
         self.assertTrue(self.packet[(16, 1)] is marker)
 
+    def testEncryptedAttributes(self):
+        self.packet['Test-Encrypted-String'] = 'dummy'
+        self.assertEqual(self.packet['Test-Encrypted-String'], ['dummy'])
+        
+        self.packet['Test-Encrypted-Integer'] = 10
+        self.assertEqual(self.packet['Test-Encrypted-Integer'], [10])
+
     def testHasKey(self):
         self.assertEqual(self.packet.has_key('Test-String'), False)
         self.assertEqual('Test-String' in self.packet, False)
@@ -132,7 +199,7 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet.keys(), ['Test-String'])
         self.packet['Test-Integer'] = 10
         self.assertEqual(self.packet.keys(), ['Test-String', 'Test-Integer'])
-        dict.__setitem__(self.packet, 12345, None)
+        OrderedDict.__setitem__(self.packet, 12345, None)
         self.assertEqual(self.packet.keys(),
                         ['Test-String', 'Test-Integer', 12345])
 
@@ -171,6 +238,42 @@ class PacketTests(unittest.TestCase):
         reply.authenticator = six.b('X') * 16
         self.assertEqual(self.packet.VerifyReply(reply), False)
         reply.authenticator = self.packet.authenticator
+
+    def testVerifyReplyDuplicateAttributes(self):
+        reply = self._create_reply_with_duplicate_attributes(self.packet)
+        self.assertTrue(self.packet.VerifyReply(
+            reply=reply,
+            rawreply=reply.raw_packet))
+
+    def testVerifyMessageAuthenticator(self):
+        reply = self.packet.CreateReply(**{
+            'Test-String': 'test',
+            'Test-Integer': 3,
+        })
+        reply.code = packet.AccessAccept
+        reply.add_message_authenticator()
+        reply._refresh_message_authenticator()
+        self.assertTrue(reply.verify_message_authenticator(
+            secret=six.b('secret'),
+            original_authenticator=self.packet.authenticator,
+            original_code=self.packet.code))
+
+        self.assertFalse(reply.verify_message_authenticator(
+            secret=six.b('bad_secret'),
+            original_authenticator=self.packet.authenticator,
+            original_code=self.packet.code))
+
+        self.assertFalse(reply.verify_message_authenticator(
+            secret=six.b('secret'),
+            original_authenticator=six.b('bad_authenticator'),
+            original_code=self.packet.code))
+
+    def testVerifyMessageAuthenticatorDuplicateAttributes(self):
+        reply = self._create_reply_with_duplicate_attributes(self.packet)
+        self.assertTrue(reply.verify_message_authenticator(
+            secret=six.b('secret'),
+            original_authenticator=self.packet.authenticator,
+            original_code=packet.AccessRequest))
 
     def testPktEncodeAttribute(self):
         encode = self.packet._PktEncodeAttribute
@@ -391,7 +494,7 @@ class AuthPacketConstructionTests(PacketConstructionTests):
 
 class AuthPacketTests(unittest.TestCase):
     def setUp(self):
-        self.path = os.path.join(home, 'tests', 'data')
+        self.path = os.path.join(home, 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
         self.packet = packet.AuthPacket(id=0, secret=six.b('secret'),
                 authenticator=six.b('01234567890ABCDEF'), dict=self.dict)
@@ -439,6 +542,32 @@ class AuthPacketTests(unittest.TestCase):
                 six.u('Simplon'))
 
 
+class AuthPacketChapTests(unittest.TestCase):
+    def setUp(self):
+        self.path = os.path.join(home, 'data')
+        self.dict = Dictionary(os.path.join(self.path, 'chap'))
+        # self.packet = packet.Packet(id=0, secret=six.b('secret'),
+        #                             dict=self.dict)
+        self.client = Client(server='localhost', secret=six.b('secret'),
+                             dict=self.dict)
+
+    def testVerifyChapPasswd(self):
+        chap_id = b'9'
+        chap_challenge = b'987654321'
+        chap_password = chap_id + md5_constructor(
+                chap_id + b'test_password' + chap_challenge).digest()
+        pkt = self.client.CreateAuthPacket(
+            code=packet.AccessChallenge,
+            authenticator=b'ABCDEFG',
+            User_Name='test_name',
+            CHAP_Challenge=chap_challenge,
+            CHAP_Password=chap_password
+        )
+        self.assertEqual(pkt['CHAP-Challenge'][0], chap_challenge)
+        self.assertEqual(pkt['CHAP-Password'][0], chap_password)
+        self.assertEqual(pkt.VerifyChapPasswd('test_password'), True)
+
+
 class AcctPacketConstructionTests(PacketConstructionTests):
     klass = packet.AcctPacket
 
@@ -455,7 +584,7 @@ class AcctPacketConstructionTests(PacketConstructionTests):
 
 class AcctPacketTests(unittest.TestCase):
     def setUp(self):
-        self.path = os.path.join(home, 'tests', 'data')
+        self.path = os.path.join(home, 'data')
         self.dict = Dictionary(os.path.join(self.path, 'full'))
         self.packet = packet.AcctPacket(id=0, secret=six.b('secret'),
                 authenticator=six.b('01234567890ABCDEF'), dict=self.dict)

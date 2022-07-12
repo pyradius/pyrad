@@ -17,15 +17,27 @@ def EncodeString(str):
         return str
 
 
-def EncodeOctets(str):
-    if len(str) > 253:
+def EncodeOctets(octetstring):
+    # Check for max length of the hex encoded with 0x prefix, as a sanity check
+    if len(octetstring) > 508:
         raise ValueError('Can only encode strings of <= 253 characters')
 
-    if str.startswith(b'0x'):
-        hexstring = str.split(b'0x')[1]
-        return binascii.unhexlify(hexstring)
+    if isinstance(octetstring, bytes) and octetstring.startswith(b'0x'):
+        hexstring = octetstring.split(b'0x')[1]
+        encoded_octets = binascii.unhexlify(hexstring)
+    elif isinstance(octetstring, str) and octetstring.startswith('0x'):
+        hexstring = octetstring.split('0x')[1]
+        encoded_octets = binascii.unhexlify(hexstring)
+    elif isinstance(octetstring, str) and octetstring.isdecimal():
+        encoded_octets = struct.pack('>L',int(octetstring)).lstrip((b'\x00'))
     else:
-        return str
+        encoded_octets = octetstring
+
+    # Check for the encoded value being longer than 253 chars
+    if len(encoded_octets) > 253:
+        raise ValueError('Can only encode strings of <= 253 characters')
+
+    return encoded_octets
 
 
 def EncodeAddress(addr):
@@ -110,11 +122,10 @@ def EncodeAscendBinary(str):
             terms[key] = struct.pack('B', int(value))
 
     trailer = 8 * b'\x00'
-    result = b'%s%s%s\x00%s%s%s%s%s\x00%s%s%s%s\x00\x00%s' % (
-        terms['family'], terms['action'], terms['direction'], terms['src'],
-        terms['dst'], terms['srcl'], terms['dstl'], terms['proto'],
-        terms['sport'], terms['dport'], terms['sportq'], terms['dportq'],
-        trailer)
+
+    result = b''.join((terms['family'], terms['action'], terms['direction'], b'\x00',
+        terms['src'], terms['dst'], terms['srcl'], terms['dstl'], terms['proto'], b'\x00',
+        terms['sport'], terms['dport'], terms['sportq'], terms['dportq'], b'\x00\x00', trailer))
     return result
 
 

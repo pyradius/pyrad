@@ -12,3 +12,5 @@ ATTRIBUTE  Test-Tlv          9       tlv
 ATTRIBUTE  Test-Tlv-Str      9.1     string
 ATTRIBUTE  Test-Tlv-Int      9.2     integer
 ATTRIBUTE  Test-Integer64    10      integer64
+ATTRIBUTE  Test-Integer64-Hex    0x0a      integer64
+ATTRIBUTE  Test-Integer64-Oct    0o12      integer64

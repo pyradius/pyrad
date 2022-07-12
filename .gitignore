@@ -1,3 +1,4 @@
+.DS_Store
 build/
 dist/
 docs/.build/
@@ -5,3 +6,9 @@ pyrad.egg-info/
 *.pyc
 *__pycache__
 *.egg/
+
+#virtual environments
+.env
+env
+.venv
+venv
