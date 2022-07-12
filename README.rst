@@ -1,8 +1,6 @@
 
 .. image:: https://github.com/pyradius/pyrad/workflows/Python%203.X%20test/badge.svg?branch=master
     :target: https://github.com/pyradius/pyrad/actions?query=workflow
-.. image:: https://travis-ci.org/pyradius/pyrad.svg?branch=master
-    :target: https://travis-ci.org/pyradius/pyrad
 .. image:: https://coveralls.io/repos/github/pyradius/pyrad/badge.svg?branch=master
     :target: https://coveralls.io/github/pyradius/pyrad?branch=master
 .. image:: https://img.shields.io/pypi/v/pyrad.svg
@@ -67,8 +65,8 @@ Python modules::
 Author, Copyright, Availability
 ===============================
 
-pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by 
-Christian Giese (GIC-de) and Istvan Ruzman (Istvan91). 
+pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by
+Christian Giese (GIC-de) and Istvan Ruzman (Istvan91).
 
 This project is licensed under a BSD license.
 
