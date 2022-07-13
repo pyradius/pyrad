@@ -28,7 +28,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install flake8 nose coverage
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: install pyrad
+    - name: Install pyrad
       run: |
         pip install .
     - name: Lint with flake8
@@ -37,7 +37,11 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Run unittestfix 
+    - name: Run unittest
       run: |
         coverage run -m unittest discover
         coverage report -m
+    - name: Coveralls
+      uses: coverallsapp/github-action@master
+      with:
+        github-token: ${{ secrets.COVERALLS_TOKEN }}
