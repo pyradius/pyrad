@@ -61,7 +61,7 @@ def EncodeIPv6Address(addr):
 
 def EncodeAscendBinary(str):
     """
-    Format: List of type=value pairs sperated by spaces.
+    Format: List of type=value pairs separated by spaces.
 
     Example: 'family=ipv4 action=discard direction=in dst=10.10.255.254/32'
 
@@ -100,9 +100,11 @@ def EncodeAscendBinary(str):
         'dportq':       b'\x00'
     }
 
+    family = 'ipv4'
     for t in str.split(' '):
         key, value = t.split('=')
         if key == 'family' and value == 'ipv6':
+            family = 'ipv6'
             terms[key] = b'\x03'
             if terms['src'] == b'\x00\x00\x00\x00':
                 terms['src'] = 16 * b'\x00'
@@ -113,7 +115,10 @@ def EncodeAscendBinary(str):
         elif key == 'direction' and value == 'out':
             terms[key] = b'\x00'
         elif key == 'src' or key == 'dst':
-            ip = IPv4Network(value)
+            if family == 'ipv4':
+                ip = IPv4Network(value)
+            else: 
+                ip = IPv6Network(value)
             terms[key] = ip.network_address.packed
             terms[key+'l'] = struct.pack('B', ip.prefixlen)
         elif key == 'sport' or key == 'dport':
