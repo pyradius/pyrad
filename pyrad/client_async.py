@@ -133,7 +133,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                     # Remove request for map
                     del self.pending_requests[reply.id]
                 else:
-                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d. %s', self.server, self.port, reply.id)
+                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d: %s', self.server, self.port, reply.id, data)
             else:
                 self.logger.warn('[%s:%d] Ignore invalid reply: %s', self.server, self.port, data)
 
