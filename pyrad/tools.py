@@ -4,17 +4,16 @@
 from ipaddress import IPv4Address, IPv6Address
 from ipaddress import IPv4Network, IPv6Network
 import struct
-import six
 import binascii
 
 
-def EncodeString(str):
-    if len(str) > 253:
+def EncodeString(origstr):
+    if len(origstr) > 253:
         raise ValueError('Can only encode strings of <= 253 characters')
-    if isinstance(str, six.text_type):
-        return str.encode('utf-8')
+    if isinstance(origstr, str):
+        return origstr.encode('utf-8')
     else:
-        return str
+        return origstr
 
 
 def EncodeOctets(octetstring):
@@ -41,25 +40,25 @@ def EncodeOctets(octetstring):
 
 
 def EncodeAddress(addr):
-    if not isinstance(addr, six.string_types):
+    if not isinstance(addr, str):
         raise TypeError('Address has to be a string')
     return IPv4Address(addr).packed
 
 
 def EncodeIPv6Prefix(addr):
-    if not isinstance(addr, six.string_types):
+    if not isinstance(addr, str):
         raise TypeError('IPv6 Prefix has to be a string')
     ip = IPv6Network(addr)
     return struct.pack('2B', *[0, ip.prefixlen]) + ip.ip.packed
 
 
 def EncodeIPv6Address(addr):
-    if not isinstance(addr, six.string_types):
+    if not isinstance(addr, str):
         raise TypeError('IPv6 Address has to be a string')
     return IPv6Address(addr).packed
 
 
-def EncodeAscendBinary(str):
+def EncodeAscendBinary(orig_str):
     """
     Format: List of type=value pairs separated by spaces.
 
@@ -103,7 +102,7 @@ def EncodeAscendBinary(str):
     }
 
     family = 'ipv4'
-    for t in str.split(' '):
+    for t in orig_str.split(' '):
         key, value = t.split('=')
         if key == 'family' and value == 'ipv6':
             family = 'ipv6'
@@ -158,15 +157,12 @@ def EncodeDate(num):
     return struct.pack('!I', num)
 
 
-def DecodeString(str):
-    try:
-        return str.decode('utf-8')
-    except:
-        return str
+def DecodeString(orig_str):
+    return orig_str.decode('utf-8')
 
 
-def DecodeOctets(str):
-    return str
+def DecodeOctets(orig_bytes):
+    return orig_bytes
 
 
 def DecodeAddress(addr):
@@ -185,8 +181,8 @@ def DecodeIPv6Address(addr):
     return str(IPv6Address(prefix))
 
 
-def DecodeAscendBinary(str):
-    return str
+def DecodeAscendBinary(orig_bytes):
+    return orig_bytes
 
 
 def DecodeInteger(num, format='!I'):
