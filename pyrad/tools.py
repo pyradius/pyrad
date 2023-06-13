@@ -65,9 +65,11 @@ def EncodeAscendBinary(str):
 
     Example: 'family=ipv4 action=discard direction=in dst=10.10.255.254/32'
 
+    Note: redirect(0x20) action is added for http-redirect (walled garden) use case
+
     Type:
         family      ipv4(default) or ipv6
-        action      discard(default) or accept
+        action      discard(default) or accept or redirect
         direction   in(default) or out
         src         source prefix (default ignore)
         dst         destination prefix (default ignore)
@@ -112,6 +114,8 @@ def EncodeAscendBinary(str):
                 terms['dst'] = 16 * b'\x00'
         elif key == 'action' and value == 'accept':
             terms[key] = b'\x01'
+        elif key == 'action' and value == 'redirect':
+            terms[key] = b'\x20'
         elif key == 'direction' and value == 'out':
             terms[key] = b'\x00'
         elif key == 'src' or key == 'dst':
