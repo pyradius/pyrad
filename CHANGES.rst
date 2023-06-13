@@ -1,6 +1,8 @@
 Changelog
 =========
 
+* Drop support of Python 2.x
+
 * Add salt decryption of encrypted attributes
 
 * Fix create CoA packet in client_async
