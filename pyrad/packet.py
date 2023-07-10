@@ -724,9 +724,13 @@ class AuthPacket(Packet):
         return header + attr
 
     def PwDecrypt(self, password):
-        """Obfuscate a RADIUS password. RADIUS hides passwords in packets by
+        """De-Obfuscate a RADIUS password. RADIUS hides passwords in packets by
         using an algorithm based on the MD5 hash of the packet authenticator
         and RADIUS secret. This function reverses the obfuscation process.
+
+        Although RFC2865 does not explicitly state UTF-8 for the password field,
+        the rest of RFC2865 defines UTF-8 as the encoding expected for the decrypted password.
+
 
         :param password: obfuscated form of password
         :type password:  binary string
@@ -748,10 +752,16 @@ class AuthPacket(Packet):
 
             (last, buf) = (buf[:16], buf[16:])
 
+        # This is safe even with UTF-8 encoding since no valid encoding of UTF-8
+        # (other than encoding U+0000 NULL) will produce a bytestream containing 0x00 byte.
         while pw.endswith(six.b('\x00')):
             pw = pw[:-1]
 
-        return pw.decode('utf-8')
+        # If the shared secret with the client is not the same, then de-obfuscating the password
+        # field may yield illegal UTF-8 bytes. Therefore, in order not to provoke an Exception here
+        # (which would be not consistently generated since this will depend on the random data chosen
+        # by the client) we simply ignore un-parsable UTF-8 sequences.
+        return pw.decode('utf-8', errors="ignore")
 
     def PwCrypt(self, password):
         """Obfuscate password.
