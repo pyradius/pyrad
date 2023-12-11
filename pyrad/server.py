@@ -114,7 +114,7 @@ class Server(host.Host):
         """
         results = set()
         try:
-            tmp = socket.getaddrinfo(addr, 'www')
+            tmp = socket.getaddrinfo(addr, '80')
         except socket.gaierror:
             return []
 
