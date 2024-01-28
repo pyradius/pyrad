@@ -15,7 +15,6 @@ them and decoding responses.
 
 Here is an example of doing a authentication request::
 
-    from __future__ import print_function
     from pyrad.client import Client
     from pyrad.dictionary import Dictionary
     import pyrad.packet

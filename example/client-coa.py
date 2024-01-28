@@ -3,7 +3,6 @@
 # Copyright 6WIND, 2017
 #
 
-from __future__ import print_function
 from pyrad import dictionary, packet, server
 import sys
 import prctl

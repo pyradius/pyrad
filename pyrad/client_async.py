@@ -6,7 +6,6 @@ __docformat__ = "epytext en"
 
 from datetime import datetime
 import asyncio
-import six
 import logging
 import random
 
@@ -175,7 +174,7 @@ class ClientAsync:
     """
     # noinspection PyShadowingBuiltins
     def __init__(self, server, auth_port=1812, acct_port=1813,
-                 coa_port=3799, secret=six.b(''), dict=None,
+                 coa_port=3799, secret=b'', dict=None,
                  loop=None, retries=3, timeout=30,
                  logger_name='pyrad'):
 

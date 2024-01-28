@@ -1,5 +1,4 @@
 #!/usr/bin/python
-from __future__ import print_function
 from pyrad import dictionary, packet, server
 import logging
 
