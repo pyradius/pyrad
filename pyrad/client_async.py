@@ -319,7 +319,7 @@ class ClientAsync:
 
             acct_connect = self.loop.create_datagram_endpoint(
                 self.protocol_acct,
-                reuse_address=reuse_address, reuse_port=reuse_port,
+                reuse_port=reuse_port,
                 remote_addr=(self.server, self.acct_port),
                 local_addr=bind_addr
             )
@@ -339,7 +339,7 @@ class ClientAsync:
 
             auth_connect = self.loop.create_datagram_endpoint(
                 self.protocol_auth,
-                reuse_address=True, reuse_port=True,
+                reuse_port=True,
                 remote_addr=(self.server, self.auth_port),
                 local_addr=bind_addr
             )
