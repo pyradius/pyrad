@@ -70,7 +70,7 @@ class Packet(OrderedDict):
     :obj:`AuthPacket` or :obj:`AcctPacket` classes.
     """
 
-    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None,
+    def __init__(self, code=0, id=None, secret=b'', authenticator=None,
                  **attributes):
         """Constructor
 
@@ -124,7 +124,7 @@ class Packet(OrderedDict):
 
         self.message_authenticator = True
         # Maintain a zero octets content for md5 and hmac calculation.
-        self['Message-Authenticator'] = 16 * six.b('\00')
+        self['Message-Authenticator'] = 16 * b'\00'
 
         if self.id is None:
             self.id = self.CreateID()
@@ -141,7 +141,7 @@ class Packet(OrderedDict):
         hmac_constructor = hmac_new(self.secret)
 
         # Maintain a zero octets content for md5 and hmac calculation.
-        self['Message-Authenticator'] = 16 * six.b('\00')
+        self['Message-Authenticator'] = 16 * b'\00'
         attr = self._PktEncodeAttributes()
 
         header = struct.pack('!BBH', self.code, self.id,
@@ -150,7 +150,7 @@ class Packet(OrderedDict):
         hmac_constructor.update(header[0:4])
         if self.code in (AccountingRequest, DisconnectRequest,
                          CoARequest, AccountingResponse):
-            hmac_constructor.update(16 * six.b('\00'))
+            hmac_constructor.update(16 * b'\00')
         else:
             # NOTE: self.authenticator on reply packet is initialized
             #       with request authenticator by design.
@@ -197,9 +197,9 @@ class Packet(OrderedDict):
         # attributes exactly as sent.
         if self.raw_packet:
             attr = self.raw_packet[20:]
-            attr = attr.replace(prev_ma[0], 16 * six.b('\00'))
+            attr = attr.replace(prev_ma[0], 16 * b'\00')
         else:
-            self['Message-Authenticator'] = 16 * six.b('\00')
+            self['Message-Authenticator'] = 16 * b'\00'
             attr = self._PktEncodeAttributes()
 
         header = struct.pack('!BBH', self.code, self.id,
@@ -211,7 +211,7 @@ class Packet(OrderedDict):
                          CoARequest, AccountingResponse):
             if original_code is None or original_code != StatusServer:
                 # TODO: Handle Status-Server response correctly.
-                hmac_constructor.update(16 * six.b('\00'))
+                hmac_constructor.update(16 * b'\00')
         elif self.code in (AccessAccept, AccessChallenge,
                            AccessReject):
             if original_authenticator is None:
@@ -455,11 +455,11 @@ class Packet(OrderedDict):
 
     def _PktEncodeTlv(self, tlv_key, tlv_value):
         tlv_attr = self.dict.attributes[self._DecodeKey(tlv_key)]
-        curr_avp = six.b('')
+        curr_avp = b''
         avps = []
         max_sub_attribute_len = max(map(lambda item: len(item[1]), tlv_value.items()))
         for i in range(max_sub_attribute_len):
-            sub_attr_encoding = six.b('')
+            sub_attr_encoding = b''
             for (code, datalst) in tlv_value.items():
                 if i < len(datalst):
                     sub_attr_encoding += self._PktEncodeAttribute(code, datalst[i])
@@ -475,7 +475,7 @@ class Packet(OrderedDict):
             value = struct.pack('!BB', tlv_attr.code, (len(avp) + 2)) + avp
             tlv_avps.append(value)
         if tlv_attr.vendor:
-            vendor_avps = six.b('')
+            vendor_avps = b''
             for avp in tlv_avps:
                 vendor_avps += struct.pack(
                     '!BBL', 26, (len(avp) + 6),
@@ -486,7 +486,7 @@ class Packet(OrderedDict):
             return b''.join(tlv_avps)
 
     def _PktEncodeAttributes(self):
-        result = six.b('')
+        result = b''
         for (code, datalst) in self.items():
             attribute = self.dict.attributes.get(self._DecodeKey(code))
             if attribute and attribute.type == 'tlv':
@@ -611,7 +611,7 @@ class Packet(OrderedDict):
 
         if self.authenticator is None:
             # self.authenticator = self.CreateAuthenticator()
-            self.authenticator = 16 * six.b('\x00')
+            self.authenticator = 16 * b'\x00'
 
         #create salt
         random_value = 32768 + random_generator.randrange(0, 32767)
@@ -628,7 +628,7 @@ class Packet(OrderedDict):
 
         #zero padding
         if len(value) % 16 != 0:
-            value += six.b('\x00') * (16 - (len(value) % 16))
+            value += b'\x00' * (16 - (len(value) % 16))
 
         return six.b(salt) + self._salt_en_decrypt(value, six.b(salt))
 
@@ -654,7 +654,7 @@ class Packet(OrderedDict):
 
 
 class AuthPacket(Packet):
-    def __init__(self, code=AccessRequest, id=None, secret=six.b(''),
+    def __init__(self, code=AccessRequest, id=None, secret=b'',
             authenticator=None, auth_type='pap', **attributes):
         """Constructor
 
@@ -734,7 +734,7 @@ class AuthPacket(Packet):
         :rtype:          unicode string
         """
         buf = password
-        pw = six.b('')
+        pw = b''
 
         last = self.authenticator
         while buf:
@@ -748,7 +748,7 @@ class AuthPacket(Packet):
 
             (last, buf) = (buf[:16], buf[16:])
 
-        while pw.endswith(six.b('\x00')):
+        while pw.endswith(b'\x00'):
             pw = pw[:-1]
 
         return pw.decode('utf-8')
@@ -775,9 +775,9 @@ class AuthPacket(Packet):
 
         buf = password
         if len(password) % 16 != 0:
-            buf += six.b('\x00') * (16 - (len(password) % 16))
+            buf += b'\x00' * (16 - (len(password) % 16))
 
-        result = six.b('')
+        result = b''
 
         last = self.authenticator
         while buf:
@@ -830,7 +830,7 @@ class AuthPacket(Packet):
         :rtype: boolean
         """
         assert(self.raw_packet)
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
                                self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator
 
@@ -840,7 +840,7 @@ class AcctPacket(Packet):
     of the generic :obj:`Packet` class for accounting packets.
     """
 
-    def __init__(self, code=AccountingRequest, id=None, secret=six.b(''),
+    def __init__(self, code=AccountingRequest, id=None, secret=b'',
                  authenticator=None, **attributes):
         """Constructor
 
@@ -874,7 +874,7 @@ class AcctPacket(Packet):
         """
         assert(self.raw_packet)
 
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
                                self.raw_packet[20:] + self.secret).digest()
 
         return hash == self.authenticator
@@ -896,7 +896,7 @@ class AcctPacket(Packet):
 
         attr = self._PktEncodeAttributes()
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
-        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
+        self.authenticator = md5_constructor(header[0:4] + 16 * b'\x00' +
                                              attr + self.secret).digest()
 
         ans = header + self.authenticator + attr
@@ -909,7 +909,7 @@ class CoAPacket(Packet):
     of the generic :obj:`Packet` class for CoA packets.
     """
 
-    def __init__(self, code=CoARequest, id=None, secret=six.b(''),
+    def __init__(self, code=CoARequest, id=None, secret=b'',
             authenticator=None, **attributes):
         """Constructor
 
@@ -942,7 +942,7 @@ class CoAPacket(Packet):
         :rtype: boolean
         """
         assert(self.raw_packet)
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
                                self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator
 
@@ -961,13 +961,13 @@ class CoAPacket(Packet):
             self.id = self.CreateID()
 
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
-        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
+        self.authenticator = md5_constructor(header[0:4] + 16 * b'\x00' +
                                              attr + self.secret).digest()
 
         if self.message_authenticator:
             self._refresh_message_authenticator()
             attr = self._PktEncodeAttributes()
-            self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
+            self.authenticator = md5_constructor(header[0:4] + 16 * b'\x00' +
                                                  attr + self.secret).digest()
 
         return header + self.authenticator + attr

@@ -54,7 +54,6 @@ class DictionaryInterfaceTests(unittest.TestCase):
         self.assertEqual(dict.has_key('test'), True)
 
     def testReadonlyContainer(self):
-        import six
         dict = Dictionary()
         self.assertRaises(TypeError,
                 operator.setitem, dict, 'test', 'dummy')

@@ -8,7 +8,6 @@ import hashlib
 import select
 import socket
 import time
-import six
 import struct
 from pyrad import host
 from pyrad import packet
@@ -34,7 +33,7 @@ class Client(host.Host):
     :type timeout: float
     """
     def __init__(self, server, authport=1812, acctport=1813,
-            coaport=3799, secret=six.b(''), dict=None, retries=3, timeout=5):
+            coaport=3799, secret=b'', dict=None, retries=3, timeout=5):
 
         """Constructor.
 

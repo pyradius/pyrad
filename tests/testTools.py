@@ -2,7 +2,6 @@ from ipaddress import AddressValueError
 from pyrad import tools
 import unittest
 import six
-import sys
 
 
 
