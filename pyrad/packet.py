@@ -422,7 +422,7 @@ class Packet(OrderedDict):
 
         return header + authenticator + attr
 
-    def VerifyReply(self, reply, rawreply=None):
+    def VerifyReply(self, reply, rawreply=None, enforce_ma=False):
         if reply.id != self.id:
             return False
 
@@ -443,6 +443,13 @@ class Packet(OrderedDict):
 
         if hash != rawreply[4:20]:
             return False
+
+        if enforce_ma:
+            if self.message_authenticator is None:
+                return False
+            if not self.verify_message_authenticator():
+                return False
+
         return True
 
     def _PktEncodeAttribute(self, key, value):

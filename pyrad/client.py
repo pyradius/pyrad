@@ -34,7 +34,7 @@ class Client(host.Host):
     :type timeout: float
     """
     def __init__(self, server, authport=1812, acctport=1813,
-            coaport=3799, secret=six.b(''), dict=None, retries=3, timeout=5):
+            coaport=3799, secret=six.b(''), dict=None, retries=3, timeout=5, enforce_ma=False):
 
         """Constructor.
 
@@ -50,6 +50,8 @@ class Client(host.Host):
         :type    secret: string
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
+        :param enforce_ma: Enforce usage and check of Message-Authenticator
+        :type  enforce_ma: boolean
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
 
@@ -58,6 +60,7 @@ class Client(host.Host):
         self._socket = None
         self.retries = retries
         self.timeout = timeout
+        self.enforce_ma = enforce_ma
         self._poll = select.poll()
 
     def bind(self, addr):
@@ -100,6 +103,9 @@ class Client(host.Host):
         :return: a new empty packet instance
         :rtype:  pyrad.packet.AuthPacket
         """
+        if self.enforce_ma:
+            return host.Host.CreateAuthPacket(self, secret=self.secret,
+                                              message_authenticator=True, **args)
         return host.Host.CreateAuthPacket(self, secret=self.secret, **args)
 
     def CreateAcctPacket(self, **args):
@@ -163,7 +169,7 @@ class Client(host.Host):
 
                 try:
                     reply = pkt.CreateReply(packet=rawreply)
-                    if pkt.VerifyReply(reply, rawreply):
+                    if pkt.VerifyReply(reply, rawreply, enforce_ma=self.enforce_ma):
                         return reply
                 except packet.PacketError:
                     pass
