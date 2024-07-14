@@ -128,7 +128,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                 reply.dict = packet.dict
                 reply.secret = packet.secret
 
-                if packet.VerifyReply(reply, data):
+                if packet.VerifyReply(reply, data, enforce_ma=self.client.enforce_ma):
                     req['future'].set_result(reply)
                     # Remove request for map
                     del self.pending_requests[reply.id]
@@ -177,7 +177,7 @@ class ClientAsync:
     def __init__(self, server, auth_port=1812, acct_port=1813,
                  coa_port=3799, secret=six.b(''), dict=None,
                  loop=None, retries=3, timeout=30,
-                 logger_name='pyrad'):
+                 logger_name='pyrad', enforce_ma=False):
 
         """Constructor.
 
@@ -216,6 +216,7 @@ class ClientAsync:
 
         self.protocol_coa = None
         self.coa_port = coa_port
+        self.enforce_ma = enforce_ma
 
     async def initialize_transports(self, enable_acct=False,
                                     enable_auth=False, enable_coa=False,
@@ -325,6 +326,11 @@ class ClientAsync:
         """
         if not self.protocol_auth:
             raise Exception('Transport not initialized')
+        if self.enforce_ma:
+            return AuthPacket(dict=self.dict,
+                                id=self.protocol_auth.create_id(),
+                                secret=self.secret,
+                                message_authenticator=True, **args)
 
         return AuthPacket(dict=self.dict,
                           id=self.protocol_auth.create_id(),
