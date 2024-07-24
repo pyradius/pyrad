@@ -1,6 +1,16 @@
 Changelog
 =========
 
+* Drop support of Python 2.x
+
+* Add salt decryption of encrypted attributes
+
+* Fix create CoA packet in client_async
+
+* Fix #152 and add corresponding unittests
+
+* Fixed unittests
+
 2.4 - Nov 23, 2020
 -------------------
 

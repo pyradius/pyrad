@@ -52,5 +52,5 @@ class BiDictTests(unittest.TestCase):
         self.bidict.Add("shake", "vanilla")
         self.bidict.Add("pie", "custard")
         self.assertRaises(KeyError, operator.getitem, self.bidict, "missing")
-        self.assertEquals(self.bidict["shake"], "vanilla")
-        self.assertEquals(self.bidict["pie"], "custard")
+        self.assertEqual(self.bidict["shake"], "vanilla")
+        self.assertEqual(self.bidict["pie"], "custard")

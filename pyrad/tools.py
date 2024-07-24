@@ -1,20 +1,19 @@
 # tools.py
 #
 # Utility functions
-from netaddr import IPAddress
-from netaddr import IPNetwork
+from ipaddress import IPv4Address, IPv6Address
+from ipaddress import IPv4Network, IPv6Network
 import struct
-import six
 import binascii
 
 
-def EncodeString(str):
-    if len(str) > 253:
+def EncodeString(origstr):
+    if len(origstr) > 253:
         raise ValueError('Can only encode strings of <= 253 characters')
-    if isinstance(str, six.text_type):
-        return str.encode('utf-8')
+    if isinstance(origstr, str):
+        return origstr.encode('utf-8')
     else:
-        return str
+        return origstr
 
 
 def EncodeOctets(octetstring):
@@ -41,33 +40,35 @@ def EncodeOctets(octetstring):
 
 
 def EncodeAddress(addr):
-    if not isinstance(addr, six.string_types):
+    if not isinstance(addr, str):
         raise TypeError('Address has to be a string')
-    return IPAddress(addr).packed
+    return IPv4Address(addr).packed
 
 
 def EncodeIPv6Prefix(addr):
-    if not isinstance(addr, six.string_types):
+    if not isinstance(addr, str):
         raise TypeError('IPv6 Prefix has to be a string')
-    ip = IPNetwork(addr)
+    ip = IPv6Network(addr)
     return struct.pack('2B', *[0, ip.prefixlen]) + ip.ip.packed
 
 
 def EncodeIPv6Address(addr):
-    if not isinstance(addr, six.string_types):
+    if not isinstance(addr, str):
         raise TypeError('IPv6 Address has to be a string')
-    return IPAddress(addr).packed
+    return IPv6Address(addr).packed
 
 
-def EncodeAscendBinary(str):
+def EncodeAscendBinary(orig_str):
     """
-    Format: List of type=value pairs sperated by spaces.
+    Format: List of type=value pairs separated by spaces.
 
     Example: 'family=ipv4 action=discard direction=in dst=10.10.255.254/32'
 
+    Note: redirect(0x20) action is added for http-redirect (walled garden) use case
+
     Type:
         family      ipv4(default) or ipv6
-        action      discard(default) or accept
+        action      discard(default) or accept or redirect
         direction   in(default) or out
         src         source prefix (default ignore)
         dst         destination prefix (default ignore)
@@ -100,9 +101,11 @@ def EncodeAscendBinary(str):
         'dportq':       b'\x00'
     }
 
-    for t in str.split(' '):
+    family = 'ipv4'
+    for t in orig_str.split(' '):
         key, value = t.split('=')
         if key == 'family' and value == 'ipv6':
+            family = 'ipv6'
             terms[key] = b'\x03'
             if terms['src'] == b'\x00\x00\x00\x00':
                 terms['src'] = 16 * b'\x00'
@@ -110,11 +113,16 @@ def EncodeAscendBinary(str):
                 terms['dst'] = 16 * b'\x00'
         elif key == 'action' and value == 'accept':
             terms[key] = b'\x01'
+        elif key == 'action' and value == 'redirect':
+            terms[key] = b'\x20'
         elif key == 'direction' and value == 'out':
             terms[key] = b'\x00'
         elif key == 'src' or key == 'dst':
-            ip = IPNetwork(value)
-            terms[key] = ip.ip.packed
+            if family == 'ipv4':
+                ip = IPv4Network(value)
+            else: 
+                ip = IPv6Network(value)
+            terms[key] = ip.network_address.packed
             terms[key+'l'] = struct.pack('B', ip.prefixlen)
         elif key == 'sport' or key == 'dport':
             terms[key] = struct.pack('!H', int(value))
@@ -149,15 +157,12 @@ def EncodeDate(num):
     return struct.pack('!I', num)
 
 
-def DecodeString(str):
-    try:
-        return str.decode('utf-8')
-    except:
-        return str
+def DecodeString(orig_str):
+    return orig_str.decode('utf-8')
 
 
-def DecodeOctets(str):
-    return str
+def DecodeOctets(orig_bytes):
+    return orig_bytes
 
 
 def DecodeAddress(addr):
@@ -167,17 +172,17 @@ def DecodeAddress(addr):
 def DecodeIPv6Prefix(addr):
     addr = addr + b'\x00' * (18-len(addr))
     _, length, prefix = ':'.join(map('{0:x}'.format, struct.unpack('!BB'+'H'*8, addr))).split(":", 2)
-    return str(IPNetwork("%s/%s" % (prefix, int(length, 16))))
+    return str(IPv6Network("%s/%s" % (prefix, int(length, 16))))
 
 
 def DecodeIPv6Address(addr):
     addr = addr + b'\x00' * (16-len(addr))
     prefix = ':'.join(map('{0:x}'.format, struct.unpack('!'+'H'*8, addr)))
-    return str(IPAddress(prefix))
+    return str(IPv6Address(prefix))
 
 
-def DecodeAscendBinary(str):
-    return str
+def DecodeAscendBinary(orig_bytes):
+    return orig_bytes
 
 
 def DecodeInteger(num, format='!I'):

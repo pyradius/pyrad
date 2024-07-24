@@ -6,7 +6,6 @@ __docformat__ = "epytext en"
 
 from datetime import datetime
 import asyncio
-import six
 import logging
 import random
 
@@ -121,7 +120,7 @@ class DatagramProtocolClient(asyncio.Protocol):
         try:
             reply = Packet(packet=data, dict=self.client.dict)
 
-            if reply and reply.id in self.pending_requests:
+            if reply.code and reply.id in self.pending_requests:
                 req = self.pending_requests[reply.id]
                 packet = req['packet']
 
@@ -133,7 +132,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                     # Remove request for map
                     del self.pending_requests[reply.id]
                 else:
-                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d. %s', self.server, self.port, reply.id)
+                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d: %s', self.server, self.port, reply.id, data)
             else:
                 self.logger.warn('[%s:%d] Ignore invalid reply: %s', self.server, self.port, data)
 
@@ -175,7 +174,7 @@ class ClientAsync:
     """
     # noinspection PyShadowingBuiltins
     def __init__(self, server, auth_port=1812, acct_port=1813,
-                 coa_port=3799, secret=six.b(''), dict=None,
+                 coa_port=3799, secret=b'', dict=None,
                  loop=None, retries=3, timeout=30,
                  logger_name='pyrad'):
 
