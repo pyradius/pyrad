@@ -144,12 +144,14 @@ def EncodeInteger(num, format='!I'):
         raise TypeError('Can not encode non-integer as integer')
     return struct.pack(format, num)
 
+
 def EncodeInteger64(num, format='!Q'):
     try:
         num = int(num)
     except:
         raise TypeError('Can not encode non-integer as integer64')
     return struct.pack(format, num)
+
 
 def EncodeDate(num):
     if not isinstance(num, int):

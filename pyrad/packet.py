@@ -404,6 +404,7 @@ class Packet(OrderedDict):
         :rtype:  string
         """
         assert(self.authenticator)
+
         assert(self.secret is not None)
 
         if self.message_authenticator:
@@ -641,7 +642,7 @@ class Packet(OrderedDict):
 
 class AuthPacket(Packet):
     def __init__(self, code=AccessRequest, id=None, secret=b'',
-            authenticator=None, auth_type='pap', **attributes):
+                 authenticator=None, auth_type='pap', **attributes):
         """Constructor
 
         :param code:   packet type code
@@ -740,8 +741,8 @@ class AuthPacket(Packet):
 
         # If the shared secret with the client is not the same, then de-obfuscating the password
         # field may yield illegal UTF-8 bytes. Therefore, in order not to provoke an Exception here
-        # (which would be not consistently generated since this will depend on the random data chosen
-        # by the client) we simply ignore un-parsable UTF-8 sequences.
+        # (which would be not consistently generated since this will depend on the random data 
+        # chosen by the client) we simply ignore un-parsable UTF-8 sequences.
         return pw.decode('utf-8', errors="ignore")
 
     def PwCrypt(self, password):
