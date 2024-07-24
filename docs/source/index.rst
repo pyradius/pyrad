@@ -43,7 +43,7 @@ Here is an example of doing a authentication request::
 Requirements & Installation
 ===========================
 
-pyrad requires Python 2.7, or Python 3.6 or later
+pyrad requires Python 3.6 or later
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::
