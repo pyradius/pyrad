@@ -73,7 +73,7 @@ class Client(host.Host):
 
     def _SocketOpen(self):
         try:
-            family = socket.getaddrinfo(self.server, 'www')[0][0]
+            family = socket.getaddrinfo(self.server, 80)[0][0]
         except:
             family = socket.AF_INET
         if not self._socket:
