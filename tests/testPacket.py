@@ -124,7 +124,7 @@ class PacketTests(unittest.TestCase):
     def _get_attribute_bytes(self, attr_name, value):
         attr = self.dict.attributes[attr_name]
         attr_key = attr.code
-        attr_value = packet.tools.EncodeAttr(attr.type, value)
+        attr_value = attr.encode(value)
         attr_len = len(attr_value) + 2
         return struct.pack('!BB', attr_key, attr_len) + attr_value
 
@@ -437,22 +437,22 @@ class PacketTests(unittest.TestCase):
     def testDecodePacketWithTlvAttribute(self):
         self.packet.DecodePacket(
             b'\x01\x02\x00\x1d1234567890123456\x04\x09\x01\x07value')
-        self.assertEqual(self.packet[4], {1:[b'value']})
+        self.assertEqual(self.packet[4], [{1:[b'value']}])
 
     def testDecodePacketWithVendorTlvAttribute(self):
         self.packet.DecodePacket(
             b'\x01\x02\x00\x231234567890123456\x1a\x0f\x00\x00\x00\x10\x03\x09\x01\x07value')
-        self.assertEqual(self.packet[(16,3)], {1:[b'value']})
+        self.assertEqual(self.packet[(16,3)], [{1:[b'value']}])
 
     def testDecodePacketWithTlvAttributeWith2SubAttributes(self):
         self.packet.DecodePacket(
             b'\x01\x02\x00\x231234567890123456\x04\x0f\x01\x07value\x02\x06\x00\x00\x00\x09')
-        self.assertEqual(self.packet[4], {1:[b'value'], 2:[b'\x00\x00\x00\x09']})
+        self.assertEqual(self.packet[4], [{1:[b'value'], 2:[b'\x00\x00\x00\x09']}])
 
     def testDecodePacketWithSplitTlvAttribute(self):
         self.packet.DecodePacket(
-            b'\x01\x02\x00\x251234567890123456\x04\x09\x01\x07value\x04\x09\x02\x06\x00\x00\x00\x09')
-        self.assertEqual(self.packet[4], {1:[b'value'], 2:[b'\x00\x00\x00\x09']})
+            b'\x01\x02\x00\x251234567890123456\x04\x09\x01\x07value\x04\x08\x02\x06\x00\x00\x00\x09')
+        self.assertEqual(self.packet[4], [{1:[b'value']}, {2:[b'\x00\x00\x00\x09']}])
 
     def testDecodePacketWithMultiValuedAttribute(self):
         self.packet.DecodePacket(

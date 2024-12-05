@@ -72,18 +72,37 @@ These datatypes are parsed but not supported:
 +---------------+----------------------------------------------+
 """
 from pyrad import bidict
-from pyrad import tools
 from pyrad import dictfile
 from copy import copy
 import logging
 
+from pyrad.datatypes import leaf, structural
+
 __docformat__ = 'epytext en'
 
+from pyrad.datatypes.structural import AbstractStructural
 
-DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date', 'octets',
-                       'abinary', 'ipv6addr', 'ipv6prefix', 'short', 'byte',
-                       'signed', 'ifid', 'ether', 'tlv', 'integer64'])
+DATATYPES = {
+    #  leaf attributes
+    'abinary': leaf.AscendBinary(),
+    'byte': leaf.Byte(),
+    'date': leaf.Date(),
+    'ether': leaf.Ether(),
+    'ifid': leaf.Ifid(),
+    'integer': leaf.Integer(),
+    'integer64': leaf.Integer64(),
+    'ipaddr': leaf.Ipaddr(),
+    'ipv6addr': leaf.Ipv6addr(),
+    'ipv6prefix': leaf.Ipv6prefix(),
+    'octets': leaf.Octets(),
+    'short': leaf.Short(),
+    'signed': leaf.Signed(),
+    'string': leaf.String(),
 
+    #  structural attributes
+    'tlv': structural.Tlv(),
+    'vsa': structural.Vsa()
+}
 
 class ParseError(Exception):
     """Dictionary parser exceptions.
@@ -121,7 +140,7 @@ class Attribute(object):
             raise ValueError('Invalid data type')
         self.name = name
         self.code = code
-        self.type = datatype
+        self.type = DATATYPES[datatype]
         self.vendor = vendor
         self.encrypt = encrypt
         self.has_tag = has_tag
@@ -133,6 +152,26 @@ class Attribute(object):
             for (key, value) in values.items():
                 self.values.Add(key, value)
 
+    def encode(self, decoded, *args, **kwargs):
+        return self.type.encode(self, decoded, args, kwargs)
+
+    def decode(self, raw):
+        #  Use datatype.decode to decode leaf attributes
+        if isinstance(raw, bytes):
+            # precautionary check to see if the raw data is truly being held
+            # by a leaf attribute
+            if isinstance(self.type, AbstractStructural):
+                raise ValueError('Structural datatype holding string!')
+            return self.type.decode(raw)
+
+        #  Recursively calls sub attribute's .decode() until a leaf attribute
+        #  is reached
+        for sub_attr, value in raw.items():
+            raw[sub_attr] = self.sub_attributes[sub_attr].decode(value)
+        return raw
+
+    def get_value(self, dictionary, code, packet, offset):
+        return self.type.get_value(dictionary, code, self, packet, offset)
 
 class Dictionary(object):
     """RADIUS dictionary class.
@@ -289,7 +328,7 @@ class Dictionary(object):
 
         if adef.type in ['integer', 'signed', 'short', 'byte', 'integer64']:
             value = int(value, 0)
-        value = tools.EncodeAttr(adef.type, value)
+        value = adef.encode(value)
         self.attributes[attr].values.Add(key, value)
 
     def __ParseVendor(self, state, tokens):
