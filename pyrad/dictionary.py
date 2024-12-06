@@ -140,6 +140,7 @@ class Attribute(object):
             raise ValueError('Invalid data type')
         self.name = name
         self.code = code
+        # store a datatype object as the Attribute type
         self.type = DATATYPES[datatype]
         self.vendor = vendor
         self.encrypt = encrypt
@@ -152,10 +153,29 @@ class Attribute(object):
             for (key, value) in values.items():
                 self.values.Add(key, value)
 
-    def encode(self, decoded, *args, **kwargs):
+    def encode(self, decoded: any, *args, **kwargs) -> bytes:
+        """
+        encodes value with attribute datatype
+        @param decoded: value to encode
+        @type decoded: any
+        @param args:
+        @param kwargs:
+        @return: encoding of object
+        @rtype: bytes
+        """
         return self.type.encode(self, decoded, args, kwargs)
 
-    def decode(self, raw):
+    def decode(self, raw: bytes|dict) -> any:
+        """
+        decodes bytestring or dictionary with attribute datatype
+
+        raw can either be a bytestring (for leaf attributes) or a dictionary (
+        for TLVs)
+        @param raw: value to decode
+        @type raw: bytes | dict
+        @return: python data structure
+        @rtype: any
+        """
         #  Use datatype.decode to decode leaf attributes
         if isinstance(raw, bytes):
             # precautionary check to see if the raw data is truly being held
@@ -170,7 +190,21 @@ class Attribute(object):
             raw[sub_attr] = self.sub_attributes[sub_attr].decode(value)
         return raw
 
-    def get_value(self, dictionary, code, packet, offset):
+    def get_value(self, dictionary: 'Dictionary', code: tuple[int, ...], packet: bytes,
+                  offset: int) -> (tuple[((int, ...), bytes|dict), ...], int):
+        """
+        gets encapsulated value from attribute
+        @param dictionary: RADIUS dictionary
+        @type: dictionary: Dictionary
+        @param code: full OID of current attribute
+        @type: code: tuple of ints
+        @param packet: packet in bytestring
+        @type: packet: bytes
+        @param offset: cursor where current attribute starts in packet
+        @type: offset: int
+        @return: encapsulated value, bytes read
+        @rtype: any, int
+        """
         return self.type.get_value(dictionary, code, self, packet, offset)
 
 class Dictionary(object):

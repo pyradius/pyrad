@@ -9,55 +9,90 @@ class AbstractDatatype(ABC):
     """
     Root of entire datatype class hierarchy
     """
-    def __init__(self, name):
+    def __init__(self, name: str):
+        """
+
+        :param name: str representation of datatype
+        :type name: str
+        """
         self.name = name
 
     @abstractmethod
-    def encode(self, attribute, decoded, *args, **kwargs):
+    def encode(self, attribute: 'Attribute', decoded: any,
+               *args, **kwargs) -> bytes:
         """
-        turns python data structure into bytes
-
-        :param *args:
-        :param **kwargs:
-        :param attribute:
-        :param decoded: python data structure to encode
-        :return: encoded bytes
-        """
-
-    @abstractmethod
-    def print(self, attribute, decoded, *args, **kwargs):
-        """
-        returns string representation of decoding
-
-        :param *args:
-        :param **kwargs:
-        :param attribute: attribute object
-        :param decoded: value pair
-        :return: string
+        python data structure into bytestring
+        :param attribute: dictionary attribute
+        :type attribute: pyrad.dictionary.Attribute class
+        :param decoded: decoded value
+        :type decoded: any
+        :param args:
+        :param kwargs:
+        :return: bytestring encoding
+        :rtype: bytes
         """
 
     @abstractmethod
-    def parse(self, dictionary, string, *args, **kwargs):
+    def print(self, attribute: 'Attribute', decoded: any,
+              *args, **kwargs) -> str:
         """
-        returns python structure from ASCII string
-
-        :param *args:
-        :param **kwargs:
-        :param dictionary:
-        :param string: ASCII string of attribute
-        :return: python structure for attribute
+        python data structure into string
+        :param attribute: dictionary attribute
+        :type attribute: pyrad.dictionary.Attribute class
+        :param decoded: decoded value
+        :type decoded: any
+        :param args:
+        :param kwargs:
+        :return: string representation
+        :rtype: str
         """
 
     @abstractmethod
-    def get_value(self, dictionary, code, attribute, packet, offset):
+    def parse(self, dictionary: 'Dictionary', string: str,
+              *args, **kwargs) -> any:
         """
-        retrieves the encapsulated value
-        :param dictionary:
-        :param code:
-        :param *args:
-        :param **kwargs:
-        :param attribute: attribute value
-        :param packet: packet
-        :param offset: attribute starting position
-        :return: encapsulated value, and bytes read
+        python data structure from string
+        :param dictionary: RADIUS dictionary
+        :type dictionary: pyrad.dictionary.Dictionary class
+        :param string: string representation of object
+        :type string: str
+        :param args:
+        :param kwargs:
+        :return: python datat structure
+        :rtype: any
+        """
+
+    @abstractmethod
+    def get_value(self, dictionary: 'Dictionary', code: tuple[int, ...],
+                  attribute: 'Attribute', packet: bytes,
+                  offset: int) -> (tuple[((int, ...), bytes|dict), ...], int):
+        """
+        gets encapsulated value
+
+        returns a tuple of encapsulated value and an int of number of bytes
+        read. the tuple contains one or more (key, value) pairs, with each key
+        being a full OID (tuple of ints) and the value being a bytestring (for
+        leaf attributes), or a dict (for TLVs).
+
+        future work will involve the removal of the dictionary and code
+        arguments. they are currently needed for VSA's get_value() where both
+        values are needed to fetch vendor attributes since vendor attributes
+        are not stored as a sub-attribute of the Vendor-Specific attribute.
+
+        future work will also change the return value. in place of returning a
+        tuple of (key, value) pairs, a single bytestring or dict will be
+        returned.
+
+        :param dictionary: RADIUS dictionary
+        :type dictionary: pyrad.dictionary.Dictionary class
+        :param code: full OID of current attribute
+        :type code: tuple(int)
+        :param attribute: dictionary attribute
+        :type attribute: pyrad.dictionary.Attribute class
+        :param packet: entire packet bytestring
+        :type packet: bytes
+        :param offset: position in packet where current attribute begins
+        :type offset: int
+        :return: encapsulated value, bytes read
+        :rtype: any, int
         """

@@ -16,16 +16,21 @@ from netaddr import EUI, core
 from pyrad.datatypes import base
 
 
-class AbinaryKeystores(enum.Enum):
-    PYRAD = 1
-    FREERADIUS = 2
-
 class AbstractLeaf(base.AbstractDatatype, ABC):
     """
     abstract class for leaf datatypes
     """
     @abstractmethod
-    def decode(self, raw, *args, **kwargs):
+    def decode(self, raw: bytes, *args, **kwargs) -> any:
+        """
+        python datat structure from bytestring
+        :param raw: raw attribute value
+        :type raw: bytes
+        :param args:
+        :param kwargs:
+        :return: python data structure
+        :rtype: any
+        """
         """
         turns bytes into python data structure
 

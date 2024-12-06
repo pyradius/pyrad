@@ -107,6 +107,7 @@ class Packet(OrderedDict):
         #  the presence of some attributes require us to perform certain
         #  actions. this dict maps the attribute names to the functions to
         #  perform those actions
+        #  all functions must have the signature of (attribute, packet, offset)
         self.attr_actions = {
             'Message-Authenticator': self.__attr_action_message_authenticator
         }
@@ -560,8 +561,10 @@ class Packet(OrderedDict):
         self.clear()
 
         cursor = 20
+        # iterate over all attributes in the packet
         while cursor < len(packet):
             try:
+                # get the type and length fields of the current attribute
                 (key, length) = struct.unpack('!BB', packet[cursor:cursor + 2])
             except struct.error:
                 raise PacketError('Attribute header is corrupt')
@@ -575,6 +578,7 @@ class Packet(OrderedDict):
 
             # perform attribute actions as needed
             if attribute.name in self.attr_actions:
+                # attribute action functions must have the same signature
                 self.attr_actions[attribute.name](attribute, packet, cursor)
 
             raw, offset = attribute.get_value(self.dict, key, packet, cursor)
@@ -584,6 +588,7 @@ class Packet(OrderedDict):
             for key, value in raw:
                 self.setdefault(key, []).append(value)
 
+            # move cursor forward by amount of bytes read
             cursor += offset
 
     def __attr_action_message_authenticator(self, attribute, packet, offset):
