@@ -6,9 +6,10 @@
 
 from collections import OrderedDict
 import struct
+from contextlib import contextmanager
 
 from pyrad.datatypes.leaf import Integer, Octets
-from pyrad.datatypes.structural import Tlv
+from pyrad.datatypes.structural import Vsa
 from pyrad.dictionary import Attribute
 
 try:
@@ -56,6 +57,37 @@ CurrentID = random_generator.randrange(1, 255)
 class PacketError(Exception):
     pass
 
+class NamespaceStack:
+    """
+    represents a FIFO stack of attribute namespaces
+    """
+    def __init__(self):
+        self.stack = []
+
+    def push(self, namespace: any) -> None:
+        """
+        pushes namespace onto stack
+
+        namespace objects must implement __getitem__(key) that takes in either
+        a string or int and returns an Attribute or dict instance
+        :param namespace: new namespace
+        :return:
+        """
+        self.stack.append(namespace)
+
+    def pop(self) -> None:
+        """
+        pops the top most namespace from the stack
+        :return: None
+        """
+        del self.stack[-1]
+
+    def top(self) -> any:
+        """
+        returns the top-most namespace in the stack
+        :return: namespace
+        """
+        return self.stack[-1]
 
 class Packet(OrderedDict):
     """Packet acts like a standard python map to provide simple access
@@ -114,6 +146,9 @@ class Packet(OrderedDict):
 
         if 'dict' in attributes:
             self.dict = attributes['dict']
+            self.namespace_stack_dict = NamespaceStack()
+            # set the dict root namespace as the first layer
+            self.namespace_stack_dict.push(self.dict)
 
         if 'packet' in attributes:
             self.raw_packet = attributes['packet']
@@ -122,6 +157,10 @@ class Packet(OrderedDict):
         if 'message_authenticator' in attributes:
             self.message_authenticator = attributes['message_authenticator']
 
+        self.namespace_stack = NamespaceStack()
+        # at first, the namespace to work in should be the packet root namespace
+        self.namespace_stack.push(self)
+
         for (key, value) in attributes.items():
             if key in [
                 'dict', 'fd', 'packet',
@@ -129,7 +168,36 @@ class Packet(OrderedDict):
             ]:
                 continue
             key = key.replace('_', '-')
+
             self.AddAttribute(key, value)
+
+    @contextmanager
+    def namespace(self, attribute: str):
+        """
+        provides a context manager that moves into the namespace of the specified
+        attribute
+        :param attribute: name of attribute
+        :return: None
+        """
+        # converts attribute name into number
+        # this is needed because the new namespace should be a sub-namespace
+        # of the current top layer. thus, we need to use the attribute name or
+        # number to retrieve the reference to this sub-namespace. however,
+        # due to delayed decoding, using the name to access a sub-attribute
+        # returns a copy, not a reference to this namespace.
+        number = self._EncodeKey(attribute)
+
+        # gets the sub-namespaces from the current top-most layer and pushes
+        # them onto the stack
+        self.namespace_stack.push(self.namespace_stack.top().setdefault(number, {}))
+        self.namespace_stack_dict.push(self.namespace_stack_dict.top()[number])
+
+        # return the newest layers
+        yield self.namespace_stack.top(), self.namespace_stack_dict.top()
+
+        # cleanup by removing the top-most (newest) layer
+        self.namespace_stack.pop()
+        self.namespace_stack_dict.pop()
 
     def add_message_authenticator(self):
 
@@ -252,6 +320,9 @@ class Packet(OrderedDict):
                       **attributes)
 
     def _DecodeValue(self, attr, value):
+        # if there are multiple values, decode them individually
+        if isinstance(value, (tuple, list)):
+            return [self._DecodeValue(attr, val) for val in value]
 
         if attr.encrypt == 2:
             #salt decrypt attribute
@@ -263,46 +334,67 @@ class Packet(OrderedDict):
             return attr.decode(value)
 
     def _EncodeValue(self, attr, value):
-        result = ''
-        if attr.values.HasForward(value):
-            result = attr.values.GetForward(value)
+        # if attempting to encode a structural value, use recursion to reach
+        # the leaf attributes
+        if isinstance(value, dict):
+            result = {}
+            for sub_key, sub_value in value.items():
+                result[sub_key] = self._EncodeValue(attr[sub_key], sub_value)
+            return result
+        # for encoding a leaf attribute/value
         else:
-            result = attr.encode(value)
+            # first check if the dictionary defined pre-encoded values for this
+            # value
+            if isinstance(value, str) and attr.values.HasForward(value):
+                result = attr.values.GetForward(value)
+            # otherwise, call on Attribute.encode(value) to retrieve the
+            # encoding
+            else:
+                result = attr.encode(value)
 
-        if attr.encrypt == 2:
-            # salt encrypt attribute
-            result = self.SaltCrypt(result)
+            if attr.encrypt == 2:
+                # salt encrypt attribute
+                result = self.SaltCrypt(result)
 
-        return result
+            return result
 
     def _EncodeKeyValues(self, key, values):
         if not isinstance(key, str):
             return (key, values)
 
-        if not isinstance(values, (list, tuple)):
+        if not isinstance(values, (list, tuple, dict)):
             values = [values]
 
         key, _, tag = key.partition(":")
-        attr = self.dict.attributes[key]
+        attr = self.namespace_stack_dict.top()[key]
         key = self._EncodeKey(key)
-        if tag:
-            tag = struct.pack('B', int(tag))
-            if isinstance(attr.type, Integer):
-                return (key, [tag + self._EncodeValue(attr, v)[1:] for v in values])
-            else:
-                return (key, [tag + self._EncodeValue(attr, v) for v in values])
+
+        if isinstance(values, dict):
+            encoding = {}
+            for sub_key, sub_value in values.items():
+                encoding[sub_key] = self._EncodeValue(attr[sub_key], sub_value)
+            return key, encoding
         else:
-            return (key, [self._EncodeValue(attr, v) for v in values])
+            if tag:
+                tag = struct.pack('B', int(tag))
+                if isinstance(attr.type, Integer):
+                    return (key, [tag + self._EncodeValue(attr, v)[1:] for v in values])
+                else:
+                    return (key, [tag + self._EncodeValue(attr, v) for v in values])
+            else:
+                return (key, [self._EncodeValue(attr, v) for v in values])
 
     def _EncodeKey(self, key):
         if not isinstance(key, str):
             return key
 
-        attr = self.dict.attributes[key]
+        # using the dict's current namespace, retrieve the attribute using its
+        # number
+        attr = self.namespace_stack_dict.top()[key]
         if attr.vendor and not attr.is_sub_attribute:  #sub attribute keys don't need vendor
-            return (self.dict.vendors.GetForward(attr.vendor), attr.code)
+            return (self.dict.vendors.GetForward(attr.vendor), attr.number)
         else:
-            return attr.code
+            return attr.number
 
     def _DecodeKey(self, key):
         """Turn a key into a string if possible"""
@@ -311,26 +403,42 @@ class Packet(OrderedDict):
             return self.dict.attrindex.GetBackward(key)
         return key
 
-    def AddAttribute(self, key, value):
-        """Add an attribute to the packet.
-
-        :param key:   attribute name or identification
-        :type key:    string, attribute code or (vendor code, attribute code)
-                      tuple
-        :param value: value
-        :type value:  depends on type of attribute
+    def AddAttribute(self, name: str, value: any) -> None:
         """
-        attr = self.dict.attributes[key.partition(':')[0]]
+        adds an attribute to the packet
+        :param name: attribute name
+        :param value: attribute value
+        :return:
+        """
+        # first encoding the name and value, then pass into recursive function
+        # to add into packet
+        self._AddAttributeEncoded(*self._EncodeKeyValues(name, value))
 
-        (key, value) = self._EncodeKeyValues(key, value)
-
-        if attr.is_sub_attribute:
-            tlv = self.setdefault(self._EncodeKey(attr.parent.name), {})
-            encoded = tlv.setdefault(key, [])
+    def _AddAttributeEncoded(self, number: int, encoding: bytes|dict) -> None:
+        """
+        recursive function to add attributes to the packet
+        :param number: attribute number
+        :param encoding: value encoding
+        :return: None
+        """
+        # recursive step for dealing with nested objects
+        if isinstance(encoding, dict):
+            for sub_key, sub_value in encoding.items():
+                # must enter sub-key's namespace to be able to find the
+                # attribute (in the dictionary) and set value properly
+                with self.namespace(self._DecodeKey(number)):
+                    self.AddAttribute(self._EncodeKey(sub_key), sub_value)
+        # base step for adding leaf attributes and values
         else:
-            encoded = self.setdefault(key, [])
-
-        encoded.extend(value)
+            # bytes is an iterable in python, so calling .extend() with it on
+            # the following line will add each byte as a separate entry. we do
+            # not want this. thus, we encapsulate the bytes in a list first.
+            # this will cause the entire sequence of bytes to be added as a
+            # single entry in the list
+            if isinstance(encoding, bytes):
+                encoding = [encoding]
+            # set the value pair in the current namespace
+            self.namespace_stack.top().setdefault(number, []).extend(encoding)
 
     def get(self, key, failobj=None):
         try:
@@ -340,24 +448,33 @@ class Packet(OrderedDict):
         return res
 
     def __getitem__(self, key):
+        # when querying by attribute number
         if not isinstance(key, str):
             return OrderedDict.__getitem__(self, key)
 
-        values = OrderedDict.__getitem__(self, self._EncodeKey(key))
+        values = OrderedDict.__getitem__(self,  self._EncodeKey(key))
         attr = self.dict.attributes[key]
-        if isinstance(attr.type, Tlv):  # return map from sub attribute code to its values
+
+        # for dealing with a TLV
+        if isinstance(values, dict):
             res = {}
-            for (sub_attr_key, sub_attr_val) in values.items():
-                sub_attr_name = attr.sub_attributes[sub_attr_key]
-                sub_attr = self.dict.attributes[sub_attr_name]
-                for v in sub_attr_val:
-                    res.setdefault(sub_attr_name, []).append(self._DecodeValue(sub_attr, v))
+            for sub_key, sub_value in values.items():
+                # enter into the attribute's namespace to deal with sub-attrs
+                with self.namespace(key) as (namespace_pkt, namespace_dict):
+                    # get the sub_attribute from the new namespace
+                    sub_attr = namespace_dict[sub_key]
+                    # sub_key here is the attribute number, so first use the
+                    # index to convert into attribute name
+                    # set return value equal to the decoding of the sub
+                    # attribute
+                    res[namespace_dict.attrindex.GetBackward(sub_key)] = self._DecodeValue(sub_attr, sub_value)
             return res
+        # for dealing with attribute with multiple values
+        elif isinstance(values, list):
+            return [self._DecodeValue(attr, value) for value in values]
+        # for dealing with a single attribute with a single value
         else:
-            res = []
-            for v in values:
-                res.append(self._DecodeValue(attr, v))
-            return res
+            return self._DecodeValue(attr, values)
 
     def __contains__(self, key):
         try:
@@ -462,7 +579,16 @@ class Packet(OrderedDict):
         return struct.pack('!BB', key, (len(value) + 2)) + value
 
     def _PktEncodeTlv(self, tlv_key, tlv_value):
-        tlv_attr = self.dict.attributes[self._DecodeKey(tlv_key)]
+        # for dealing with nested attributes (e.g., vendor TLVs)
+        # we must traverse the hierarchy
+        # Future update will change how encoding is performed at the packet
+        # level, and this will no longer be needed
+        if isinstance(tlv_key, tuple):
+            tlv_attr = self.dict
+            for key in tlv_key:
+                tlv_attr = tlv_attr[key]
+        else:
+            tlv_attr = self.dict.attributes[self._DecodeKey(tlv_key)]
         curr_avp = b''
         avps = []
         max_sub_attribute_len = max(map(lambda item: len(item[1]), tlv_value.items()))
@@ -480,7 +606,7 @@ class Packet(OrderedDict):
         avps.append(curr_avp)
         tlv_avps = []
         for avp in avps:
-            value = struct.pack('!BB', tlv_attr.code, (len(avp) + 2)) + avp
+            value = struct.pack('!BB', tlv_attr.number, (len(avp) + 2)) + avp
             tlv_avps.append(value)
         if tlv_attr.vendor:
             vendor_avps = b''
@@ -581,15 +707,50 @@ class Packet(OrderedDict):
                 # attribute action functions must have the same signature
                 self.attr_actions[attribute.name](attribute, packet, cursor)
 
-            raw, offset = attribute.get_value(self.dict, key, packet, cursor)
+            raw, offset = attribute.get_value(packet, cursor)
 
-            # for each (key, value) pair from the raw values, add them to the
-            # packet's data
-            for key, value in raw:
-                self.setdefault(key, []).append(value)
+            # merge the raw values into the packet values
+            # this is only important for vendor attributes
+            self.__values_merge(attribute, raw)
 
             # move cursor forward by amount of bytes read
             cursor += offset
+
+    def __values_merge(self, attribute: Attribute, raw: bytes|dict) -> None:
+        """
+        function for merging raw values with existing packet values
+        :param attribute: attribute to merge
+        :param raw: raw value
+        :return: None
+        """
+        # special case for merging vendor attributes
+        # at the vendor layer, attributes should be meged into a list
+        if isinstance(attribute.type, Vsa):
+            merged = {}
+
+            vsa = self.setdefault(attribute.number, {})
+            # there is only 1 vendor in the raw value, so just take the "first"
+            vendor_id = list(raw.keys())[0]
+            vendor_attrs = vsa.setdefault(vendor_id, {})
+
+            attributes = set(vendor_attrs.keys()).union(raw[vendor_id].keys())
+            for attr in attributes:
+                val_existing = vendor_attrs.get(attr)
+                val_new = raw[vendor_id][attr]
+
+                # new vendor attribute not seen before, create new array for
+                # new attribute
+                if val_existing is None:
+                    merged[attr] = [val_new]
+                # otherwise, append new value to array
+                else:
+                    merged[attr].append(val_new)
+
+            # call update() to overwrite the existing values for the vendor
+            vsa.update({vendor_id: merged})
+        # for all attributes (but VSAs), simply store all values in a list
+        else:
+            self.setdefault(attribute.number, []).append(raw)
 
     def __attr_action_message_authenticator(self, attribute, packet, offset):
         #  if the Message-Authenticator attribute is present, set the

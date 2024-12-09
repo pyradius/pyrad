@@ -63,9 +63,7 @@ class AbstractDatatype(ABC):
         """
 
     @abstractmethod
-    def get_value(self, dictionary: 'Dictionary', code: tuple[int, ...],
-                  attribute: 'Attribute', packet: bytes,
-                  offset: int) -> (tuple[((int, ...), bytes|dict), ...], int):
+    def get_value(self, attribute: 'Attribute', packet: bytes, offset: int) -> (tuple[((int, ...), bytes | dict), ...], int):
         """
         gets encapsulated value
 
@@ -83,10 +81,6 @@ class AbstractDatatype(ABC):
         tuple of (key, value) pairs, a single bytestring or dict will be
         returned.
 
-        :param dictionary: RADIUS dictionary
-        :type dictionary: pyrad.dictionary.Dictionary class
-        :param code: full OID of current attribute
-        :type code: tuple(int)
         :param attribute: dictionary attribute
         :type attribute: pyrad.dictionary.Attribute class
         :param packet: entire packet bytestring

@@ -27,16 +27,16 @@ class Tlv(AbstractStructural):
     def encode(self, attribute, decoded, *args, **kwargs):
         encoding = b''
         for key, value in decoded.items():
-            encoding += attribute.sub_attributes[key].encode(value, )
+            encoding += attribute.children[key].encode(value, )
 
         if len(encoding) + 2 > 255:
             raise ValueError('TLV length too long for one packet')
 
-        return (struct.pack('!B', attribute.code)
+        return (struct.pack('!B', attribute.number)
                 + struct.pack('!B', len(encoding) + 2)
                 + encoding)
 
-    def get_value(self, dictionary, code, attribute: 'Attribute', packet, offset):
+    def get_value(self, attribute: 'Attribute', packet, offset):
         sub_attrs = {}
 
         _, outer_len = struct.unpack('!BB', packet[offset:offset + 2])[0:2]
@@ -56,17 +56,15 @@ class Tlv(AbstractStructural):
             if sub_len < 3:
                 raise ValueError('TLV length field too small')
 
-            # future work will allow nested TLVs and structures. for now, TLVs
-            # must contain leaf attributes. As such, we can just extract the
-            # value from the packet
-            value = packet[cursor + 2:cursor + sub_len]
-            sub_attrs.setdefault(sub_type, []).append(value)
-            cursor += sub_len
-        return ((code, sub_attrs),), outer_len
+            sub_value, sub_offset = attribute[sub_type].get_value(packet, cursor)
+            sub_attrs.setdefault(sub_type, []).append(sub_value)
+
+            cursor += sub_offset
+        return sub_attrs, outer_len
 
     def print(self, attribute, decoded, *args, **kwargs):
         sub_attr_strings = [sub_attr.print()
-                            for sub_attr in attribute.sub_attributes]
+                            for sub_attr in attribute.children]
         return f"{attribute.name} = {{ {', '.join(sub_attr_strings)} }}"
 
     def parse(self, dictionary, string, *args, **kwargs):
@@ -86,44 +84,38 @@ class Vsa(AbstractStructural):
         encoding = b''
 
         for key, value in decoded.items():
-            encoding += attribute.sub_attributes[key].encode(value, )
+            encoding += attribute.children[key].encode(value, )
 
-        return (struct.pack('!B', attribute.code)
+        return (struct.pack('!B', attribute.number)
                 + struct.pack('!B', len(encoding) + 4)
                 + struct.pack('!L', attribute.vendor)
                 + encoding)
 
-    def get_value(self, dictionary, code, attribute, packet, offset):
+    def get_value(self, attribute: 'Attribute', packet, offset):
+        values = {}
+
         # currently, a list of (code, value) pair is returned. with the v4
         # update, a single (nested) object will be returned
-        values = []
+        # values = []
 
         (_, length) = struct.unpack('!BB', packet[offset:offset + 2])
         if length < 8:
-            return ((26, packet[offset + 2:offset + length]),), length
+            return {packet[offset + 2:offset + length]: {}}, length
 
-        vendor = struct.unpack('!L', packet[offset + 2:offset + 6])
+        vendor = struct.unpack('!L', packet[offset + 2:offset + 6])[0]
 
         cursor = offset + 6
         while cursor < offset + length:
             (sub_type, _) = struct.unpack('!BB', packet[cursor:cursor + 2])
 
-            # first, using the vendor ID and sub attribute type, get the name
-            # of the sub attribute. then, using the name, get the Attribute
-            # object to call .get_value(...)
-            sub_attr_name = dictionary.attrindex.GetBackward(vendor + (sub_type,))
-            sub_attr = dictionary.attributes[sub_attr_name]
-
-            (sub_value, sub_offset) = sub_attr.get_value(dictionary, (vendor + (sub_type,)), packet, cursor)
-
-            values += sub_value
+            values[sub_type], sub_offset = attribute[vendor][sub_type].get_value(packet, cursor)
             cursor += sub_offset
 
-        return values, length
+        return {vendor: values}, length
 
     def print(self, attribute, decoded, *args, **kwargs):
         sub_attr_strings = [sub_attr.print()
-                            for sub_attr in attribute.sub_attributes]
+                            for sub_attr in attribute.children]
         return f"Vendor-Specific = {{ {attribute.vendor} = {{ {', '.join(sub_attr_strings)} }}"
 
     def parse(self, dictionary, string, *args, **kwargs):

@@ -41,7 +41,7 @@ class Proxy(Server):
         pkt.secret = self.hosts[pkt.source[0]].secret
 
         if pkt.code not in [packet.AccessAccept, packet.AccessReject,
-                packet.AccountingResponse]:
+                              packet.AccountingResponse]:
             raise ServerPacketError('Received non-response on proxy socket')
 
     def _ProcessInput(self, fd):

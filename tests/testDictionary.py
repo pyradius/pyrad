@@ -18,20 +18,20 @@ class AttributeTests(unittest.TestCase):
         self.assertRaises(ValueError, Attribute, 'name', 'code', 'datatype')
 
     def testConstructionParameters(self):
-        attr = Attribute('name', 'code', 'integer', False, 'vendor')
+        attr = Attribute('name', 'code', 'integer', vendor='vendor')
         self.assertEqual(attr.name, 'name')
-        self.assertEqual(attr.code, 'code')
+        self.assertEqual(attr.number, 'code')
         self.assertIsInstance(attr.type, Integer)
-        self.assertEqual(attr.is_sub_attribute, False)
+        self.assertIsNone(attr.parent)
         self.assertEqual(attr.vendor, 'vendor')
         self.assertEqual(len(attr.values), 0)
-        self.assertEqual(len(attr.sub_attributes), 0)
+        self.assertEqual(len(attr.children), 0)
 
     def testNamedConstructionParameters(self):
-        attr = Attribute(name='name', code='code', datatype='integer',
+        attr = Attribute(name='name', number='code', datatype='integer',
                 vendor='vendor')
         self.assertEqual(attr.name, 'name')
-        self.assertEqual(attr.code, 'code')
+        self.assertEqual(attr.number, 'code')
         self.assertIsInstance(attr.type, Integer)
         self.assertEqual(attr.vendor, 'vendor')
         self.assertEqual(len(attr.values), 0)
@@ -124,10 +124,15 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(len(dict), 2)
 
     def testParseSimpleDictionary(self):
-        self.assertEqual(len(self.dict),len(self.simple_dict_values))
+        # our dict contains two TLV sub-attributes, which would not be in the
+        # root namespace
+        self.assertEqual(len(self.dict),len(self.simple_dict_values) - 2)
         for (attr, code, type) in self.simple_dict_values:
-            attr = self.dict[attr]
-            self.assertEqual(attr.code, code)
+            if attr.startswith('Test-Tlv-'):
+                attr = self.dict['Test-Tlv'][attr]
+            else:
+                attr = self.dict[attr]
+            self.assertEqual(attr.number, code)
             self.assertEqual(attr.type.name, type)
 
     def testAttributeTooFewColumnsError(self):
@@ -232,25 +237,31 @@ class DictionaryParsingTests(unittest.TestCase):
                 ), b'B')
 
     def testTlvParsing(self):
-        self.assertEqual(len(self.dict['Test-Tlv'].sub_attributes), 2)
-        self.assertEqual(self.dict['Test-Tlv'].sub_attributes, {1:'Test-Tlv-Str', 2: 'Test-Tlv-Int'})
+        self.assertEqual(len(self.dict['Test-Tlv'].children), 2)
+        self.assertEqual(self.dict['Test-Tlv']['Test-Tlv-Str'].name, 'Test-Tlv-Str')
+        self.assertEqual(self.dict['Test-Tlv']['Test-Tlv-Int'].name, 'Test-Tlv-Int')
 
     def testSubTlvParsing(self):
         for (attr, _, _) in self.simple_dict_values:
             if attr.startswith('Test-Tlv-'):
-                self.assertEqual(self.dict[attr].is_sub_attribute, True)
-                self.assertEqual(self.dict[attr].parent, self.dict['Test-Tlv'])
+                self.assertIsNotNone(self.dict['Test-Tlv'][attr].parent)
+                # self.assertEqual(self.dict[attr].is_sub_attribute, True)
+                self.assertEqual(self.dict['Test-Tlv'][attr].parent, self.dict['Test-Tlv'])
             else:
-                self.assertEqual(self.dict[attr].is_sub_attribute, False)
-                self.assertEqual(self.dict[attr].parent, None)
+                self.assertIsNone(self.dict[attr].parent)
+                # self.assertEqual(self.dict[attr].is_sub_attribute, False)
+                # self.assertEqual(self.dict[attr].parent, None)
 
         # tlv with vendor
         full_dict = Dictionary(os.path.join(self.path, 'full'))
-        self.assertEqual(full_dict['Simplon-Tlv-Str'].is_sub_attribute, True)
-        self.assertEqual(full_dict['Simplon-Tlv-Str'].parent, full_dict['Simplon-Tlv'])
-        self.assertEqual(full_dict['Simplon-Tlv-Int'].is_sub_attribute, True)
-        self.assertEqual(full_dict['Simplon-Tlv-Int'].parent, full_dict['Simplon-Tlv'])
 
+        tlv = full_dict['Vendor-Specific']['Simplon']['Simplon-Tlv']
+
+        self.assertIsNotNone(tlv['Simplon-Tlv-Str'].parent)
+        self.assertIsNotNone(tlv['Simplon-Tlv-Int'].parent)
+
+        self.assertEqual(tlv['Simplon-Tlv-Str'].parent, tlv)
+        self.assertEqual(tlv['Simplon-Tlv-Int'].parent, tlv)
 
     def testVenderTooFewColumnsError(self):
         try:
@@ -263,11 +274,12 @@ class DictionaryParsingTests(unittest.TestCase):
     def testVendorParsing(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
                 StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
-        self.dict.ReadDictionary(StringIO('VENDOR Simplon 42'))
+        self.dict.ReadDictionary(StringIO('ATTRIBUTE Vendor-Specific 26 vsa\n'
+                                          'VENDOR Simplon 42'))
         self.assertEqual(self.dict.vendors['Simplon'], 42)
         self.dict.ReadDictionary(StringIO(
                         'ATTRIBUTE Test-Type 1 integer Simplon'))
-        self.assertEqual(self.dict.attrindex['Test-Type'], (42, 1))
+        self.assertEqual(self.dict['Vendor-Specific']['Simplon']['Test-Type'].number, 1)
 
     def testVendorOptionError(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
@@ -319,10 +331,11 @@ class DictionaryParsingTests(unittest.TestCase):
 
     def testBeginVendorParsing(self):
         self.dict.ReadDictionary(StringIO(
+                        'ATTRIBUTE Vendor-Specific 26 vsa\n'
                         'VENDOR Simplon 42\n'
                         'BEGIN-VENDOR Simplon\n'
                         'ATTRIBUTE Test-Type 1 integer'))
-        self.assertEqual(self.dict.attrindex['Test-Type'], (42, 1))
+        self.assertIsInstance(self.dict['Vendor-Specific']['Simplon']['Test-Type'].type, leaf.Integer)
 
     def testEndVendorUnknownVendor(self):
         try:
@@ -335,6 +348,7 @@ class DictionaryParsingTests(unittest.TestCase):
     def testEndVendorUnbalanced(self):
         try:
             self.dict.ReadDictionary(StringIO(
+                            'ATTRIBUTE Vendor-Specific 26 vsa\n'
                             'VENDOR Simplon 42\n'
                             'BEGIN-VENDOR Simplon\n'
                             'END-VENDOR Oops\n'))
@@ -345,6 +359,7 @@ class DictionaryParsingTests(unittest.TestCase):
 
     def testEndVendorParsing(self):
         self.dict.ReadDictionary(StringIO(
+                        'ATTRIBUTE Vendor-Specific 26 vsa\n'
                         'VENDOR Simplon 42\n'
                         'BEGIN-VENDOR Simplon\n'
                         'END-VENDOR Simplon\n'

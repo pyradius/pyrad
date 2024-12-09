@@ -74,7 +74,6 @@ These datatypes are parsed but not supported:
 from pyrad import bidict
 from pyrad import dictfile
 from copy import copy
-import logging
 
 from pyrad.datatypes import leaf, structural
 
@@ -132,26 +131,34 @@ class ParseError(Exception):
 
         return str
 
-
 class Attribute(object):
-    def __init__(self, name, code, datatype, is_sub_attribute=False, vendor='', values=None,
-                 encrypt=0, has_tag=False):
+    """
+    class to represent an attribute as defined by the radius dictionaries
+    """
+    def __init__(self, name, number, datatype, parent=None, vendor=None,
+                 values=None, encrypt=0, tags=None):
         if datatype not in DATATYPES:
             raise ValueError('Invalid data type')
         self.name = name
-        self.code = code
+        self.number = number
         # store a datatype object as the Attribute type
         self.type = DATATYPES[datatype]
+        # parent is used to denote TLV parents, this does not include vendors
+        self.parent = parent
         self.vendor = vendor
         self.encrypt = encrypt
-        self.has_tag = has_tag
+        self.has_tag = tags
+
+        # values as specified in the dictionary
         self.values = bidict.BiDict()
-        self.sub_attributes = {}
-        self.parent = None
-        self.is_sub_attribute = is_sub_attribute
         if values:
-            for (key, value) in values.items():
+            for key, value in values.items():
                 self.values.Add(key, value)
+
+        self.children = {}
+        # bidirectional mapping of children name <-> numbers for the namespace
+        # defined by this attribute
+        self.attrindex = bidict.BiDict()
 
     def encode(self, decoded: any, *args, **kwargs) -> bytes:
         """
@@ -187,16 +194,13 @@ class Attribute(object):
         #  Recursively calls sub attribute's .decode() until a leaf attribute
         #  is reached
         for sub_attr, value in raw.items():
-            raw[sub_attr] = self.sub_attributes[sub_attr].decode(value)
+            raw[sub_attr] = self.children[sub_attr].decode(value)
         return raw
 
-    def get_value(self, dictionary: 'Dictionary', code: tuple[int, ...], packet: bytes,
-                  offset: int) -> (tuple[((int, ...), bytes|dict), ...], int):
+    def get_value(self, packet: bytes, offset: int) -> (tuple[((int, ...), bytes | dict), ...], int):
         """
         gets encapsulated value from attribute
-        @param dictionary: RADIUS dictionary
         @type: dictionary: Dictionary
-        @param code: full OID of current attribute
         @type: code: tuple of ints
         @param packet: packet in bytestring
         @type: packet: bytes
@@ -205,7 +209,107 @@ class Attribute(object):
         @return: encapsulated value, bytes read
         @rtype: any, int
         """
-        return self.type.get_value(dictionary, code, self, packet, offset)
+        return self.type.get_value(self, packet, offset)
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            if not self.attrindex.HasBackward(key):
+                raise KeyError(f'Missing attribute {key}')
+            key = self.attrindex.GetBackward(key)
+        if key not in self.children:
+            raise KeyError(f'Non-existent sub attribute {key}')
+        return self.children[key]
+
+    def __setitem__(self, key: str, value: 'Attribute'):
+        if key != value.name:
+            raise ValueError('Key must be equal to Attribute name')
+        self.children[key] = value
+        self.attrindex.Add(key, value.number)
+
+class AttrStack:
+    """
+    class representing the nested layers of attributes in dictionaries
+    """
+    def __init__(self):
+        self.attributes = []
+        self.namespaces = []
+
+    def push(self, attr: Attribute, namespace: bidict.BiDict) -> None:
+        """
+        Pushes an attribute and a namespace onto the stack
+
+        Currently, the namespace will always be the namespace of the attribute
+        that is passed in. However, for future considerations (i.e., the group
+        datatype), we have somewhat redundant code here.
+        @param attr: attribute to add children to
+        @param namespace: namespace defining
+        @return: None
+        """
+        self.attributes.append(attr)
+        self.namespaces.append(namespace)
+
+    def pop(self) -> None:
+        """
+        removes the top most layer
+        @return: None
+        """
+        del self.attributes[-1]
+        del self.namespaces[-1]
+
+    def top_attr(self) -> Attribute:
+        """
+        gets the top most attribute
+        @return: attribute
+        """
+        return self.attributes[-1]
+
+    def top_namespace(self) -> bidict.BiDict:
+        """
+        gets the top most namespace
+        @return: namespace
+        """
+        return self.namespaces[-1]
+
+class Vendor:
+    """
+    class representing a vendor with its attributes
+
+    the existence of this class allows us to have a namespace for vendor
+    attributes. if vendor was only represented by an int or string in the
+    Vendor-Specific attribute (i.e., Vendor-Specific = { 16 = [ foo ] }), it is
+    difficult to have a nice namespace mapping of vendor attribute names to
+    numbers.
+    """
+    def __init__(self, name: str, number: int):
+        """
+
+        @param name: name of the vendor
+        @param number: vendor ID
+        """
+        self.name = name
+        self.number = number
+
+        self.attributes = {}
+        self.attrindex = bidict.BiDict()
+
+    def __getitem__(self, key: str|int) -> Attribute:
+        # if using attribute number, first convert to attribute name
+        if isinstance(key, int):
+            if not self.attrindex.HasBackward(key):
+                raise KeyError(f'Non existent attribute {key}')
+            key = self.attrindex.GetBackward(key)
+
+        # return the attribute by name
+        return self.attributes[key]
+
+    def __setitem__(self, key: str, value: Attribute):
+        # key must be the attribute's name
+        if key != value.name:
+            raise ValueError('Key must be equal to Attribute name')
+
+        # update both the attribute and index dicts
+        self.attributes[key] = value
+        self.attrindex.Add(value.name, value.number)
 
 class Dictionary(object):
     """RADIUS dictionary class.
@@ -233,6 +337,10 @@ class Dictionary(object):
         self.attributes = {}
         self.defer_parse = []
 
+        self.stack = AttrStack()
+        # the global attribute namespace is the first layer
+        self.stack.push(self.attributes, self.attrindex)
+
         if dict:
             self.ReadDictionary(dict)
 
@@ -243,9 +351,21 @@ class Dictionary(object):
         return len(self.attributes)
 
     def __getitem__(self, key):
+        # allow indexing attributes by number (instead of name).
+        # since the key must be an int, this still allows attribute names like
+        # "1", "2", etc. (which are stored as strings)
+        if isinstance(key, int):
+            # check to see if attribute exists
+            if not self.attrindex.HasBackward(key):
+                raise KeyError(f'Attribute number {key} not defined')
+            # gets attribute name from number using index
+            key = self.attrindex.GetBackward(key)
         return self.attributes[key]
 
     def __contains__(self, key):
+        # allow checks using attribute number
+        if isinstance(key, int):
+            return self.attrindex.HasBackward(key)
         return key in self.attributes
 
     has_key = __contains__
@@ -258,6 +378,7 @@ class Dictionary(object):
                 line=state['line'])
 
         vendor = state['vendor']
+        inline_vendor = False
         has_tag = False
         encrypt = 0
         if len(tokens) >= 5:
@@ -281,6 +402,7 @@ class Dictionary(object):
 
             if (not has_tag) and encrypt == 0:
                 vendor = tokens[4]
+                inline_vendor = True
                 if not self.vendors.HasForward(vendor):
                     if vendor == "concat":
                         # ignore attributes with concat (freeradius compat.)
@@ -290,7 +412,7 @@ class Dictionary(object):
                                          file=state['file'],
                                          line=state['line'])
 
-        (attribute, code, datatype) = tokens[1:4]
+        (name, code, datatype) = tokens[1:4]
 
         codes = code.split('.')
 
@@ -305,13 +427,16 @@ class Dictionary(object):
             tmp.append(int(c, 10))
         codes = tmp
 
-        is_sub_attribute = (len(codes) > 1)
         if len(codes) == 2:
             code = int(codes[1])
-            parent_code = int(codes[0])
+            parent = self.stack.top_attr()[self.stack.top_namespace().GetBackward(int(codes[0]))]
+
+            # currently, the presence of a parent attribute means that we are
+            # dealing with a TLV, so push the TLV layer onto the stack
+            self.stack.push(parent, parent.attrindex)
         elif len(codes) == 1:
             code = int(codes[0])
-            parent_code = None
+            parent = None
         else:
             raise ParseError('nested tlvs are not supported')
 
@@ -321,26 +446,25 @@ class Dictionary(object):
             raise ParseError('Illegal type: ' + datatype,
                              file=state['file'],
                              line=state['line'])
-        if vendor:
-            if is_sub_attribute:
-                key = (self.vendors.GetForward(vendor), parent_code, code)
-            else:
-                key = (self.vendors.GetForward(vendor), code)
-        else:
-            if is_sub_attribute:
-                key = (parent_code, code)
-            else:
-                key = code
 
-        self.attrindex.Add(attribute, key)
-        self.attributes[attribute] = Attribute(attribute, code, datatype, is_sub_attribute, vendor, encrypt=encrypt, has_tag=has_tag)
-        if datatype == 'tlv':
-            # save attribute in tlvs
-            state['tlvs'][code] = self.attributes[attribute]
-        if is_sub_attribute:
-            # save sub attribute in parent tlv and update their parent field
-            state['tlvs'][parent_code].sub_attributes[code] = attribute
-            self.attributes[attribute].parent = state['tlvs'][parent_code]
+        attribute = Attribute(name, code, datatype, parent, vendor,
+                              encrypt=encrypt, tags=has_tag)
+
+        # if detected an inline vendor (vendor in the flags field), set the
+        # attribute under the vendor's attributes
+        # THIS FUNCTION IS NOT SUPPORTED IN FRv4 AND SUPPORT WILL BE REMOVED
+        if inline_vendor:
+            self.attributes['Vendor-Specific'][vendor][name] = attribute
+        else:
+            # add attribute name and number mapping to current namespace
+            self.stack.top_namespace().Add(name, code)
+            # add attribute to current namespace
+            self.stack.top_attr()[name] = attribute
+            if parent:
+                # add attribute to parent
+                parent[name] = attribute
+                # must remove the TLV layer when we are done with it
+                self.stack.pop()
 
     def __ParseValue(self, state, tokens, defer):
         if len(tokens) != 4:
@@ -351,7 +475,7 @@ class Dictionary(object):
         (attr, key, value) = tokens[1:]
 
         try:
-            adef = self.attributes[attr]
+            adef = self.stack.top_attr()[attr]
         except KeyError:
             if defer:
                 self.defer_parse.append((copy(state), copy(tokens)))
@@ -363,7 +487,7 @@ class Dictionary(object):
         if adef.type in ['integer', 'signed', 'short', 'byte', 'integer64']:
             value = int(value, 0)
         value = adef.encode(value)
-        self.attributes[attr].values.Add(key, value)
+        self.stack.top_attr()[attr].values.Add(key, value)
 
     def __ParseVendor(self, state, tokens):
         if len(tokens) not in [3, 4]:
@@ -394,8 +518,9 @@ class Dictionary(object):
                         file=state['file'],
                         line=state['line'])
 
-        (vendorname, vendor) = tokens[1:3]
-        self.vendors.Add(vendorname, int(vendor, 0))
+        (name, number) = tokens[1:3]
+        self.vendors.Add(name, int(number, 0))
+        self.attributes['Vendor-Specific'][name] = Vendor(name, int(number))
 
     def __ParseBeginVendor(self, state, tokens):
         if len(tokens) != 2:
@@ -404,15 +529,18 @@ class Dictionary(object):
                     file=state['file'],
                     line=state['line'])
 
-        vendor = tokens[1]
+        name = tokens[1]
 
-        if not self.vendors.HasForward(vendor):
+        if not self.vendors.HasForward(name):
             raise ParseError(
-                    'Unknown vendor %s in begin-vendor statement' % vendor,
+                    'Unknown vendor %s in begin-vendor statement' % name,
                     file=state['file'],
                     line=state['line'])
 
-        state['vendor'] = vendor
+        state['vendor'] = name
+
+        vendor = self.attributes['Vendor-Specific'][name]
+        self.stack.push(vendor, vendor.attrindex)
 
     def __ParseEndVendor(self, state, tokens):
         if len(tokens) != 2:
@@ -429,6 +557,8 @@ class Dictionary(object):
                     file=state['file'],
                     line=state['line'])
         state['vendor'] = ''
+        # remove the vendor layer
+        self.stack.pop()
 
     def ReadDictionary(self, file):
         """Parse a dictionary file.

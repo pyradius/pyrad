@@ -83,7 +83,7 @@ def test_auth1():
         else:
             reply = future.result()
 
-            if reply.code == AccessAccept:
+            if reply.number == AccessAccept:
                 print("Access accepted")
             else:
                 print("Access denied")
