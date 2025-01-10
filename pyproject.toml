@@ -32,7 +32,7 @@ include = [
 ]
 
 [tool.poetry.urls]
-repository = "https://github.com/pyradius/pyrad"
+Repository = "https://github.com/pyradius/pyrad"
 
 [tool.poetry.dependencies]
 python = "^3.6"
