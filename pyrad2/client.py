@@ -1,7 +1,3 @@
-# client.py
-#
-# Copyright 2002-2007 Wichert Akkerman <wichert@wiggy.net>
-
 __docformat__ = "epytext en"
 
 import hashlib

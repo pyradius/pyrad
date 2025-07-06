@@ -2,20 +2,21 @@
 #
 # Copyright 2003-2004,2007,2016 Wichert Akkerman <wichert@wiggy.net>
 
+import logging
 import select
 import socket
-from pyrad2 import host
-from pyrad2 import packet
-import logging
 
+from loguru import logger
 
-logger = logging.getLogger('pyrad')
+from pyrad2 import host, packet
 
 
 class RemoteHost:
     """Remote RADIUS capable host we can talk to."""
 
-    def __init__(self, address, secret, name, authport=1812, acctport=1813, coaport=3799):
+    def __init__(
+        self, address, secret, name, authport=1812, acctport=1813, coaport=3799
+    ):
         """Constructor.
 
         :param   address: IP address
@@ -62,10 +63,21 @@ class Server(host.Host):
     :cvar MaxPacketSize: maximum size of a RADIUS packet
     :type MaxPacketSize: integer
     """
+
     MaxPacketSize = 8192
 
-    def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=3799,
-                 hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False):
+    def __init__(
+        self,
+        addresses=[],
+        authport=1812,
+        acctport=1813,
+        coaport=3799,
+        hosts=None,
+        dict=None,
+        auth_enabled=True,
+        acct_enabled=True,
+        coa_enabled=False,
+    ):
         """Constructor.
 
         :param     addresses: IP addresses to listen on
@@ -123,7 +135,6 @@ class Server(host.Host):
 
         return results
 
-
     def BindToAddress(self, addr):
         """Add an address to listen on a specific interface.
         String "0.0.0.0" indicates you want to listen on all interfaces.
@@ -132,7 +143,7 @@ class Server(host.Host):
         :type  addr: string
         """
         addrFamily = self._GetAddrInfo(addr)
-        for (family, address) in addrFamily:
+        for family, address in addrFamily:
             if self.auth_enabled:
                 authfd = socket.socket(family, socket.SOCK_DGRAM)
                 authfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -150,7 +161,6 @@ class Server(host.Host):
                 coafd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 coafd.bind((address, self.coaport))
                 self.coafds.append(coafd)
-
 
     def HandleAuthPacket(self, pkt):
         """Authentication packet handler.
@@ -201,10 +211,10 @@ class Server(host.Host):
         """
         if pkt.source[0] in self.hosts:
             pkt.secret = self.hosts[pkt.source[0]].secret
-        elif '0.0.0.0' in self.hosts:
-            pkt.secret = self.hosts['0.0.0.0'].secret
+        elif "0.0.0.0" in self.hosts:
+            pkt.secret = self.hosts["0.0.0.0"].secret
         else:
-            raise ServerPacketError('Received packet from unknown host')
+            raise ServerPacketError("Received packet from unknown host")
 
     def _HandleAuthPacket(self, pkt):
         """Process a packet received on the authentication port.
@@ -218,7 +228,8 @@ class Server(host.Host):
         self._AddSecret(pkt)
         if pkt.code != packet.AccessRequest:
             raise ServerPacketError(
-                'Received non-authentication packet on authentication port')
+                "Received non-authentication packet on authentication port"
+            )
         self.HandleAuthPacket(pkt)
 
     def _HandleAcctPacket(self, pkt):
@@ -231,10 +242,8 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
         self._AddSecret(pkt)
-        if pkt.code not in [packet.AccountingRequest,
-                            packet.AccountingResponse]:
-            raise ServerPacketError(
-                    'Received non-accounting packet on accounting port')
+        if pkt.code not in [packet.AccountingRequest, packet.AccountingResponse]:
+            raise ServerPacketError("Received non-accounting packet on accounting port")
         self.HandleAcctPacket(pkt)
 
     def _HandleCoaPacket(self, pkt):
@@ -252,8 +261,7 @@ class Server(host.Host):
         elif pkt.code == packet.DisconnectRequest:
             self.HandleDisconnectPacket(pkt)
         else:
-            raise ServerPacketError('Received non-coa packet on coa port')
-
+            raise ServerPacketError("Received non-coa packet on coa port")
 
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.
@@ -271,11 +279,12 @@ class Server(host.Host):
         return pkt
 
     def _PrepareSockets(self):
-        """Prepare all sockets to receive packets.
-        """
+        """Prepare all sockets to receive packets."""
         for fd in self.authfds + self.acctfds + self.coafds:
             self._fdmap[fd.fileno()] = fd
-            self._poll.register(fd.fileno(), select.POLLIN | select.POLLPRI | select.POLLERR)
+            self._poll.register(
+                fd.fileno(), select.POLLIN | select.POLLPRI | select.POLLERR
+            )
         if self.auth_enabled:
             self._realauthfds = list(map(lambda x: x.fileno(), self.authfds))
         if self.acct_enabled:
@@ -309,16 +318,22 @@ class Server(host.Host):
         :type   fd: socket class instance
         """
         if self.auth_enabled and fd.fileno() in self._realauthfds:
-            pkt = self._GrabPacket(lambda data, s=self: s.CreateAuthPacket(packet=data), fd)
+            pkt = self._GrabPacket(
+                lambda data, s=self: s.CreateAuthPacket(packet=data), fd
+            )
             self._HandleAuthPacket(pkt)
         elif self.acct_enabled and fd.fileno() in self._realacctfds:
-            pkt = self._GrabPacket(lambda data, s=self: s.CreateAcctPacket(packet=data), fd)
+            pkt = self._GrabPacket(
+                lambda data, s=self: s.CreateAcctPacket(packet=data), fd
+            )
             self._HandleAcctPacket(pkt)
         elif self.coa_enabled:
-            pkt = self._GrabPacket(lambda data, s=self: s.CreateCoAPacket(packet=data), fd)
+            pkt = self._GrabPacket(
+                lambda data, s=self: s.CreateCoAPacket(packet=data), fd
+            )
             self._HandleCoaPacket(pkt)
         else:
-            raise ServerPacketError('Received packet for unknown handler')
+            raise ServerPacketError("Received packet for unknown handler")
 
     def Run(self):
         """Main loop.
@@ -331,14 +346,14 @@ class Server(host.Host):
         self._PrepareSockets()
 
         while True:
-            for (fd, event) in self._poll.poll():
+            for fd, event in self._poll.poll():
                 if event == select.POLLIN:
                     try:
                         fdo = self._fdmap[fd]
                         self._ProcessInput(fdo)
                     except ServerPacketError as err:
-                        logger.info('Dropping packet: ' + str(err))
+                        logger.info("Dropping packet: " + str(err))
                     except packet.PacketError as err:
-                        logger.info('Received a broken packet: ' + str(err))
+                        logger.info("Received a broken packet: " + str(err))
                 else:
-                    logger.error('Unexpected event in server main loop')
+                    logger.error("Unexpected event in server main loop")

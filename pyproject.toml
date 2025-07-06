@@ -4,8 +4,17 @@ version = "1.0.0"
 description = "RADIUS Server"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "loguru>=0.7.3",
+]
 
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+[dependency-groups]
+dev = [
+    "mypy>=1.16.1",
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+]
+
+# [build-system]
+# requires = ["setuptools>=61.0", "wheel"]
+# build-backend = "setuptools.build_meta"

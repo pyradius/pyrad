@@ -1,10 +1,7 @@
-# host.py
-#
-# Copyright 2003,2007 Wichert Akkerman <wichert@wiggy.net>
 from pyrad2 import packet
 
 
-class Host(object):
+class Host:
     """Generic RADIUS capable host.
 
     :ivar     dict: RADIUS dictionary
@@ -14,6 +11,7 @@ class Host(object):
     :ivar acctport: port to listen on for accounting packets
     :type acctport: integer
     """
+
     def __init__(self, authport=1812, acctport=1813, coaport=3799, dict=None):
         """Constructor
 

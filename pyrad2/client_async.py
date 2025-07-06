@@ -1,7 +1,3 @@
-# client_async.py
-#
-# Copyright 2018-2020 Geaaru <geaaru<@>gmail.com>
-
 __docformat__ = "epytext en"
 
 from datetime import datetime

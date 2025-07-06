@@ -1,24 +1,23 @@
-# dictfile.py
-#
-# Copyright 2009 Kristoffer Gronlund <kristoffer.gronlund@purplescout.se>
-
-""" Dictionary File
+"""Dictionary File
 
 Implements an iterable file format that handles the
 RADIUS $INCLUDE directives behind the scene.
 """
 
+import io
 import os
+from typing import Optional, Self
 
 
-class _Node(object):
+class _Node:
     """Dictionary file node
 
     A single dictionary file.
     """
-    __slots__ = ('name', 'lines', 'current', 'length', 'dir')
 
-    def __init__(self, fd, name, parentdir):
+    __slots__ = ("name", "lines", "current", "length", "dir")
+
+    def __init__(self, fd: io.TextIOWrapper, name: str, parentdir: str):
         self.lines = fd.readlines()
         self.length = len(self.lines)
         self.current = 0
@@ -36,23 +35,24 @@ class _Node(object):
         return self.lines[self.current - 1]
 
 
-class DictFile(object):
+class DictFile:
     """Dictionary file class
 
     An iterable file type that handles $INCLUDE
     directives internally.
     """
-    __slots__ = ('stack')
 
-    def __init__(self, fil):
+    __slots__ = "stack"
+
+    def __init__(self, fil: str | io.TextIOWrapper):
         """
         @param fil: a dictionary file to parse
         @type fil: string or file
         """
-        self.stack = []
+        self.stack: list[_Node] = []
         self.__ReadNode(fil)
 
-    def __ReadNode(self, fil):
+    def __ReadNode(self, fil: str | io.TextIOWrapper):
         parentdir = self.__CurDir()
         if isinstance(fil, str):
             if os.path.isabs(fil):
@@ -63,43 +63,41 @@ class DictFile(object):
             node = _Node(fd, fil, parentdir)
             fd.close()
         else:
-            node = _Node(fil, '', parentdir)
+            node = _Node(fil, "", parentdir)
         self.stack.append(node)
 
-    def __CurDir(self):
+    def __CurDir(self) -> str:
         if self.stack:
             return self.stack[-1].dir
         else:
             return os.path.realpath(os.curdir)
 
-    def __GetInclude(self, line):
+    def __GetInclude(self, line: str) -> Optional[str]:
         line = line.split("#", 1)[0].strip()
         tokens = line.split()
-        if tokens and tokens[0].upper() == '$INCLUDE':
+        if tokens and tokens[0].upper() == "$INCLUDE":
             return " ".join(tokens[1:])
         else:
             return None
 
-    def Line(self):
-        """Returns line number of current file
-        """
+    def Line(self) -> int:
+        """Returns line number of current file"""
         if self.stack:
             return self.stack[-1].current
         else:
             return -1
 
-    def File(self):
-        """Returns name of current file
-        """
+    def File(self) -> str:
+        """Returns name of current file"""
         if self.stack:
             return self.stack[-1].name
         else:
-            return ''
+            return ""
 
-    def __iter__(self):
+    def __iter__(self) -> Self:
         return self
 
-    def __next__(self):
+    def __next__(self) -> str:
         while self.stack:
             line = self.stack[-1].Next()
             if line == None:
@@ -111,4 +109,5 @@ class DictFile(object):
                 else:
                     return line
         raise StopIteration
+
     next = __next__  # BBB for python <3
