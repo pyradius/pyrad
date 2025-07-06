@@ -1,8 +1,3 @@
-# server.py
-#
-# Copyright 2003-2004,2007,2016 Wichert Akkerman <wichert@wiggy.net>
-
-import logging
 import select
 import socket
 

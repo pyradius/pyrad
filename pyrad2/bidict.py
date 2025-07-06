@@ -1,5 +1,6 @@
 from typing import Hashable
 
+
 class BiDict:
     def __init__(self):
         self.forward = {}

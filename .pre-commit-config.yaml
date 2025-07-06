@@ -28,4 +28,4 @@ repos:
               echo "Error: Not in a uv-managed virtual environment!" >&2
               exit 1
             fi
-            exec mypy .%
+            exec mypy pyrad2/

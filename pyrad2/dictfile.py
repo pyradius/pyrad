@@ -100,7 +100,7 @@ class DictFile:
     def __next__(self) -> str:
         while self.stack:
             line = self.stack[-1].Next()
-            if line == None:
+            if line is None:
                 self.stack.pop()
             else:
                 inc = self.__GetInclude(line)

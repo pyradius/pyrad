@@ -8,11 +8,11 @@ import hashlib
 import hmac
 import secrets
 import struct
-from typing import Any, Optional, Union, Hashable
 from collections import OrderedDict
+from typing import Any, Hashable, Optional, Union
 
 from pyrad2 import tools
-from pyrad2.dictionary import Attribute, Dictionary, RadiusAttributeValue
+from pyrad2.dictionary import Attribute, RadiusAttributeValue
 
 
 def hmac_new(*args, **kwargs):
@@ -287,7 +287,10 @@ class Packet(OrderedDict):
         if tag:
             tag_bytes = struct.pack("B", int(tag))
             if attr.type == "integer":
-                return (key, [tag_bytes + self._EncodeValue(attr, v)[1:] for v in values])
+                return (
+                    key,
+                    [tag_bytes + self._EncodeValue(attr, v)[1:] for v in values],
+                )
             else:
                 return (key, [tag_bytes + self._EncodeValue(attr, v) for v in values])
         else:
@@ -333,7 +336,7 @@ class Packet(OrderedDict):
 
         encoded.extend(value)
 
-    def get(self, key, failobj=None):
+    def get(self, key: str, failobj: Any = None):
         try:
             res = self.__getitem__(key)
         except KeyError:
@@ -342,9 +345,9 @@ class Packet(OrderedDict):
 
     def __getitem__(self, key):
         if not isinstance(key, str):
-            return OrderedDict.__getitem__(self, key)
+            return super().__getitem__(key)
 
-        values = OrderedDict.__getitem__(self, self._EncodeKey(key))
+        values = super().__getitem__(self._EncodeKey(key))
         attr = self.dict.attributes[key]
         if attr.type == "tlv":  # return map from sub attribute code to its values
             res = {}
@@ -362,23 +365,23 @@ class Packet(OrderedDict):
                 res.append(self._DecodeValue(attr, v))
             return res
 
-    def __contains__(self, key):
+    def __contains__(self, key) -> bool:
         try:
-            return OrderedDict.__contains__(self, self._EncodeKey(key))
+            return super().__contains__(self._EncodeKey(key))
         except KeyError:
             return False
 
     has_key = __contains__
 
-    def __delitem__(self, key):
-        OrderedDict.__delitem__(self, self._EncodeKey(key))
+    def __delitem__(self, key) -> None:
+        super().__delitem__(self._EncodeKey(key))
 
     def __setitem__(self, key, item):
         if isinstance(key, str):
             (key, item) = self._EncodeKeyValues(key, item)
-            OrderedDict.__setitem__(self, key, item)
+            super().__setitem__(key, item)
         else:
-            OrderedDict.__setitem__(self, key, item)
+            super().__setitem__(key, item)
 
     def keys(self):
         return [self._DecodeKey(key) for key in OrderedDict.keys(self)]
@@ -524,7 +527,7 @@ class Packet(OrderedDict):
                 tlvs = []  # tlv is added to the packet inside _PktDecodeTlvAttribute
             else:
                 tlvs = [((vendor, atype), data[6 : length + 4])]
-        except:
+        except Exception:
             return [(26, data)]
 
         sumlength = 4 + length
@@ -533,7 +536,7 @@ class Packet(OrderedDict):
                 atype, length = struct.unpack("!BB", data[sumlength : sumlength + 2])[
                     0:2
                 ]
-            except:
+            except Exception:
                 return [(26, data)]
             tlvs.append(((vendor, atype), data[sumlength + 2 : sumlength + length]))
             sumlength += length
@@ -837,7 +840,7 @@ class AuthPacket(Packet):
         challenge = self.authenticator
         if "CHAP-Challenge" in self:
             challenge = self["CHAP-Challenge"][0]
-        
+
         return password == hashlib.md5(chapid + userpwd + challenge).digest()
 
     def VerifyAuthRequest(self):

@@ -158,7 +158,7 @@ def EncodeAscendBinary(orig_str: str) -> bytes:
 def EncodeInteger(num: int, format: str = "!I") -> bytes:
     try:
         num = int(num)
-    except:
+    except (ValueError, TypeError):
         raise TypeError("Can not encode non-integer as integer")
     return struct.pack(format, num)
 
@@ -166,7 +166,7 @@ def EncodeInteger(num: int, format: str = "!I") -> bytes:
 def EncodeInteger64(num: int, format: str = "!Q") -> bytes:
     try:
         num = int(num)
-    except:
+    except (ValueError, TypeError):
         raise TypeError("Can not encode non-integer as integer64")
     return struct.pack(format, num)
 

@@ -12,6 +12,7 @@ EAP_CODE_REQUEST = 1
 EAP_CODE_RESPONSE = 2
 EAP_TYPE_IDENTITY = 1
 
+
 class Timeout(Exception):
     """Simple exception class which is raised when a timeout occurs
     while waiting for a RADIUS server to respond."""
@@ -28,9 +29,18 @@ class Client(host.Host):
     :ivar timeout: number of seconds to wait for an answer
     :type timeout: float
     """
-    def __init__(self, server, authport=1812, acctport=1813,
-            coaport=3799, secret=b'', dict=None, retries=3, timeout=5):
 
+    def __init__(
+        self,
+        server,
+        authport=1812,
+        acctport=1813,
+        coaport=3799,
+        secret=b"",
+        dict=None,
+        retries=3,
+        timeout=5,
+    ):
         """Constructor.
 
         :param   server: hostname or IP address of RADIUS server
@@ -70,13 +80,11 @@ class Client(host.Host):
     def _SocketOpen(self):
         try:
             family = socket.getaddrinfo(self.server, 80)[0][0]
-        except:
+        except Exception:
             family = socket.AF_INET
         if not self._socket:
-            self._socket = socket.socket(family,
-                                       socket.SOCK_DGRAM)
-            self._socket.setsockopt(socket.SOL_SOCKET,
-                                    socket.SO_REUSEADDR, 1)
+            self._socket = socket.socket(family, socket.SOCK_DGRAM)
+            self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self._poll.register(self._socket, select.POLLIN)
 
     def _CloseSocket(self):
@@ -137,8 +145,7 @@ class Client(host.Host):
         for attempt in range(self.retries):
             if attempt and pkt.code == packet.AccountingRequest:
                 if "Acct-Delay-Time" in pkt:
-                    pkt["Acct-Delay-Time"] = \
-                            pkt["Acct-Delay-Time"][0] + self.timeout
+                    pkt["Acct-Delay-Time"] = pkt["Acct-Delay-Time"][0] + self.timeout
                 else:
                     pkt["Acct-Delay-Time"] = self.timeout
 
@@ -177,34 +184,45 @@ class Client(host.Host):
         :raise Timeout: RADIUS server does not reply
         """
         if isinstance(pkt, packet.AuthPacket):
-            if pkt.auth_type == 'eap-md5':
+            if pkt.auth_type == "eap-md5":
                 # Creating EAP-Identity
                 password = pkt[2][0] if 2 in pkt else pkt[1][0]
-                pkt[79] = [struct.pack('!BBHB%ds' % len(password),
-                                       EAP_CODE_RESPONSE,
-                                       packet.CurrentID,
-                                       len(password) + 5,
-                                       EAP_TYPE_IDENTITY,
-                                       password)]
+                pkt[79] = [
+                    struct.pack(
+                        "!BBHB%ds" % len(password),
+                        EAP_CODE_RESPONSE,
+                        packet.CurrentID,
+                        len(password) + 5,
+                        EAP_TYPE_IDENTITY,
+                        password,
+                    )
+                ]
             reply = self._SendPacket(pkt, self.authport)
             if (
                 reply
                 and reply.code == packet.AccessChallenge
-                and pkt.auth_type == 'eap-md5'
+                and pkt.auth_type == "eap-md5"
             ):
                 # Got an Access-Challenge
                 eap_code, eap_id, eap_size, eap_type, eap_md5 = struct.unpack(
-                    '!BBHB%ds' % (len(reply[79][0]) - 5), reply[79][0]
+                    "!BBHB%ds" % (len(reply[79][0]) - 5), reply[79][0]
                 )
                 # Sending back an EAP-Type-MD5-Challenge
                 # Thank god for http://www.secdev.org/python/eapy.py
                 client_pw = pkt[2][0] if 2 in pkt else pkt[1][0]
                 md5_challenge = hashlib.md5(
-                    struct.pack('!B', eap_id) + client_pw + eap_md5[1:]
+                    struct.pack("!B", eap_id) + client_pw + eap_md5[1:]
                 ).digest()
                 pkt[79] = [
-                    struct.pack('!BBHBB', 2, eap_id, len(md5_challenge) + 6,
-                                4, len(md5_challenge)) + md5_challenge
+                    struct.pack(
+                        "!BBHBB",
+                        2,
+                        eap_id,
+                        len(md5_challenge) + 6,
+                        4,
+                        len(md5_challenge),
+                    )
+                    + md5_challenge
                 ]
                 # Copy over Challenge-State
                 pkt[24] = reply[24]
