@@ -1,0 +1,31 @@
+exclude: ^static/.*|assets/.*|/migrations/.*|\.min\.js$|\.min\.css$|\.css\.map$|\.min\.js$|\.js\.map$|\.svg$
+default_stages: [pre-commit]
+default_language_version:
+   python: python3.12
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Ruff version.
+    rev: v0.11.13
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: mypy-check
+        name: mypy type checking
+        entry: bash
+        language: system
+        types: [python]
+        pass_filenames: false
+        additional_dependencies: []
+        args:
+          - -c
+          - |
+            if [ -z "$VIRTUAL_ENV" ] || [ ! -f "$VIRTUAL_ENV/pyvenv.cfg" ] || ! grep -q "uv" "$VIRTUAL_ENV/pyvenv.cfg"; then
+              echo "Error: Not in a uv-managed virtual environment!" >&2
+              exit 1
+            fi
+            exec mypy .%
