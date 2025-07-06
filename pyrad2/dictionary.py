@@ -73,7 +73,7 @@ These datatypes are parsed but not supported:
 """
 
 from copy import copy
-from typing import Any, Hashable, Optional
+from typing import Any, Hashable, Optional, Dict
 
 from pyrad2 import bidict, dictfile, tools
 
@@ -138,7 +138,7 @@ class Attribute(object):
         code: int,
         datatype: str,
         is_sub_attribute: bool = False,
-        vendor: str="",
+        vendor: str = "",
         values=None,
         encrypt: int = 0,
         has_tag: bool = False,
@@ -152,7 +152,7 @@ class Attribute(object):
         self.encrypt = encrypt
         self.has_tag = has_tag
         self.values = bidict.BiDict()
-        self.sub_attributes = {}
+        self.sub_attributes: dict = {}
         self.parent = None
         self.is_sub_attribute = is_sub_attribute
         if values:
@@ -183,8 +183,8 @@ class Dictionary(object):
         self.vendors = bidict.BiDict()
         self.vendors.Add("", 0)
         self.attrindex = bidict.BiDict()
-        self.attributes = {}
-        self.defer_parse = []
+        self.attributes: Dict[Hashable, Any] = {}
+        self.defer_parse: list[tuple[Dict, list]] = []
 
         if dict:
             self.ReadDictionary(dict)
@@ -420,7 +420,7 @@ class Dictionary(object):
 
         fil = dictfile.DictFile(file)
 
-        state = {}
+        state: Dict[str, Any] = {}
         state["vendor"] = ""
         state["tlvs"] = {}
         self.defer_parse = []

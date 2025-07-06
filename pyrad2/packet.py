@@ -262,8 +262,7 @@ class Packet(OrderedDict):
         else:
             return tools.DecodeAttr(attr.type, value)
 
-    def _EncodeValue(self, attr: Attribute, value: bytes | str) -> bytes | str:
-        result = ""
+    def _EncodeValue(self, attr: Attribute, value: bytes | str) -> bytes:
         if attr.values.HasForward(value):
             result = attr.values.GetForward(value)
         else:
@@ -286,11 +285,11 @@ class Packet(OrderedDict):
         attr = self.dict.attributes[key]
         key = self._EncodeKey(key)
         if tag:
-            tag = struct.pack("B", int(tag))
+            tag_bytes = struct.pack("B", int(tag))
             if attr.type == "integer":
-                return (key, [tag + self._EncodeValue(attr, v)[1:] for v in values])
+                return (key, [tag_bytes + self._EncodeValue(attr, v)[1:] for v in values])
             else:
-                return (key, [tag + self._EncodeValue(attr, v) for v in values])
+                return (key, [tag_bytes + self._EncodeValue(attr, v) for v in values])
         else:
             return (key, [self._EncodeValue(attr, v) for v in values])
 
@@ -813,7 +812,7 @@ class AuthPacket(Packet):
 
         return result
 
-    def VerifyChapPasswd(self, userpwd: str):
+    def VerifyChapPasswd(self, userpwd):
         """Verify RADIUS ChapPasswd
 
         :param userpwd: plaintext password

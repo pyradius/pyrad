@@ -18,6 +18,8 @@ def EncodeOctets(octetstring: str) -> str | bytes:
     if len(octetstring) > 508:
         raise ValueError("Can only encode strings of <= 253 characters")
 
+    hexstring: str | bytes
+    encoded_octets: str | bytes
     if isinstance(octetstring, bytes) and octetstring.startswith(b"0x"):
         hexstring = octetstring.split(b"0x")[1]
         encoded_octets = binascii.unhexlify(hexstring)
@@ -45,8 +47,8 @@ def EncodeAddress(addr: str) -> bytes:
 def EncodeIPv6Prefix(addr: str) -> bytes:
     if not isinstance(addr, str):
         raise TypeError("IPv6 Prefix has to be a string")
-    ip = IPv6Network(addr)
-    return struct.pack("2B", *[0, ip.prefixlen]) + ip.ip.packed
+    ip = IPv6Network(addr, strict=False)
+    return struct.pack("2B", *[0, ip.prefixlen]) + ip.network_address.packed
 
 
 def EncodeIPv6Address(addr: str) -> bytes:
@@ -99,6 +101,8 @@ def EncodeAscendBinary(orig_str: str) -> bytes:
     }
 
     family = "ipv4"
+    ip: IPv4Network | IPv6Network
+
     for t in orig_str.split(" "):
         key, value = t.split("=")
         if key == "family" and value == "ipv6":
@@ -203,11 +207,11 @@ def DecodeAscendBinary(orig_bytes: bytes) -> bytes:
     return orig_bytes
 
 
-def DecodeInteger(num: int, format: str = "!I") -> bytes:
+def DecodeInteger(num: Buffer, format: str = "!I") -> bytes:
     return (struct.unpack(format, num))[0]
 
 
-def DecodeInteger64(num: int, format: str = "!Q") -> bytes:
+def DecodeInteger64(num: Buffer, format: str = "!Q") -> bytes:
     return (struct.unpack(format, num))[0]
 
 
