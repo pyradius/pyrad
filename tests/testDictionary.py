@@ -4,11 +4,11 @@ import os
 from io import StringIO
 
 from . import home
-from pyrad.dictionary import Attribute
-from pyrad.dictionary import Dictionary
-from pyrad.dictionary import ParseError
-from pyrad.tools import DecodeAttr
-from pyrad.dictfile import DictFile
+from pyrad2.dictionary import Attribute
+from pyrad2.dictionary import Dictionary
+from pyrad2.dictionary import ParseError
+from pyrad2.tools import DecodeAttr
+from pyrad2.dictfile import DictFile
 
 
 class AttributeTests(unittest.TestCase):

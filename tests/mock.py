@@ -1,6 +1,6 @@
 import fcntl
 import os
-from pyrad.packet import PacketError
+from pyrad2.packet import PacketError
 
 
 class MockPacket:

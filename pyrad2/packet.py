@@ -27,7 +27,7 @@ except ImportError:
     # BBB for python 2.4
     import md5
     md5_constructor = md5.new
-from pyrad import tools
+from pyrad2 import tools
 
 # Packet codes
 AccessRequest = 1

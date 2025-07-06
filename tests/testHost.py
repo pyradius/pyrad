@@ -1,8 +1,8 @@
 import unittest
-from pyrad.host import Host
-from pyrad.packet import Packet
-from pyrad.packet import AuthPacket
-from pyrad.packet import AcctPacket
+from pyrad2.host import Host
+from pyrad2.packet import Packet
+from pyrad2.packet import AuthPacket
+from pyrad2.packet import AcctPacket
 
 
 class ConstructionTests(unittest.TestCase):

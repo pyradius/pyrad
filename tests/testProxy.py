@@ -6,11 +6,11 @@ from .mock import MockPoll
 from .mock import MockSocket
 from .mock import MockClassMethod
 from .mock import UnmockClassMethods
-from pyrad.proxy import Proxy
-from pyrad.packet import AccessAccept
-from pyrad.packet import AccessRequest
-from pyrad.server import ServerPacketError
-from pyrad.server import Server
+from pyrad2.proxy import Proxy
+from pyrad2.packet import AccessAccept
+from pyrad2.packet import AccessRequest
+from pyrad2.server import ServerPacketError
+from pyrad2.server import Server
 
 
 class TrivialObject:

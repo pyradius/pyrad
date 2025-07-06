@@ -3,7 +3,7 @@
 # Copyright 6WIND, 2017
 #
 
-from pyrad import dictionary, packet, server
+from pyrad2 import dictionary, packet, server
 import sys
 import prctl
 

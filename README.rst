@@ -24,22 +24,22 @@ them and decoding responses.
 
 Here is an example of doing a authentication request::
 
-    from pyrad.client import Client
-    from pyrad.dictionary import Dictionary
+    from pyrad2.client import Client
+    from pyrad2.dictionary import Dictionary
     import pyrad.packet
 
     srv = Client(server="localhost", secret=b"Kah3choteereethiejeimaeziecumi",
                  dict=Dictionary("dictionary"))
 
     # create request
-    req = srv.CreateAuthPacket(code=pyrad.packet.AccessRequest,
+    req = srv.CreateAuthPacket(code=pyrad2.packet.AccessRequest,
                                User_Name="wichert", NAS_Identifier="localhost")
     req["User-Password"] = req.PwCrypt("password")
 
     # send request
     reply = srv.SendPacket(req)
 
-    if reply.code == pyrad.packet.AccessAccept:
+    if reply.code == pyrad2.packet.AccessAccept:
         print("access accepted")
     else:
         print("access denied")
@@ -53,7 +53,7 @@ Here is an example of doing a authentication request::
 Requirements & Installation
 ===========================
 
-pyrad requires Python 3.6 or later
+pyrad2 requires Python 3.12 or later
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::

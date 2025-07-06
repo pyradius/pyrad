@@ -1,8 +1,8 @@
 #!/usr/bin/python
-from pyrad import dictionary, packet, server
+from pyrad2 import dictionary, packet, server
 import logging
 
-logging.basicConfig(filename="pyrad.log", level="DEBUG",
+logging.basicConfig(filename="pyrad2.log", level="DEBUG",
                     format="%(asctime)s [%(levelname)-8s] %(message)s")
 
 

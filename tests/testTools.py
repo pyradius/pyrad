@@ -1,5 +1,5 @@
 from ipaddress import AddressValueError
-from pyrad import tools
+from pyrad2 import tools
 import unittest
 
 

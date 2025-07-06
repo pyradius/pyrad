@@ -4,9 +4,9 @@
 #
 # A RADIUS proxy as defined in RFC 2138
 
-from pyrad.server import ServerPacketError
-from pyrad.server import Server
-from pyrad import packet
+from pyrad2.server import ServerPacketError
+from pyrad2.server import Server
+from pyrad2 import packet
 import select
 import socket
 

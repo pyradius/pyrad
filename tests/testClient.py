@@ -4,12 +4,12 @@ import unittest
 from .mock import MockPacket
 from .mock import MockPoll
 from .mock import MockSocket
-from pyrad.client import Client
-from pyrad.client import Timeout
-from pyrad.packet import AuthPacket
-from pyrad.packet import AcctPacket
-from pyrad.packet import AccessRequest
-from pyrad.packet import AccountingRequest
+from pyrad2.client import Client
+from pyrad2.client import Timeout
+from pyrad2.packet import AuthPacket
+from pyrad2.packet import AcctPacket
+from pyrad2.packet import AccessRequest
+from pyrad2.packet import AccountingRequest
 
 BIND_IP = "127.0.0.1"
 BIND_PORT = 53535

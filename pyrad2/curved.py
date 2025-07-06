@@ -11,9 +11,9 @@ from twisted.internet import protocol
 from twisted.internet import reactor
 from twisted.python import log
 import sys
-from pyrad import dictionary
-from pyrad import host
-from pyrad import packet
+from pyrad2 import dictionary
+from pyrad2 import host
+from pyrad2 import packet
 
 
 class PacketError(Exception):

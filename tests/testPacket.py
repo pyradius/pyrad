@@ -6,9 +6,9 @@ import unittest
 from . import home
 
 from collections import OrderedDict
-from pyrad import packet
-from pyrad.client import Client
-from pyrad.dictionary import Dictionary
+from pyrad2 import packet
+from pyrad2.client import Client
+from pyrad2.dictionary import Dictionary
 try:
     import hashlib
     md5_constructor = hashlib.md5

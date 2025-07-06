@@ -7,12 +7,12 @@ from .mock import MockPoll
 from .mock import MockSocket
 from .mock import MockClassMethod
 from .mock import UnmockClassMethods
-from pyrad.packet import PacketError
-from pyrad.server import RemoteHost
-from pyrad.server import Server
-from pyrad.server import ServerPacketError
-from pyrad.packet import AccessRequest
-from pyrad.packet import AccountingRequest
+from pyrad2.packet import PacketError
+from pyrad2.server import RemoteHost
+from pyrad2.server import Server
+from pyrad2.server import ServerPacketError
+from pyrad2.packet import AccessRequest
+from pyrad2.packet import AccountingRequest
 
 
 class TrivialObject:

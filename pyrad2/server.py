@@ -4,8 +4,8 @@
 
 import select
 import socket
-from pyrad import host
-from pyrad import packet
+from pyrad2 import host
+from pyrad2 import packet
 import logging
 
 

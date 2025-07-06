@@ -4,10 +4,10 @@ import asyncio
 
 import logging
 import traceback
-from pyrad.dictionary import Dictionary
-from pyrad.server_async import ServerAsync
-from pyrad.packet import AccessAccept
-from pyrad.server import RemoteHost
+from pyrad2.dictionary import Dictionary
+from pyrad2.server_async import ServerAsync
+from pyrad2.packet import AccessAccept
+from pyrad2.server import RemoteHost
 
 try:
     import uvloop

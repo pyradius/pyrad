@@ -71,9 +71,9 @@ These datatypes are parsed but not supported:
 |               | where 'h' is hex digits, upper or lowercase. |
 +---------------+----------------------------------------------+
 """
-from pyrad import bidict
-from pyrad import tools
-from pyrad import dictfile
+from pyrad2 import bidict
+from pyrad2 import tools
+from pyrad2 import dictfile
 from copy import copy
 import logging
 

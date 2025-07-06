@@ -9,8 +9,8 @@ import select
 import socket
 import time
 import struct
-from pyrad import host
-from pyrad import packet
+from pyrad2 import host
+from pyrad2 import packet
 
 EAP_CODE_REQUEST = 1
 EAP_CODE_RESPONSE = 2

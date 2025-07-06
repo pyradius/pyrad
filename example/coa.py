@@ -1,7 +1,7 @@
 #!/usr/bin/python
-from pyrad.client import Client
-from pyrad import dictionary
-from pyrad import packet
+from pyrad2.client import Client
+from pyrad2 import dictionary
+from pyrad2 import packet
 import sys
 
 if len(sys.argv) != 3:

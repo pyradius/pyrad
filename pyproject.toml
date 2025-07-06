@@ -1,41 +1,11 @@
+[project]
+name = "pyrad2"
+version = "1.0.0"
+description = "RADIUS Server"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
-name = "pyrad"
-version= "2.4"
-readme = "README.rst"
-license = "BSD-3-Clause"
-description="RADIUS tools"
-authors = [
-  "Istvan Ruzman <istvan@ruzman.eu>",
-  "Christian Giese <developer@gicnet.de>",
-]
-keywords = ["AAA", "accounting", "authentication", "authorization", "RADIUS"]
-classifiers = [
-    "Development Status :: 6 - Mature",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: BSD License",
-    "Programming Language :: Python :: 3.6",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: System :: Systems Administration :: Authentication/Directory",
-]
-include = [
-  "example/*"
-]
-
-[tool.poetry.urls]
-repository = "https://github.com/pyradius/pyrad"
-
-[tool.poetry.dependencies]
-python = "^3.6"
-
-[tool.poetry.dev-dependencies]
-nose = "^0.10.0b1"
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"

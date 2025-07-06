@@ -1,13 +1,13 @@
 #!/usr/bin/python
-from pyrad.client import Client
-from pyrad.dictionary import Dictionary
+from pyrad2.client import Client
+from pyrad2.dictionary import Dictionary
 import socket
 import sys
-import pyrad.packet
+import pyrad2.packet
 
 srv = Client(server="127.0.0.1", secret=b"Kah3choteereethiejeimaeziecumi", dict=Dictionary("dictionary"))
 
-req = srv.CreateAuthPacket(code=pyrad.packet.AccessRequest, User_Name="wichert")
+req = srv.CreateAuthPacket(code=pyrad2.packet.AccessRequest, User_Name="wichert")
 
 req["NAS-IP-Address"] = "192.168.1.10"
 req["NAS-Port"] = 0
@@ -20,14 +20,14 @@ req["Framed-IP-Address"] = "10.0.0.100"
 try:
     print("Sending authentication request")
     reply = srv.SendPacket(req)
-except pyrad.client.Timeout:
+except pyrad2.client.Timeout:
     print("RADIUS server does not reply")
     sys.exit(1)
 except socket.error as error:
     print("Network error: " + error[1])
     sys.exit(1)
 
-if reply.code == pyrad.packet.AccessAccept:
+if reply.code == pyrad2.packet.AccessAccept:
     print("Access accepted")
 else:
     print("Access denied")

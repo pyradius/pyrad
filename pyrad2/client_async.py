@@ -9,7 +9,7 @@ import asyncio
 import logging
 import random
 
-from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket
+from pyrad2.packet import Packet, AuthPacket, AcctPacket, CoAPacket
 
 
 class DatagramProtocolClient(asyncio.Protocol):

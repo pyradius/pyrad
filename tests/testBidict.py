@@ -1,6 +1,6 @@
 import operator
 import unittest
-from pyrad.bidict import BiDict
+from pyrad2.bidict import BiDict
 
 
 class BiDictTests(unittest.TestCase):

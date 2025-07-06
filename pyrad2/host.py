@@ -1,7 +1,7 @@
 # host.py
 #
 # Copyright 2003,2007 Wichert Akkerman <wichert@wiggy.net>
-from pyrad import packet
+from pyrad2 import packet
 
 
 class Host(object):

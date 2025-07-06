@@ -4,9 +4,9 @@ import asyncio
 
 import logging
 import traceback
-from pyrad.dictionary import Dictionary
-from pyrad.client_async import ClientAsync
-from pyrad.packet import AccessAccept
+from pyrad2.dictionary import Dictionary
+from pyrad2.client_async import ClientAsync
+from pyrad2.packet import AccessAccept
 
 logging.basicConfig(level="DEBUG",
                     format="%(asctime)s [%(levelname)-8s] %(message)s")
