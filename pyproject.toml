@@ -2,16 +2,16 @@
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry]
+[project]
 name = "pyrad"
-version= "2.4"
+version= "2.5"
 readme = "README.rst"
 license = "BSD-3-Clause"
 description="RADIUS tools"
 authors = [
-  "Istvan Ruzman <istvan@ruzman.eu>",
-  "Christian Giese <developer@gicnet.de>",
-]
+  { name = "Istvan Ruzman", email = "istvan@ruzman.eu" },
+  { name = "Christian Giese", email = "developer@gicnet.de" },
+ ]
 keywords = ["AAA", "accounting", "authentication", "authorization", "RADIUS"]
 classifiers = [
     "Development Status :: 6 - Mature",
@@ -24,6 +24,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Systems Administration :: Authentication/Directory",
 ]
@@ -32,10 +34,12 @@ include = [
 ]
 
 [tool.poetry.urls]
-Repository = "https://github.com/pyradius/pyrad"
+repository = "https://github.com/python-poetry/poetry"
+documentation = "https://pyradius-pyrad.readthedocs.io"
+
 
 [tool.poetry.dependencies]
 python = "^3.6"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 nose = "^0.10.0b1"
