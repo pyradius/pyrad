@@ -6,6 +6,11 @@
 
 from collections import OrderedDict
 import struct
+
+from pyrad.datatypes.leaf import Integer, Octets
+from pyrad.datatypes.structural import Tlv
+from pyrad.dictionary import Attribute
+
 try:
     import secrets
     random_generator = secrets.SystemRandom()
@@ -27,7 +32,6 @@ except ImportError:
     # BBB for python 2.4
     import md5
     md5_constructor = md5.new
-from pyrad import tools
 
 # Packet codes
 AccessRequest = 1
@@ -99,6 +103,14 @@ class Packet(OrderedDict):
         self.authenticator = authenticator
         self.message_authenticator = None
         self.raw_packet = None
+
+        #  the presence of some attributes require us to perform certain
+        #  actions. this dict maps the attribute names to the functions to
+        #  perform those actions
+        #  all functions must have the signature of (attribute, packet, offset)
+        self.attr_actions = {
+            'Message-Authenticator': self.__attr_action_message_authenticator
+        }
 
         if 'dict' in attributes:
             self.dict = attributes['dict']
@@ -248,14 +260,14 @@ class Packet(OrderedDict):
         if attr.values.HasBackward(value):
             return attr.values.GetBackward(value)
         else:
-            return tools.DecodeAttr(attr.type, value)
+            return attr.decode(value)
 
     def _EncodeValue(self, attr, value):
         result = ''
         if attr.values.HasForward(value):
             result = attr.values.GetForward(value)
         else:
-            result = tools.EncodeAttr(attr.type, value)
+            result = attr.encode(value)
 
         if attr.encrypt == 2:
             # salt encrypt attribute
@@ -275,7 +287,7 @@ class Packet(OrderedDict):
         key = self._EncodeKey(key)
         if tag:
             tag = struct.pack('B', int(tag))
-            if attr.type == "integer":
+            if isinstance(attr.type, Integer):
                 return (key, [tag + self._EncodeValue(attr, v)[1:] for v in values])
             else:
                 return (key, [tag + self._EncodeValue(attr, v) for v in values])
@@ -333,7 +345,7 @@ class Packet(OrderedDict):
 
         values = OrderedDict.__getitem__(self, self._EncodeKey(key))
         attr = self.dict.attributes[key]
-        if attr.type == 'tlv':  # return map from sub attribute code to its values
+        if isinstance(attr.type, Tlv):  # return map from sub attribute code to its values
             res = {}
             for (sub_attr_key, sub_attr_val) in values.items():
                 sub_attr_name = attr.sub_attributes[sub_attr_key]
@@ -548,33 +560,41 @@ class Packet(OrderedDict):
 
         self.clear()
 
-        packet = packet[20:]
-        while packet:
+        cursor = 20
+        # iterate over all attributes in the packet
+        while cursor < len(packet):
             try:
-                (key, attrlen) = struct.unpack('!BB', packet[0:2])
+                # get the type and length fields of the current attribute
+                (key, length) = struct.unpack('!BB', packet[cursor:cursor + 2])
             except struct.error:
                 raise PacketError('Attribute header is corrupt')
 
-            if attrlen < 2:
-                raise PacketError(
-                        'Attribute length is too small (%d)' % attrlen)
+            if length < 2:
+                raise PacketError(f'Attribute length is too small {length}')
 
-            value = packet[2:attrlen]
-            attribute = self.dict.attributes.get(self._DecodeKey(key))
-            if key == 26:
-                for (key, value) in self._PktDecodeVendorAttribute(value):
-                    self.setdefault(key, []).append(value)
-            elif key == 80:
-                # POST: Message Authenticator AVP is present.
-                self.message_authenticator = True
+            attribute: Attribute = self.dict.attributes.get(self._DecodeKey(key))
+            if attribute is None:
+                raise PacketError(f'Unknown attribute key {key}')
+
+            # perform attribute actions as needed
+            if attribute.name in self.attr_actions:
+                # attribute action functions must have the same signature
+                self.attr_actions[attribute.name](attribute, packet, cursor)
+
+            raw, offset = attribute.get_value(self.dict, key, packet, cursor)
+
+            # for each (key, value) pair from the raw values, add them to the
+            # packet's data
+            for key, value in raw:
                 self.setdefault(key, []).append(value)
-            elif attribute and attribute.type == 'tlv':
-                self._PktDecodeTlvAttribute(key,value)
-            else:
-                self.setdefault(key, []).append(value)
 
-            packet = packet[attrlen:]
+            # move cursor forward by amount of bytes read
+            cursor += offset
 
+    def __attr_action_message_authenticator(self, attribute, packet, offset):
+        #  if the Message-Authenticator attribute is present, set the
+        #  class attribute to True
+        self.message_authenticator = True
 
     def _salt_en_decrypt(self, data, salt):
         result = b''
@@ -796,7 +816,7 @@ class AuthPacket(Packet):
         if isinstance(userpwd, str):
             userpwd = userpwd.strip().encode('utf-8')
 
-        chap_password = tools.DecodeOctets(self.get(3)[0])
+        chap_password = Octets().decode(self.get(3)[0])
         if len(chap_password) != 17:
             return False
 

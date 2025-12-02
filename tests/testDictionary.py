@@ -3,12 +3,14 @@ import operator
 import os
 from io import StringIO
 
+from pyrad.datatypes.leaf import Integer
 from . import home
 from pyrad.dictionary import Attribute
 from pyrad.dictionary import Dictionary
 from pyrad.dictionary import ParseError
-from pyrad.tools import DecodeAttr
 from pyrad.dictfile import DictFile
+
+from pyrad.datatypes import leaf, structural
 
 
 class AttributeTests(unittest.TestCase):
@@ -19,7 +21,7 @@ class AttributeTests(unittest.TestCase):
         attr = Attribute('name', 'code', 'integer', False, 'vendor')
         self.assertEqual(attr.name, 'name')
         self.assertEqual(attr.code, 'code')
-        self.assertEqual(attr.type, 'integer')
+        self.assertIsInstance(attr.type, Integer)
         self.assertEqual(attr.is_sub_attribute, False)
         self.assertEqual(attr.vendor, 'vendor')
         self.assertEqual(len(attr.values), 0)
@@ -30,7 +32,7 @@ class AttributeTests(unittest.TestCase):
                 vendor='vendor')
         self.assertEqual(attr.name, 'name')
         self.assertEqual(attr.code, 'code')
-        self.assertEqual(attr.type, 'integer')
+        self.assertIsInstance(attr.type, Integer)
         self.assertEqual(attr.vendor, 'vendor')
         self.assertEqual(len(attr.values), 0)
 
@@ -83,6 +85,28 @@ class DictionaryParsingTests(unittest.TestCase):
         ('Test-Integer64-Oct', 10, 'integer64'),
     ]
 
+    @classmethod
+    def setUpClass(cls):
+        #  leaf attributes
+        cls.abinary = leaf.AscendBinary()
+        cls.byte = leaf.Byte()
+        cls.date = leaf.Date()
+        cls.ether = leaf.Ether()
+        cls.ifid = leaf.Ifid()
+        cls.integer = leaf.Integer()
+        cls.integer64 = leaf.Integer64()
+        cls.ipaddr = leaf.Ipaddr()
+        cls.ipv6addr = leaf.Ipv6addr()
+        cls.ipv6prefix = leaf.Ipv6prefix()
+        cls.octets = leaf.Octets()
+        cls.short = leaf.Short()
+        cls.signed = leaf.Signed()
+        cls.string = leaf.String()
+
+        #  structural attributes
+        cls.tlv = structural.Tlv()
+        cls.vsa = structural.Vsa()
+
     def setUp(self):
         self.path = os.path.join(home, 'data')
         self.dict = Dictionary(os.path.join(self.path, 'simple'))
@@ -104,7 +128,7 @@ class DictionaryParsingTests(unittest.TestCase):
         for (attr, code, type) in self.simple_dict_values:
             attr = self.dict[attr]
             self.assertEqual(attr.code, code)
-            self.assertEqual(attr.type, type)
+            self.assertEqual(attr.type.name, type)
 
     def testAttributeTooFewColumnsError(self):
         try:
@@ -168,18 +192,18 @@ class DictionaryParsingTests(unittest.TestCase):
         self.dict.ReadDictionary(StringIO('VALUE Test-Integer Value-Six 5'))
         self.assertEqual(len(self.dict['Test-Integer'].values), 1)
         self.assertEqual(
-                DecodeAttr('integer',
-                    self.dict['Test-Integer'].values['Value-Six']),
-                5)
+                self.integer.decode(
+                    self.dict['Test-Integer'].values['Value-Six']
+                ), 5)
 
     def testInteger64ValueParsing(self):
         self.assertEqual(len(self.dict['Test-Integer64'].values), 0)
         self.dict.ReadDictionary(StringIO('VALUE Test-Integer64 Value-Six 5'))
         self.assertEqual(len(self.dict['Test-Integer64'].values), 1)
         self.assertEqual(
-                DecodeAttr('integer64',
-                    self.dict['Test-Integer64'].values['Value-Six']),
-                5)
+                self.integer64.decode(
+                    self.dict['Test-Integer64'].values['Value-Six']
+                ), 5)
 
     def testStringValueParsing(self):
         self.assertEqual(len(self.dict['Test-String'].values), 0)
@@ -187,9 +211,9 @@ class DictionaryParsingTests(unittest.TestCase):
             'VALUE Test-String Value-Custard custardpie'))
         self.assertEqual(len(self.dict['Test-String'].values), 1)
         self.assertEqual(
-                DecodeAttr('string',
-                    self.dict['Test-String'].values['Value-Custard']),
-                'custardpie')
+                self.string.decode(
+                    self.dict['Test-String'].values['Value-Custard']
+                ), 'custardpie')
 
     def testOctetValueParsing(self):
         self.assertEqual(len(self.dict['Test-Octets'].values), 0)
@@ -199,13 +223,13 @@ class DictionaryParsingTests(unittest.TestCase):
                         'VALUE Test-Octets Value-B 0x42\n')) # "B"
         self.assertEqual(len(self.dict['Test-Octets'].values), 2)
         self.assertEqual(
-                DecodeAttr('octets',
-                    self.dict['Test-Octets'].values['Value-A']),
-                b'A')
+                self.octets.decode(
+                    self.dict['Test-Octets'].values['Value-A']
+                ), b'A')
         self.assertEqual(
-                DecodeAttr('octets',
-                    self.dict['Test-Octets'].values['Value-B']),
-                b'B')
+                self.octets.decode(
+                    self.dict['Test-Octets'].values['Value-B']
+                ), b'B')
 
     def testTlvParsing(self):
         self.assertEqual(len(self.dict['Test-Tlv'].sub_attributes), 2)

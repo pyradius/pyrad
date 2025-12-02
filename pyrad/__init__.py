@@ -43,4 +43,4 @@ __url__ = 'http://pyrad.readthedocs.io/en/latest/?badge=latest'
 __copyright__ = 'Copyright 2002-2025 Wichert Akkerman, Istvan Ruzman and Christian Giese. All rights reserved.'
 __version__ = '2.5'
 
-__all__ = ['client', 'dictionary', 'packet', 'server', 'tools', 'dictfile']
+__all__ = ['client', 'dictionary', 'packet', 'server', 'datatypes', 'dictfile']
