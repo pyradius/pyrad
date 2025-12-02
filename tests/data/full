@@ -20,6 +20,8 @@ ATTRIBUTE Test-Encrypted-String   5   string      encrypt=2
 ATTRIBUTE Test-Encrypted-Octets   6   octets      encrypt=2
 ATTRIBUTE Test-Encrypted-Integer  7   integer     encrypt=2
 
+ATTRIBUTE Vendor-Specific 26 vsa
+
 VENDOR Simplon 16
 
 

@@ -232,7 +232,7 @@ class Server(host.Host):
         """
         self._AddSecret(pkt)
         if pkt.code not in [packet.AccountingRequest,
-                            packet.AccountingResponse]:
+                              packet.AccountingResponse]:
             raise ServerPacketError(
                     'Received non-accounting packet on accounting port')
         self.HandleAcctPacket(pkt)
