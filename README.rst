@@ -1,5 +1,5 @@
 
-.. image:: https://github.com/pyradius/pyrad/workflows/Python%203.X%20test/badge.svg?branch=master
+.. image:: https://github.com/pyradius/pyrad/workflows/Python%203.X%20Test/badge.svg?branch=master
     :target: https://github.com/pyradius/pyrad/actions?query=workflow
 .. image:: https://coveralls.io/repos/github/pyradius/pyrad/badge.svg?branch=master
     :target: https://coveralls.io/github/pyradius/pyrad?branch=master
@@ -53,7 +53,7 @@ Here is an example of doing a authentication request::
 Requirements & Installation
 ===========================
 
-pyrad requires Python 3.6 or later
+pyrad requires Python 3.8 or later
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::
