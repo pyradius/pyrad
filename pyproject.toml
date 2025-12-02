@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "pyrad"
-version= "2.4"
+version= "2.5"
 readme = "README.rst"
 license = "BSD-3-Clause"
 description="RADIUS tools"
@@ -24,6 +24,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Systems Administration :: Authentication/Directory",
 ]
@@ -31,8 +33,10 @@ include = [
   "example/*"
 ]
 
-[project.urls]
-repository = "https://github.com/pyradius/pyrad"
+[tool.poetry.urls]
+repository = "https://github.com/python-poetry/poetry"
+documentation = "https://pyradius-pyrad.readthedocs.io"
+
 
 [tool.poetry.dependencies]
 python = "^3.6"
