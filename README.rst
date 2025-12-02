@@ -1,6 +1,6 @@
 
-.. image:: https://github.com/pyradius/pyrad/workflows/Python%203.X%20Test/badge.svg?branch=master
-    :target: https://github.com/pyradius/pyrad/actions?query=workflow
+.. image:: https://github.com/pyradius/pyrad/actions/workflows/python-test.yml/badge.svg?branch=master
+    :target: https://github.com/pyradius/pyrad/actions/workflows/python-test.yml
 .. image:: https://coveralls.io/repos/github/pyradius/pyrad/badge.svg?branch=master
     :target: https://coveralls.io/github/pyradius/pyrad?branch=master
 .. image:: https://img.shields.io/pypi/v/pyrad.svg
