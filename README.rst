@@ -14,6 +14,8 @@
     :alt: Documentation Status
 .. image:: https://img.shields.io/pypi/l/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
+.. image:: https://img.shields.io/badge/Chat-darkgreen
+    :target: https://matrix.to/#/#pyradius:matrix.org
 
 Introduction
 ============
