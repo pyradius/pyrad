@@ -67,6 +67,10 @@ Author, Copyright, Availability
 pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by 
 Christian Giese (GIC-de) and Istvan Ruzman (Istvan91). 
 
+We’re looking for contributors to support the pyrad team! If you’re interested in 
+helping with development, testing, documentation, or other areas, please contact 
+us directly.
+
 This project is licensed under a BSD license.
 
 Copyright and license information can be found in the LICENSE.txt file.
