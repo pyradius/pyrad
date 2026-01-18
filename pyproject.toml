@@ -1,42 +1,46 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.poetry]
+[project]
 name = "pyrad"
-version= "2.5"
+dynamic = ["version"]
+description = "RADIUS tools"
 readme = "README.rst"
-license = "BSD-3-Clause"
-description="RADIUS tools"
+license = { text = "BSD-3-Clause" }
+requires-python = ">=3.8"
 authors = [
-  "Istvan Ruzman <istvan@ruzman.eu>",
-  "Christian Giese <gic@gicnet.de>",
+  { name = "Istvan Ruzman", email = "istvan@ruzman.eu" },
+  { name = "Christian Giese", email = "gic@gicnet.de" },
 ]
-keywords = ["AAA", "accounting", "authentication", "authorization", "RADIUS"]
+keywords = ["radius", "authentication", "AAA", "accounting", "authorization", "RADIUS"]
 classifiers = [
-    "Development Status :: 6 - Mature",
-    "Intended Audience :: Developers",
-    "License :: OSI Approved :: BSD License",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: System :: Systems Administration :: Authentication/Directory",
-]
-include = [
-  "example/*"
+  "Development Status :: 6 - Mature",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: BSD License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: System :: Systems Administration :: Authentication/Directory",
 ]
 
-[tool.poetry.urls]
-repository = "https://github.com/pyradius/pyrad"
-documentation = "https://pyradius-pyrad.readthedocs.io"
+[project.urls]
+Repository = "https://github.com/pyradius/pyrad"
+Documentation = "https://pyradius-pyrad.readthedocs.io"
 
-[tool.poetry.dependencies]
-python = "^3.8"
+[project.optional-dependencies]
+test = ["nose"]
 
-[tool.poetry.group.dev.dependencies]
-nose = "*"
+[tool.setuptools]
+packages = { find = { exclude = ["tests*"] } }
+include-package-data = true
+zip-safe = true
+
+[tool.setuptools.dynamic]
+version = { attr = "pyrad.__version__" }
