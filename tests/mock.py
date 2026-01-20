@@ -43,11 +43,14 @@ class MockSocket:
         self.address = None
         self.output = []
 
+        # Always initialize data so recv() never fails.
+        # If data is provided, use it; otherwise behave like "no data available".
+        self.data = data if data is not None else b""
+
         if data is not None:
             (self.read_end, self.write_end) = os.pipe()
             fcntl.fcntl(self.write_end, fcntl.F_SETFL, os.O_NONBLOCK)
             os.write(self.write_end, data)
-            self.data = data
         else:
             self.read_end = 1
             self.write_end = None
@@ -59,6 +62,7 @@ class MockSocket:
         self.address = address
 
     def recv(self, buffer):
+        # Return up to `buffer` bytes; if empty, return b"" (no data).
         return self.data[:buffer]
 
     def sendto(self, data, target):

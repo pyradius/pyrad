@@ -10,6 +10,7 @@ readme = "README.rst"
 license = { text = "BSD-3-Clause" }
 requires-python = ">=3.8"
 authors = [
+  { name = "Stefan Lieberth", email = "stefan@lieberth.net" },
   { name = "Istvan Ruzman", email = "istvan@ruzman.eu" },
   { name = "Christian Giese", email = "gic@gicnet.de" },
 ]
@@ -30,17 +31,30 @@ classifiers = [
   "Topic :: System :: Systems Administration :: Authentication/Directory",
 ]
 
+dependencies = [
+  "netaddr>=0.8.0",
+  "six>=1.16.0",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8",
+  "mock; python_version<'3.10'",
+  # "nose",  # nur falls du es wirklich noch brauchst
+]
+
 [project.urls]
 Repository = "https://github.com/pyradius/pyrad"
 Documentation = "https://pyradius-pyrad.readthedocs.io"
-
-[project.optional-dependencies]
-test = ["nose"]
 
 [tool.setuptools]
 packages = { find = { exclude = ["tests*"] } }
 include-package-data = true
 zip-safe = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
 
 [tool.setuptools.dynamic]
 version = { attr = "pyrad.__version__" }
