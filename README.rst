@@ -1,6 +1,6 @@
 
-.. image:: https://github.com/pyradius/pyrad/workflows/Python%203.X%20Test/badge.svg?branch=master
-    :target: https://github.com/pyradius/pyrad/actions?query=workflow
+.. image:: https://github.com/pyradius/pyrad/actions/workflows/python-test.yml/badge.svg?branch=master
+    :target: https://github.com/pyradius/pyrad/actions/workflows/python-test.yml
 .. image:: https://coveralls.io/repos/github/pyradius/pyrad/badge.svg?branch=master
     :target: https://coveralls.io/github/pyradius/pyrad?branch=master
 .. image:: https://img.shields.io/pypi/v/pyrad.svg
@@ -14,6 +14,8 @@
     :alt: Documentation Status
 .. image:: https://img.shields.io/pypi/l/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
+.. image:: https://img.shields.io/badge/Chat-darkgreen
+    :target: https://matrix.to/#/#pyradius:matrix.org
 
 Introduction
 ============
@@ -66,6 +68,10 @@ Author, Copyright, Availability
 
 pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by 
 Christian Giese (GIC-de) and Istvan Ruzman (Istvan91). 
+
+We’re looking for contributors to support the pyrad team! If you’re interested in 
+helping with development, testing, documentation, or other areas, please contact 
+us directly.
 
 This project is licensed under a BSD license.
 
