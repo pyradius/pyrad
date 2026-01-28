@@ -97,6 +97,7 @@ class Packet(OrderedDict):
                 not isinstance(authenticator, bytes):
             raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
+        self.request_authenticator = None
         self.message_authenticator = None
         self.raw_packet = None
 
@@ -585,7 +586,10 @@ class Packet(OrderedDict):
 
     def _salt_en_decrypt(self, data, salt):
         result = b''
-        last = self.authenticator + salt
+        if self.request_authenticator is not None:
+            last = self.request_authenticator + salt
+        else:
+            last = self.authenticator + salt
         while data:
             hash = md5_constructor(self.secret + last).digest()
             for i in range(16):
