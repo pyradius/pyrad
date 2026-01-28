@@ -1,0 +1,7 @@
+include README.rst
+include CHANGES.rst
+include TODO.rst
+include LICENSE.txt
+recursive-include example *
+recursive-include docs *
+recursive-include tests/data *

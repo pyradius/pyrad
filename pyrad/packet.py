@@ -97,6 +97,7 @@ class Packet(OrderedDict):
                 not isinstance(authenticator, bytes):
             raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
+        self.request_authenticator = None      # used for storing request authenticator in reply packets
         self.message_authenticator = None
         self.raw_packet = None
 
@@ -418,7 +419,7 @@ class Packet(OrderedDict):
 
         return header + authenticator + attr
 
-    def VerifyReply(self, reply, rawreply=None):
+    def VerifyReply(self, reply, rawreply=None, enforce_ma=False):
         if reply.id != self.id:
             return False
 
@@ -439,6 +440,13 @@ class Packet(OrderedDict):
 
         if hash != rawreply[4:20]:
             return False
+
+        if enforce_ma:
+            if self.message_authenticator is None:
+                return False
+            if not self.verify_message_authenticator():
+                return False
+
         return True
 
     def _PktEncodeAttribute(self, key, value):
@@ -485,7 +493,7 @@ class Packet(OrderedDict):
         result = b''
         for (code, datalst) in self.items():
             attribute = self.dict.attributes.get(self._DecodeKey(code))
-            if attribute and attribute.type == 'tlv':
+            if self._PktIsTlvAttribute(code):
                 result += self._PktEncodeTlv(code, datalst)
             else:
                 for data in datalst:
@@ -501,7 +509,7 @@ class Packet(OrderedDict):
         (vendor, atype, length) = struct.unpack('!LBB', data[:6])[0:3]
         attribute = self.dict.attributes.get(self._DecodeKey((vendor, atype)))
         try:
-            if attribute and attribute.type == 'tlv':
+            if self._PktIsTlvAttribute((vendor, atype)):
                 self._PktDecodeTlvAttribute((vendor, atype), data[6:length + 4])
                 tlvs = []  # tlv is added to the packet inside _PktDecodeTlvAttribute
             else:
@@ -527,6 +535,10 @@ class Packet(OrderedDict):
             atype, length = struct.unpack('!BB', data[loc:loc+2])[0:2]
             sub_attributes.setdefault(atype, []).append(data[loc+2:loc+length])
             loc += length
+
+    def _PktIsTlvAttribute(self, code):
+        attr = self.dict.attributes.get(self._DecodeKey(code))
+        return (attr is not None and attr.type == 'tlv')
 
     def DecodePacket(self, packet):
         """Initialize the object from raw packet data.  Decode a packet as
@@ -568,7 +580,7 @@ class Packet(OrderedDict):
                 # POST: Message Authenticator AVP is present.
                 self.message_authenticator = True
                 self.setdefault(key, []).append(value)
-            elif attribute and attribute.type == 'tlv':
+            elif self._PktIsTlvAttribute(key):
                 self._PktDecodeTlvAttribute(key,value)
             else:
                 self.setdefault(key, []).append(value)
@@ -578,7 +590,10 @@ class Packet(OrderedDict):
 
     def _salt_en_decrypt(self, data, salt):
         result = b''
-        last = self.authenticator + salt
+        if self.request_authenticator is not None:
+            last = self.request_authenticator + salt
+        else:
+            last = self.authenticator + salt
         while data:
             hash = md5_constructor(self.secret + last).digest()
             for i in range(16):
