@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.5 - Jan 29, 2026
+2.5.0 - Jan 29, 2026
 -------------------
 
 * Drop support of Python 2.x
