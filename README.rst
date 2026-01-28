@@ -82,3 +82,13 @@ https://pypi.org/project/pyrad/
 
 Bugs and wishes can be submitted in the pyrad issue tracker on github:
 https://github.com/pyradius/pyrad/issues
+
+Related Projects & Forks
+========================
+
+**pyrad2:** Noteworthy fork with experimental RadSec (RFC 6614) support. Targets Python 3.12+, 
+adds extensive type hints, boosts test coverage, and includes fresh bug fixes.
+https://github.com/nicholasamorim/pyrad2
+
+**pyrad-server:** Lab-grade RADIUS test server built on top of pyrad.
+https://github.com/slieberth/pyrad-server
