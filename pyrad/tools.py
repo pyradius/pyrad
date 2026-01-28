@@ -4,7 +4,6 @@
 import binascii
 import ipaddress
 import struct
-import six
 
 
 # -------------------------
@@ -22,7 +21,7 @@ def EncodeString(value):
         if len(value) > 253:
             raise ValueError("Can only encode strings of <= 253 characters")
         return value
-    if isinstance(value, six.text_type):
+    if isinstance(value, str):
         if len(value) > 253:
             raise ValueError("Can only encode strings of <= 253 characters")
         return value.encode("utf-8")
@@ -65,7 +64,7 @@ def EncodeOctets(value):
             raise ValueError("Can only encode strings of <= 253 characters")
         return out
 
-    if isinstance(value, six.text_type):
+    if isinstance(value, str):
         s = value
         if s.startswith("0x"):
             out = binascii.unhexlify(s[2:])
@@ -93,7 +92,7 @@ def EncodeAddress(addr):
     Encode a RADIUS 'ipaddr' value.
     Traditionally IPv4, but accept IPv6 as well (robust for real-world use).
     """
-    if not isinstance(addr, six.string_types):
+    if not isinstance(addr, str):
         raise TypeError("Address has to be a string")
     return ipaddress.ip_address(addr).packed
 
@@ -105,7 +104,7 @@ def EncodeIPv6Address(addr):
     """
     if isinstance(addr, ipaddress.IPv6Address):
         return addr.packed
-    if not isinstance(addr, six.string_types):
+    if not isinstance(addr, str):
         raise TypeError("IPv6 Address has to be a string")
     return ipaddress.IPv6Address(addr).packed
 
@@ -122,7 +121,7 @@ def EncodeIPv6Prefix(value, default_prefixlen=128):
       - netaddr.IPNetwork (duck-typed via .ip/.prefixlen)
     """
     # 1) string input
-    if isinstance(value, six.string_types):
+    if isinstance(value, str):
         if "/" in value:
             net = ipaddress.ip_network(value, strict=False)
         else:
