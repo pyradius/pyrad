@@ -1,9 +1,16 @@
 Changelog
 =========
 
+2.5 - Jan 29, 2026
+-------------------
+
 * Drop support of Python 2.x
 
 * Add salt decryption of encrypted attributes
+
+* Fix #194 salt-encryption
+
+* Fix #213 EncodeIPv6Prefix
 
 * Fix for UTF-8
 
