@@ -49,7 +49,7 @@ def EncodeIPv6Prefix(addr):
     if not isinstance(addr, str):
         raise TypeError('IPv6 Prefix has to be a string')
     ip = IPv6Network(addr)
-    return struct.pack('2B', *[0, ip.prefixlen]) + ip.ip.packed
+    return struct.pack('2B', *[0, ip.prefixlen]) + ip.network_address.packed
 
 
 def EncodeIPv6Address(addr):
