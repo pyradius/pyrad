@@ -26,7 +26,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install flake8 nose coverage lcov
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install pyrad
       run: |
         pip install .
