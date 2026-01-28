@@ -38,9 +38,9 @@ This package contains four modules:
 
 __docformat__ = 'epytext en'
 
-__author__ = 'Christian Giese <developer@gicnet.de>'
+__author__ = 'Christian Giese <gic@gicnet.de>, Istvan Ruzman <istvan@ruzman.eu> and Stefan Lieberth <stefan@lieberth.net>'
 __url__ = 'http://pyrad.readthedocs.io/en/latest/?badge=latest'
-__copyright__ = 'Copyright 2002-2025 Wichert Akkerman, Istvan Ruzman, Christian Giese And Stefan Lieberth. All rights reserved.'
-__version__ = '2.5.4'
+__copyright__ = 'Copyright 2002-2026 Wichert Akkerman, Christian Giese, Istvan Ruzman and Stefan Lieberth. All rights reserved.'
+__version__ = '2.5.0'
 
 __all__ = ['client', 'dictionary', 'packet', 'server', 'tools', 'dictfile']

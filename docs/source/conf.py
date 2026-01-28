@@ -49,8 +49,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pyrad'
-copyright = u'Copyright 2002-2025 Wichert Akkerman, Istvan Ruzman and Christian Giese. All rights reserved.'
-author = u'Christian Giese <gic@gicnet.de> and Istvan Ruzman <istvan@ruzman.eu>'
+copyright = u'Copyright 2002-2026 Wichert Akkerman, Christian Giese, Istvan Ruzman and Stefan Lieberth. All rights reserved.'
+author = u'Christian Giese <gic@gicnet.de>, Istvan Ruzman <istvan@ruzman.eu> and Stefan Lieberth <stefan@lieberth.net>'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
