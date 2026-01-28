@@ -1,8 +1,13 @@
 Changelog
 =========
 
+2.5.1 - Jan 29, 2026
+--------------------
+
+* Fix build and release infra
+
 2.5.0 - Jan 29, 2026
--------------------
+--------------------
 
 * Drop support of Python 2.x
 
@@ -25,7 +30,7 @@ Changelog
 * Fixed unittests
 
 2.4 - Nov 23, 2020
--------------------
+------------------
 
 * Support poetry for for building this project
 
@@ -50,7 +55,7 @@ Changelog
   (was previously broken)
 
 2.3 - Feb 6, 2020
-------------------
+-----------------
 
 * Fixed #124 remove reuse_address=True from async server/client
 
