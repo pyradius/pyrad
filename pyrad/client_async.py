@@ -91,12 +91,10 @@ class DatagramProtocolClient(asyncio.Protocol):
     def connection_made(self, transport):
         self.transport = transport
         socket = transport.get_extra_info('socket')
-        self.logger.info(
-            '[%s:%d] Transport created with binding in %s:%d',
-                self.server, self.port,
-                socket.getsockname()[0],
-                socket.getsockname()[1]
-        )
+        self.logger.info('[%s:%d] Transport created with binding in %s:%d',
+                         self.server, self.port,
+                         socket.getsockname()[0],
+                         socket.getsockname()[1])
 
         pre_loop = asyncio.get_event_loop()
         asyncio.set_event_loop(loop=self.client.loop)
@@ -327,9 +325,9 @@ class ClientAsync:
             raise Exception('Transport not initialized')
         if self.enforce_ma:
             return AuthPacket(dict=self.dict,
-                                id=self.protocol_auth.create_id(),
-                                secret=self.secret,
-                                message_authenticator=True, **args)
+                              id=self.protocol_auth.create_id(),
+                              secret=self.secret,
+                              message_authenticator=True, **args)
 
         return AuthPacket(dict=self.dict,
                           id=self.protocol_auth.create_id(),

@@ -75,7 +75,6 @@ from pyrad import bidict
 from pyrad import tools
 from pyrad import dictfile
 from copy import copy
-import logging
 
 __docformat__ = 'epytext en'
 
@@ -224,12 +223,12 @@ class Dictionary(object):
         # Codes can be sent as hex, or octal or decimal string representations.
         tmp = []
         for c in codes:
-          if c.startswith('0x'):
-            tmp.append(int(c, 16))
-          elif c.startswith('0o'):
-            tmp.append(int(c, 8))
-          else:
-            tmp.append(int(c, 10))
+            if c.startswith('0x'):
+                tmp.append(int(c, 16))
+            elif c.startswith('0o'):
+                tmp.append(int(c, 8))
+            else:
+                tmp.append(int(c, 10))
         codes = tmp
 
         is_sub_attribute = (len(codes) > 1)

@@ -168,11 +168,9 @@ def EncodeAscendBinary(orig_str):
         "dportq":    b"\x00",
     }
 
-    family = "ipv4"
     for t in orig_str.split(" "):
         key, value = t.split("=")
         if key == "family" and value == "ipv6":
-            family = "ipv6"
             terms[key] = b"\x03"
             if terms["src"] == b"\x00\x00\x00\x00":
                 terms["src"] = 16 * b"\x00"

@@ -17,6 +17,7 @@ EAP_CODE_REQUEST = 1
 EAP_CODE_RESPONSE = 2
 EAP_TYPE_IDENTITY = 1
 
+
 class Timeout(Exception):
     """Simple exception class which is raised when a timeout occurs
     while waiting for a RADIUS server to respond."""
@@ -34,8 +35,7 @@ class Client(host.Host):
     :type timeout: float
     """
     def __init__(self, server, authport=1812, acctport=1813,
-            coaport=3799, secret=six.b(''), dict=None, retries=3, timeout=5, enforce_ma=False):
-
+                 coaport=3799, secret=six.b(''), dict=None, retries=3, timeout=5, enforce_ma=False):
         """Constructor.
 
         :param   server: hostname or IP address of RADIUS server
@@ -78,11 +78,11 @@ class Client(host.Host):
     def _SocketOpen(self):
         try:
             family = socket.getaddrinfo(self.server, 80)[0][0]
-        except:
+        except Exception:
             family = socket.AF_INET
         if not self._socket:
             self._socket = socket.socket(family,
-                                       socket.SOCK_DGRAM)
+                                         socket.SOCK_DGRAM)
             self._socket.setsockopt(socket.SOL_SOCKET,
                                     socket.SO_REUSEADDR, 1)
             self._poll.register(self._socket, select.POLLIN)

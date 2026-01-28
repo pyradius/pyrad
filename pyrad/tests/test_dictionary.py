@@ -27,7 +27,7 @@ class AttributeTests(unittest.TestCase):
 
     def testNamedConstructionParameters(self):
         attr = Attribute(name='name', code='code', datatype='integer',
-                vendor='vendor')
+                         vendor='vendor')
         self.assertEqual(attr.name, 'name')
         self.assertEqual(attr.code, 'code')
         self.assertEqual(attr.type, 'integer')
@@ -36,7 +36,7 @@ class AttributeTests(unittest.TestCase):
 
     def testValues(self):
         attr = Attribute('name', 'code', 'integer', False, 'vendor',
-                dict(pie='custard', shake='vanilla'))
+                         dict(pie='custard', shake='vanilla'))
         self.assertEqual(len(attr.values), 2)
         self.assertEqual(attr.values['shake'], 'vanilla')
 
@@ -57,11 +57,11 @@ class DictionaryInterfaceTests(unittest.TestCase):
     def testReadonlyContainer(self):
         dict = Dictionary()
         self.assertRaises(TypeError,
-                operator.setitem, dict, 'test', 'dummy')
+                          operator.setitem, dict, 'test', 'dummy')
         self.assertRaises(AttributeError,
-                operator.attrgetter('clear'), dict)
+                          operator.attrgetter('clear'), dict)
         self.assertRaises(AttributeError,
-                operator.attrgetter('update'), dict)
+                          operator.attrgetter('update'), dict)
 
 
 class DictionaryParsingTests(unittest.TestCase):
@@ -100,7 +100,7 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(len(dict), 2)
 
     def testParseSimpleDictionary(self):
-        self.assertEqual(len(self.dict),len(self.simple_dict_values))
+        self.assertEqual(len(self.dict), len(self.simple_dict_values))
         for (attr, code, type) in self.simple_dict_values:
             attr = self.dict[attr]
             self.assertEqual(attr.code, code)
@@ -169,7 +169,7 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(len(self.dict['Test-Integer'].values), 1)
         self.assertEqual(
                 DecodeAttr('integer',
-                    self.dict['Test-Integer'].values['Value-Six']),
+                           self.dict['Test-Integer'].values['Value-Six']),
                 5)
 
     def testInteger64ValueParsing(self):
@@ -178,7 +178,7 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(len(self.dict['Test-Integer64'].values), 1)
         self.assertEqual(
                 DecodeAttr('integer64',
-                    self.dict['Test-Integer64'].values['Value-Six']),
+                           self.dict['Test-Integer64'].values['Value-Six']),
                 5)
 
     def testStringValueParsing(self):
@@ -188,28 +188,28 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(len(self.dict['Test-String'].values), 1)
         self.assertEqual(
                 DecodeAttr('string',
-                    self.dict['Test-String'].values['Value-Custard']),
+                           self.dict['Test-String'].values['Value-Custard']),
                 'custardpie')
 
     def testOctetValueParsing(self):
         self.assertEqual(len(self.dict['Test-Octets'].values), 0)
         self.dict.ReadDictionary(StringIO(
                         'ATTRIBUTE Test-Octets 1 octets\n'
-                        'VALUE Test-Octets Value-A 65\n'     # "A"
-                        'VALUE Test-Octets Value-B 0x42\n')) # "B"
+                        'VALUE Test-Octets Value-A 65\n'      # "A"
+                        'VALUE Test-Octets Value-B 0x42\n'))  # "B"
         self.assertEqual(len(self.dict['Test-Octets'].values), 2)
         self.assertEqual(
                 DecodeAttr('octets',
-                    self.dict['Test-Octets'].values['Value-A']),
+                           self.dict['Test-Octets'].values['Value-A']),
                 b'A')
         self.assertEqual(
                 DecodeAttr('octets',
-                    self.dict['Test-Octets'].values['Value-B']),
+                           self.dict['Test-Octets'].values['Value-B']),
                 b'B')
 
     def testTlvParsing(self):
         self.assertEqual(len(self.dict['Test-Tlv'].sub_attributes), 2)
-        self.assertEqual(self.dict['Test-Tlv'].sub_attributes, {1:'Test-Tlv-Str', 2: 'Test-Tlv-Int'})
+        self.assertEqual(self.dict['Test-Tlv'].sub_attributes, {1: 'Test-Tlv-Str', 2: 'Test-Tlv-Int'})
 
     def testSubTlvParsing(self):
         for (attr, _, _) in self.simple_dict_values:
@@ -227,7 +227,6 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(full_dict['Simplon-Tlv-Int'].is_sub_attribute, True)
         self.assertEqual(full_dict['Simplon-Tlv-Int'].parent, full_dict['Simplon-Tlv'])
 
-
     def testVenderTooFewColumnsError(self):
         try:
             self.dict.ReadDictionary(StringIO('VENDOR Simplon'))
@@ -238,7 +237,7 @@ class DictionaryParsingTests(unittest.TestCase):
 
     def testVendorParsing(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
-                StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
+                          StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
         self.dict.ReadDictionary(StringIO('VENDOR Simplon 42'))
         self.assertEqual(self.dict.vendors['Simplon'], 42)
         self.dict.ReadDictionary(StringIO(
@@ -247,7 +246,7 @@ class DictionaryParsingTests(unittest.TestCase):
 
     def testVendorOptionError(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
-                StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
+                          StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
         try:
             self.dict.ReadDictionary(StringIO('VENDOR Simplon 42 badoption'))
         except ParseError as e:
@@ -257,7 +256,7 @@ class DictionaryParsingTests(unittest.TestCase):
 
     def testVendorFormatError(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
-                StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
+                          StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
         try:
             self.dict.ReadDictionary(StringIO(
                 'VENDOR Simplon 42 format=5,4'))
@@ -268,7 +267,7 @@ class DictionaryParsingTests(unittest.TestCase):
 
     def testVendorFormatSyntaxError(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
-                StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
+                          StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
         try:
             self.dict.ReadDictionary(StringIO(
                 'VENDOR Simplon 42 format=a,1'))

@@ -42,7 +42,7 @@ class ConstructionTests(unittest.TestCase):
     def testNamedParameters(self):
         marker = object()
         client = Client(server=self.server, authport=123, acctport=456,
-                      secret="secret", dict=marker)
+                        secret="secret", dict=marker)
         self.assertTrue(client.server is self.server)
         self.assertEqual(client.authport, 123)
         self.assertEqual(client.acctport, 456)
@@ -57,7 +57,6 @@ class SocketTests(unittest.TestCase):
         self.orgsocket = socket.socket
         socket.socket = MockSocket
 
-
     def tearDown(self):
         socket.socket = self.orgsocket
 
@@ -71,7 +70,7 @@ class SocketTests(unittest.TestCase):
         self.client.bind((BIND_IP, BIND_PORT))
         self.assertEqual(self.client._socket.address, (BIND_IP, BIND_PORT))
         self.assertEqual(self.client._socket.options,
-                [(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)])
+                         [(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)])
 
     def testBindClosesSocket(self):
         s = MockSocket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -106,7 +105,7 @@ class SocketTests(unittest.TestCase):
         packet = MockPacket(AccessRequest)
         self.assertRaises(Timeout, self.client._SendPacket, packet, 432)
         self.assertEqual(self.client._socket.output,
-                [("request packet", (self.server, 432))])
+                         [("request packet", (self.server, 432))])
 
     def testDoubleRetry(self):
         self.client.retries = 2
@@ -114,8 +113,8 @@ class SocketTests(unittest.TestCase):
         packet = MockPacket(AccessRequest)
         self.assertRaises(Timeout, self.client._SendPacket, packet, 432)
         self.assertEqual(self.client._socket.output,
-                [("request packet", (self.server, 432)),
-                 ("request packet", (self.server, 432))])
+                         [("request packet", (self.server, 432)),
+                          ("request packet", (self.server, 432))])
 
     def testAuthDelay(self):
         self.client.retries = 2

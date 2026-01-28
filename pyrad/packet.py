@@ -5,18 +5,26 @@
 # A RADIUS packet as defined in RFC 2138
 
 from collections import OrderedDict
+from pyrad import tools
+import hmac
 import struct
+import sys
+
 try:
     import secrets
     random_generator = secrets.SystemRandom()
 except ImportError:
     import random
     random_generator = random.SystemRandom()
-import hmac
 
-import sys
+
+def _hmac_md5(*args, **kwargs):
+    """Py3 hmac.new() wrapper with explicit MD5 digestmod."""
+    return hmac.new(*args, digestmod='MD5', **kwargs)
+
+
 if sys.version_info >= (3, 0):
-    hmac_new = lambda *x, **y: hmac.new(*x, digestmod='MD5', **y)
+    hmac_new = _hmac_md5
 else:
     hmac_new = hmac.new
 
@@ -27,7 +35,6 @@ except ImportError:
     # BBB for python 2.4
     import md5
     md5_constructor = md5.new
-from pyrad import tools
 
 # Packet codes
 AccessRequest = 1
@@ -241,9 +248,8 @@ class Packet(OrderedDict):
                       **attributes)
 
     def _DecodeValue(self, attr, value):
-
         if attr.encrypt == 2:
-            #salt decrypt attribute
+            # salt decrypt attribute
             value = self.SaltDecrypt(value)
 
         if attr.values.HasBackward(value):
@@ -288,7 +294,7 @@ class Packet(OrderedDict):
             return key
 
         attr = self.dict.attributes[key]
-        if attr.vendor and not attr.is_sub_attribute:  #sub attribute keys don't need vendor
+        if attr.vendor and not attr.is_sub_attribute:  # sub attribute keys don't need vendor
             return (self.dict.vendors.GetForward(attr.vendor), attr.code)
         else:
             return attr.code
@@ -404,9 +410,8 @@ class Packet(OrderedDict):
         :return: raw packet
         :rtype:  string
         """
-        assert(self.authenticator)
-
-        assert(self.secret is not None)
+        assert (self.authenticator)
+        assert (self.secret is not None)
 
         if self.message_authenticator:
             self._refresh_message_authenticator()
@@ -426,7 +431,7 @@ class Packet(OrderedDict):
         if rawreply is None:
             rawreply = reply.ReplyPacket()
 
-        attr = reply._PktEncodeAttributes()
+        _ = reply._PktEncodeAttributes()
         # The Authenticator field in an Accounting-Response packet is called
         # the Response Authenticator, and contains a one-way MD5 hash
         # calculated over a stream of octets consisting of the Accounting
@@ -492,7 +497,6 @@ class Packet(OrderedDict):
     def _PktEncodeAttributes(self):
         result = b''
         for (code, datalst) in self.items():
-            attribute = self.dict.attributes.get(self._DecodeKey(code))
             if self._PktIsTlvAttribute(code):
                 result += self._PktEncodeTlv(code, datalst)
             else:
@@ -507,21 +511,20 @@ class Packet(OrderedDict):
             return [(26, data)]
 
         (vendor, atype, length) = struct.unpack('!LBB', data[:6])[0:3]
-        attribute = self.dict.attributes.get(self._DecodeKey((vendor, atype)))
         try:
             if self._PktIsTlvAttribute((vendor, atype)):
                 self._PktDecodeTlvAttribute((vendor, atype), data[6:length + 4])
                 tlvs = []  # tlv is added to the packet inside _PktDecodeTlvAttribute
             else:
                 tlvs = [((vendor, atype), data[6:length + 4])]
-        except:
+        except Exception:
             return [(26, data)]
 
         sumlength = 4 + length
         while len(data) > sumlength:
             try:
                 atype, length = struct.unpack('!BB', data[sumlength:sumlength+2])[0:2]
-            except:
+            except Exception:
                 return [(26, data)]
             tlvs.append(((vendor, atype), data[sumlength+2:sumlength+length]))
             sumlength += length
@@ -568,11 +571,9 @@ class Packet(OrderedDict):
                 raise PacketError('Attribute header is corrupt')
 
             if attrlen < 2:
-                raise PacketError(
-                        'Attribute length is too small (%d)' % attrlen)
+                raise PacketError('Attribute length is too small (%d)' % attrlen)
 
             value = packet[2:attrlen]
-            attribute = self.dict.attributes.get(self._DecodeKey(key))
             if key == 26:
                 for (key, value) in self._PktDecodeVendorAttribute(value):
                     self.setdefault(key, []).append(value)
@@ -581,12 +582,11 @@ class Packet(OrderedDict):
                 self.message_authenticator = True
                 self.setdefault(key, []).append(value)
             elif self._PktIsTlvAttribute(key):
-                self._PktDecodeTlvAttribute(key,value)
+                self._PktDecodeTlvAttribute(key, value)
             else:
                 self.setdefault(key, []).append(value)
 
             packet = packet[attrlen:]
-
 
     def _salt_en_decrypt(self, data, salt):
         result = b''
@@ -602,7 +602,6 @@ class Packet(OrderedDict):
             last = result[-16:]
             data = data[16:]
         return result
-
 
     def SaltCrypt(self, value):
         """SaltEncrypt
@@ -620,15 +619,15 @@ class Packet(OrderedDict):
             # self.authenticator = self.CreateAuthenticator()
             self.authenticator = 16 * b'\x00'
 
-        #create salt
+        # create salt
         random_value = 32768 + random_generator.randrange(0, 32767)
         salt_raw = struct.pack('!H', random_value)
 
-        #length prefixing
+        # length prefixing
         length = struct.pack("B", len(value))
         value = length + value
 
-        #zero padding
+        # zero padding
         if len(value) % 16 != 0:
             value += b'\x00' * (16 - (len(value) % 16))
 
@@ -642,13 +641,13 @@ class Packet(OrderedDict):
         :return:        decrypted plaintext string
         :rtype:         unicode string
         """
-        #extract salt
+        # extract salt
         salt = value[:2]
 
-        #decrypt
+        # decrypt
         value = self._salt_en_decrypt(value[2:], salt)
 
-        #remove padding
+        # remove padding
         length = value[0]
         value = value[1:length+1]
 
@@ -756,7 +755,7 @@ class AuthPacket(Packet):
 
         # If the shared secret with the client is not the same, then de-obfuscating the password
         # field may yield illegal UTF-8 bytes. Therefore, in order not to provoke an Exception here
-        # (which would be not consistently generated since this will depend on the random data 
+        # (which would be not consistently generated since this will depend on the random data
         # chosen by the client) we simply ignore un-parsable UTF-8 sequences.
         return pw.decode('utf-8', errors="ignore")
 
@@ -872,7 +871,7 @@ class AcctPacket(Packet):
         :return: True if verification passed else False
         :rtype: boolean
         """
-        assert(self.raw_packet)
+        assert (self.raw_packet)
 
         hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
                                self.raw_packet[20:] + self.secret).digest()
@@ -910,7 +909,7 @@ class CoAPacket(Packet):
     """
 
     def __init__(self, code=CoARequest, id=None, secret=b'',
-            authenticator=None, **attributes):
+                 authenticator=None, **attributes):
         """Constructor
 
         :param dict:   RADIUS dictionary
@@ -941,7 +940,7 @@ class CoAPacket(Packet):
         :return: True if verification passed else False
         :rtype: boolean
         """
-        assert(self.raw_packet)
+        assert (self.raw_packet)
         hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
                                self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator

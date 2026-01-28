@@ -123,7 +123,6 @@ class Server(host.Host):
 
         return results
 
-
     def BindToAddress(self, addr):
         """Add an address to listen on a specific interface.
         String "0.0.0.0" indicates you want to listen on all interfaces.
@@ -150,7 +149,6 @@ class Server(host.Host):
                 coafd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 coafd.bind((address, self.coaport))
                 self.coafds.append(coafd)
-
 
     def HandleAuthPacket(self, pkt):
         """Authentication packet handler.
@@ -253,7 +251,6 @@ class Server(host.Host):
             self.HandleDisconnectPacket(pkt)
         else:
             raise ServerPacketError('Received non-coa packet on coa port')
-
 
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.

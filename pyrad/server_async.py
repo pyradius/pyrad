@@ -4,7 +4,6 @@
 
 import asyncio
 import logging
-import traceback
 
 from abc import abstractmethod, ABCMeta
 from enum import Enum
