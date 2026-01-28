@@ -1,6 +1,6 @@
 
-.. image:: https://github.com/pyradius/pyrad/workflows/Python%203.X%20test/badge.svg?branch=master
-    :target: https://github.com/pyradius/pyrad/actions?query=workflow
+.. image:: https://github.com/pyradius/pyrad/actions/workflows/python-test.yml/badge.svg?branch=master
+    :target: https://github.com/pyradius/pyrad/actions/workflows/python-test.yml
 .. image:: https://coveralls.io/repos/github/pyradius/pyrad/badge.svg?branch=master
     :target: https://coveralls.io/github/pyradius/pyrad?branch=master
 .. image:: https://img.shields.io/pypi/v/pyrad.svg
@@ -14,6 +14,8 @@
     :alt: Documentation Status
 .. image:: https://img.shields.io/pypi/l/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
+.. image:: https://img.shields.io/badge/Chat-darkgreen
+    :target: https://matrix.to/#/#pyradius:matrix.org
 
 Introduction
 ============
@@ -24,7 +26,6 @@ them and decoding responses.
 
 Here is an example of doing a authentication request::
 
-    from __future__ import print_function
     from pyrad.client import Client
     from pyrad.dictionary import Dictionary
     import pyrad.packet
@@ -54,7 +55,7 @@ Here is an example of doing a authentication request::
 Requirements & Installation
 ===========================
 
-pyrad requires Python 2.7, or Python 3.6 or later
+pyrad requires Python 3.8 or later
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::
@@ -68,6 +69,10 @@ Author, Copyright, Availability
 pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by 
 Christian Giese (GIC-de) and Istvan Ruzman (Istvan91). 
 
+We’re looking for contributors to support the pyrad team! If you’re interested in 
+helping with development, testing, documentation, or other areas, please contact 
+us directly.
+
 This project is licensed under a BSD license.
 
 Copyright and license information can be found in the LICENSE.txt file.
@@ -77,3 +82,13 @@ https://pypi.org/project/pyrad/
 
 Bugs and wishes can be submitted in the pyrad issue tracker on github:
 https://github.com/pyradius/pyrad/issues
+
+Related Projects & Forks
+========================
+
+**pyrad2:** Noteworthy fork with experimental RadSec (RFC 6614) support. Targets Python 3.12+, 
+adds extensive type hints, boosts test coverage, and includes fresh bug fixes.
+https://github.com/nicholasamorim/pyrad2
+
+**pyrad-server:** Lab-grade RADIUS test server built on top of pyrad.
+https://github.com/slieberth/pyrad-server

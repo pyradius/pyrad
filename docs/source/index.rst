@@ -15,7 +15,6 @@ them and decoding responses.
 
 Here is an example of doing a authentication request::
 
-    from __future__ import print_function
     from pyrad.client import Client
     from pyrad.dictionary import Dictionary
     import pyrad.packet
@@ -44,7 +43,7 @@ Here is an example of doing a authentication request::
 Requirements & Installation
 ===========================
 
-pyrad requires Python 2.7, or Python 3.6 or later
+pyrad requires Python 3.6 or later
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::

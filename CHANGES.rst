@@ -1,7 +1,15 @@
 Changelog
 =========
 
+* Drop support of Python 2.x
+
 * Add salt decryption of encrypted attributes
+
+* Fix for UTF-8
+
+* Fix fix usage of socket.getaddrinfo
+
+* Fix #197 KeyError when handling CoA packet for 0.0.0.0
 
 * Fix create CoA packet in client_async
 

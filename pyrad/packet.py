@@ -27,7 +27,6 @@ except ImportError:
     # BBB for python 2.4
     import md5
     md5_constructor = md5.new
-import six
 from pyrad import tools
 
 # Packet codes
@@ -70,7 +69,7 @@ class Packet(OrderedDict):
     :obj:`AuthPacket` or :obj:`AcctPacket` classes.
     """
 
-    def __init__(self, code=0, id=None, secret=six.b(''), authenticator=None,
+    def __init__(self, code=0, id=None, secret=b'', authenticator=None,
                  **attributes):
         """Constructor
 
@@ -91,11 +90,11 @@ class Packet(OrderedDict):
             self.id = id
         else:
             self.id = CreateID()
-        if not isinstance(secret, six.binary_type):
+        if not isinstance(secret, bytes):
             raise TypeError('secret must be a binary string')
         self.secret = secret
         if authenticator is not None and \
-                not isinstance(authenticator, six.binary_type):
+                not isinstance(authenticator, bytes):
             raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
         self.message_authenticator = None
@@ -124,7 +123,7 @@ class Packet(OrderedDict):
 
         self.message_authenticator = True
         # Maintain a zero octets content for md5 and hmac calculation.
-        self['Message-Authenticator'] = 16 * six.b('\00')
+        self['Message-Authenticator'] = 16 * b'\00'
 
         if self.id is None:
             self.id = self.CreateID()
@@ -141,7 +140,7 @@ class Packet(OrderedDict):
         hmac_constructor = hmac_new(self.secret)
 
         # Maintain a zero octets content for md5 and hmac calculation.
-        self['Message-Authenticator'] = 16 * six.b('\00')
+        self['Message-Authenticator'] = 16 * b'\00'
         attr = self._PktEncodeAttributes()
 
         header = struct.pack('!BBH', self.code, self.id,
@@ -150,7 +149,7 @@ class Packet(OrderedDict):
         hmac_constructor.update(header[0:4])
         if self.code in (AccountingRequest, DisconnectRequest,
                          CoARequest, AccountingResponse):
-            hmac_constructor.update(16 * six.b('\00'))
+            hmac_constructor.update(16 * b'\00')
         else:
             # NOTE: self.authenticator on reply packet is initialized
             #       with request authenticator by design.
@@ -197,9 +196,9 @@ class Packet(OrderedDict):
         # attributes exactly as sent.
         if self.raw_packet:
             attr = self.raw_packet[20:]
-            attr = attr.replace(prev_ma[0], 16 * six.b('\00'))
+            attr = attr.replace(prev_ma[0], 16 * b'\00')
         else:
-            self['Message-Authenticator'] = 16 * six.b('\00')
+            self['Message-Authenticator'] = 16 * b'\00'
             attr = self._PktEncodeAttributes()
 
         header = struct.pack('!BBH', self.code, self.id,
@@ -211,7 +210,7 @@ class Packet(OrderedDict):
                          CoARequest, AccountingResponse):
             if original_code is None or original_code != StatusServer:
                 # TODO: Handle Status-Server response correctly.
-                hmac_constructor.update(16 * six.b('\00'))
+                hmac_constructor.update(16 * b'\00')
         elif self.code in (AccessAccept, AccessChallenge,
                            AccessReject):
             if original_authenticator is None:
@@ -329,7 +328,7 @@ class Packet(OrderedDict):
         return res
 
     def __getitem__(self, key):
-        if not isinstance(key, six.string_types):
+        if not isinstance(key, str):
             return OrderedDict.__getitem__(self, key)
 
         values = OrderedDict.__getitem__(self, self._EncodeKey(key))
@@ -360,7 +359,7 @@ class Packet(OrderedDict):
         OrderedDict.__delitem__(self, self._EncodeKey(key))
 
     def __setitem__(self, key, item):
-        if isinstance(key, six.string_types):
+        if isinstance(key, str):
             (key, item) = self._EncodeKeyValues(key, item)
             OrderedDict.__setitem__(self, key, item)
         else:
@@ -379,14 +378,10 @@ class Packet(OrderedDict):
         :return: valid packet authenticator
         :rtype: binary string
         """
-
-        data = []
-        for _ in range(16):
-            data.append(random_generator.randrange(0, 256))
-        if six.PY3:
-            return bytes(data)
-        else:
-            return ''.join(chr(b) for b in data)
+        return bytes(
+            random_generator.randrange(0, 256)
+            for _ in range(16)
+        )
 
     def CreateID(self):
         """Create a packet ID.  All RADIUS requests have a ID which is used to
@@ -409,6 +404,7 @@ class Packet(OrderedDict):
         :rtype:  string
         """
         assert(self.authenticator)
+
         assert(self.secret is not None)
 
         if self.message_authenticator:
@@ -462,11 +458,11 @@ class Packet(OrderedDict):
 
     def _PktEncodeTlv(self, tlv_key, tlv_value):
         tlv_attr = self.dict.attributes[self._DecodeKey(tlv_key)]
-        curr_avp = six.b('')
+        curr_avp = b''
         avps = []
         max_sub_attribute_len = max(map(lambda item: len(item[1]), tlv_value.items()))
         for i in range(max_sub_attribute_len):
-            sub_attr_encoding = six.b('')
+            sub_attr_encoding = b''
             for (code, datalst) in tlv_value.items():
                 if i < len(datalst):
                     sub_attr_encoding += self._PktEncodeAttribute(code, datalst[i])
@@ -482,7 +478,7 @@ class Packet(OrderedDict):
             value = struct.pack('!BB', tlv_attr.code, (len(avp) + 2)) + avp
             tlv_avps.append(value)
         if tlv_attr.vendor:
-            vendor_avps = six.b('')
+            vendor_avps = b''
             for avp in tlv_avps:
                 vendor_avps += struct.pack(
                     '!BBL', 26, (len(avp) + 6),
@@ -493,7 +489,7 @@ class Packet(OrderedDict):
             return b''.join(tlv_avps)
 
     def _PktEncodeAttributes(self):
-        result = six.b('')
+        result = b''
         for (code, datalst) in self.items():
             attribute = self.dict.attributes.get(self._DecodeKey(code))
             if attribute and attribute.type == 'tlv':
@@ -592,12 +588,8 @@ class Packet(OrderedDict):
         last = self.authenticator + salt
         while data:
             hash = md5_constructor(self.secret + last).digest()
-            if six.PY3:
-                for i in range(16):
-                    result += bytes((hash[i] ^ data[i],))
-            else:
-                for i in range(16):
-                    result += chr(ord(hash[i]) ^ ord(data[i]))
+            for i in range(16):
+                result += bytes((hash[i] ^ data[i],))
 
             last = result[-16:]
             data = data[16:]
@@ -613,21 +605,16 @@ class Packet(OrderedDict):
         :rtype:          binary string
         """
 
-        if isinstance(value, six.text_type):
+        if isinstance(value, str):
             value = value.encode('utf-8')
 
         if self.authenticator is None:
             # self.authenticator = self.CreateAuthenticator()
-            self.authenticator = 16 * six.b('\x00')
+            self.authenticator = 16 * b'\x00'
 
         #create salt
         random_value = 32768 + random_generator.randrange(0, 32767)
-        if six.PY3:
-            salt_raw = struct.pack('!H', random_value )
-            salt = chr(salt_raw[0]) + chr(salt_raw[1])
-        else:
-            salt = struct.pack('!H', random_value )
-            salt = chr(ord(salt[0]) | 1 << 7)+salt[1]
+        salt_raw = struct.pack('!H', random_value)
 
         #length prefixing
         length = struct.pack("B", len(value))
@@ -635,9 +622,9 @@ class Packet(OrderedDict):
 
         #zero padding
         if len(value) % 16 != 0:
-            value += six.b('\x00') * (16 - (len(value) % 16))
+            value += b'\x00' * (16 - (len(value) % 16))
 
-        return six.b(salt) + self._salt_en_decrypt(value, six.b(salt))
+        return salt_raw + self._salt_en_decrypt(value, salt_raw)
 
     def SaltDecrypt(self, value):
         """ SaltDecrypt
@@ -661,8 +648,8 @@ class Packet(OrderedDict):
 
 
 class AuthPacket(Packet):
-    def __init__(self, code=AccessRequest, id=None, secret=six.b(''),
-            authenticator=None, auth_type='pap', **attributes):
+    def __init__(self, code=AccessRequest, id=None, secret=b'',
+                 authenticator=None, auth_type='pap', **attributes):
         """Constructor
 
         :param code:   packet type code
@@ -731,9 +718,13 @@ class AuthPacket(Packet):
         return header + attr
 
     def PwDecrypt(self, password):
-        """Obfuscate a RADIUS password. RADIUS hides passwords in packets by
+        """De-Obfuscate a RADIUS password. RADIUS hides passwords in packets by
         using an algorithm based on the MD5 hash of the packet authenticator
         and RADIUS secret. This function reverses the obfuscation process.
+
+        Although RFC2865 does not explicitly state UTF-8 for the password field,
+        the rest of RFC2865 defines UTF-8 as the encoding expected for the decrypted password.
+
 
         :param password: obfuscated form of password
         :type password:  binary string
@@ -741,24 +732,25 @@ class AuthPacket(Packet):
         :rtype:          unicode string
         """
         buf = password
-        pw = six.b('')
+        pw = b''
 
         last = self.authenticator
         while buf:
             hash = md5_constructor(self.secret + last).digest()
-            if six.PY3:
-                for i in range(16):
-                    pw += bytes((hash[i] ^ buf[i],))
-            else:
-                for i in range(16):
-                    pw += chr(ord(hash[i]) ^ ord(buf[i]))
-
+            for i in range(16):
+                pw += bytes((hash[i] ^ buf[i],))
             (last, buf) = (buf[:16], buf[16:])
 
-        while pw.endswith(six.b('\x00')):
+        # This is safe even with UTF-8 encoding since no valid encoding of UTF-8
+        # (other than encoding U+0000 NULL) will produce a bytestream containing 0x00 byte.
+        while pw.endswith(b'\x00'):
             pw = pw[:-1]
 
-        return pw.decode('utf-8')
+        # If the shared secret with the client is not the same, then de-obfuscating the password
+        # field may yield illegal UTF-8 bytes. Therefore, in order not to provoke an Exception here
+        # (which would be not consistently generated since this will depend on the random data 
+        # chosen by the client) we simply ignore un-parsable UTF-8 sequences.
+        return pw.decode('utf-8', errors="ignore")
 
     def PwCrypt(self, password):
         """Obfuscate password.
@@ -777,25 +769,20 @@ class AuthPacket(Packet):
         if self.authenticator is None:
             self.authenticator = self.CreateAuthenticator()
 
-        if isinstance(password, six.text_type):
+        if isinstance(password, str):
             password = password.encode('utf-8')
 
         buf = password
         if len(password) % 16 != 0:
-            buf += six.b('\x00') * (16 - (len(password) % 16))
+            buf += b'\x00' * (16 - (len(password) % 16))
 
-        result = six.b('')
+        result = b''
 
         last = self.authenticator
         while buf:
             hash = md5_constructor(self.secret + last).digest()
-            if six.PY3:
-                for i in range(16):
-                    result += bytes((hash[i] ^ buf[i],))
-            else:
-                for i in range(16):
-                    result += chr(ord(hash[i]) ^ ord(buf[i]))
-
+            for i in range(16):
+                result += bytes((hash[i] ^ buf[i],))
             last = result[-16:]
             buf = buf[16:]
 
@@ -813,16 +800,14 @@ class AuthPacket(Packet):
         if not self.authenticator:
             self.authenticator = self.CreateAuthenticator()
 
-        if isinstance(userpwd, six.text_type):
+        if isinstance(userpwd, str):
             userpwd = userpwd.strip().encode('utf-8')
 
         chap_password = tools.DecodeOctets(self.get(3)[0])
         if len(chap_password) != 17:
             return False
 
-        chapid = chap_password[0]
-        if six.PY3:
-            chapid = chr(chapid).encode('utf-8')
+        chapid = chap_password[:1]
         password = chap_password[1:]
 
         challenge = self.authenticator
@@ -836,8 +821,8 @@ class AuthPacket(Packet):
         :return: True if verification passed else False
         :rtype: boolean
         """
-        assert(self.raw_packet)
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+        assert (self.raw_packet)
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
                                self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator
 
@@ -847,7 +832,7 @@ class AcctPacket(Packet):
     of the generic :obj:`Packet` class for accounting packets.
     """
 
-    def __init__(self, code=AccountingRequest, id=None, secret=six.b(''),
+    def __init__(self, code=AccountingRequest, id=None, secret=b'',
                  authenticator=None, **attributes):
         """Constructor
 
@@ -881,7 +866,7 @@ class AcctPacket(Packet):
         """
         assert(self.raw_packet)
 
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
                                self.raw_packet[20:] + self.secret).digest()
 
         return hash == self.authenticator
@@ -903,7 +888,7 @@ class AcctPacket(Packet):
 
         attr = self._PktEncodeAttributes()
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
-        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
+        self.authenticator = md5_constructor(header[0:4] + 16 * b'\x00' +
                                              attr + self.secret).digest()
 
         ans = header + self.authenticator + attr
@@ -916,7 +901,7 @@ class CoAPacket(Packet):
     of the generic :obj:`Packet` class for CoA packets.
     """
 
-    def __init__(self, code=CoARequest, id=None, secret=six.b(''),
+    def __init__(self, code=CoARequest, id=None, secret=b'',
             authenticator=None, **attributes):
         """Constructor
 
@@ -949,7 +934,7 @@ class CoAPacket(Packet):
         :rtype: boolean
         """
         assert(self.raw_packet)
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * six.b('\x00') +
+        hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
                                self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator
 
@@ -968,13 +953,13 @@ class CoAPacket(Packet):
             self.id = self.CreateID()
 
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
-        self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
+        self.authenticator = md5_constructor(header[0:4] + 16 * b'\x00' +
                                              attr + self.secret).digest()
 
         if self.message_authenticator:
             self._refresh_message_authenticator()
             attr = self._PktEncodeAttributes()
-            self.authenticator = md5_constructor(header[0:4] + 16 * six.b('\x00') +
+            self.authenticator = md5_constructor(header[0:4] + 16 * b'\x00' +
                                                  attr + self.secret).digest()
 
         return header + self.authenticator + attr
