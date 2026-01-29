@@ -55,7 +55,7 @@ include-package-data = true
 zip-safe = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["pyrad/tests"]
 addopts = "-ra"
 
 [tool.setuptools.dynamic]
