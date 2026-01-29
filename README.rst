@@ -24,18 +24,24 @@ pyrad is an implementation of a RADIUS client/server as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
 them and decoding responses.
 
-Here is an example of doing a authentication request::
+Here is an example of doing a authentication request:
+
+.. code-block:: python
 
     from pyrad.client import Client
     from pyrad.dictionary import Dictionary
     import pyrad.packet
 
-    srv = Client(server="localhost", secret=b"Kah3choteereethiejeimaeziecumi",
-                 dict=Dictionary("dictionary"))
+    srv = Client(
+        server="localhost",
+        secret=b"Kah3choteereethiejeimaeziecumi",
+        dict=Dictionary("dictionary"),
+    )
 
     # create request
-    req = srv.CreateAuthPacket(code=pyrad.packet.AccessRequest,
-                               User_Name="wichert", NAS_Identifier="localhost")
+    req = srv.CreateAuthPacket(
+        code=pyrad.packet.AccessRequest, User_Name="wichert", NAS_Identifier="localhost"
+    )
     req["User-Password"] = req.PwCrypt("password")
 
     # send request
@@ -47,9 +53,8 @@ Here is an example of doing a authentication request::
         print("access denied")
 
     print("Attributes returned by server:")
-    for i in reply.keys():
-        print("%s: %s" % (i, reply[i]))
-
+    for key, val in reply.items():
+        print(f"{key}: {val}")
 
 
 Requirements & Installation
