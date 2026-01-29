@@ -6,6 +6,7 @@
 
 from collections import OrderedDict
 from pyrad import tools
+import hashlib
 import hmac
 import struct
 import sys
@@ -27,14 +28,6 @@ if sys.version_info >= (3, 0):
     hmac_new = _hmac_md5
 else:
     hmac_new = hmac.new
-
-try:
-    import hashlib
-    md5_constructor = hashlib.md5
-except ImportError:
-    # BBB for python 2.4
-    import md5
-    md5_constructor = md5.new
 
 # Packet codes
 AccessRequest = 1
@@ -419,8 +412,8 @@ class Packet(OrderedDict):
         attr = self._PktEncodeAttributes()
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
 
-        authenticator = md5_constructor(header[0:4] + self.authenticator
-                                        + attr + self.secret).digest()
+        authenticator = hashlib.md5(header[0:4] + self.authenticator
+                                    + attr + self.secret).digest()
 
         return header + authenticator + attr
 
@@ -440,8 +433,8 @@ class Packet(OrderedDict):
         # response attributes if any, followed by the shared secret.  The
         # resulting 16 octet MD5 hash value is stored in the Authenticator
         # field of the Accounting-Response packet.
-        hash = md5_constructor(rawreply[0:4] + self.authenticator +
-                               rawreply[20:] + self.secret).digest()
+        hash = hashlib.md5(rawreply[0:4] + self.authenticator +
+                           rawreply[20:] + self.secret).digest()
 
         if hash != rawreply[4:20]:
             return False
@@ -595,7 +588,7 @@ class Packet(OrderedDict):
         else:
             last = self.authenticator + salt
         while data:
-            hash = md5_constructor(self.secret + last).digest()
+            hash = hashlib.md5(self.secret + last).digest()
             for i in range(16):
                 result += bytes((hash[i] ^ data[i],))
 
@@ -743,7 +736,7 @@ class AuthPacket(Packet):
 
         last = self.authenticator
         while buf:
-            hash = md5_constructor(self.secret + last).digest()
+            hash = hashlib.md5(self.secret + last).digest()
             for i in range(16):
                 pw += bytes((hash[i] ^ buf[i],))
             (last, buf) = (buf[:16], buf[16:])
@@ -787,7 +780,7 @@ class AuthPacket(Packet):
 
         last = self.authenticator
         while buf:
-            hash = md5_constructor(self.secret + last).digest()
+            hash = hashlib.md5(self.secret + last).digest()
             for i in range(16):
                 result += bytes((hash[i] ^ buf[i],))
             last = result[-16:]
@@ -820,7 +813,7 @@ class AuthPacket(Packet):
         challenge = self.authenticator
         if 'CHAP-Challenge' in self:
             challenge = self['CHAP-Challenge'][0]
-        return password == md5_constructor(chapid + userpwd + challenge).digest()
+        return password == hashlib.md5(chapid + userpwd + challenge).digest()
 
     def VerifyAuthRequest(self):
         """Verify request authenticator.
@@ -829,8 +822,8 @@ class AuthPacket(Packet):
         :rtype: boolean
         """
         assert (self.raw_packet)
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
-                               self.raw_packet[20:] + self.secret).digest()
+        hash = hashlib.md5(self.raw_packet[0:4] + 16 * b'\x00' +
+                           self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator
 
 
@@ -873,8 +866,8 @@ class AcctPacket(Packet):
         """
         assert (self.raw_packet)
 
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
-                               self.raw_packet[20:] + self.secret).digest()
+        hash = hashlib.md5(self.raw_packet[0:4] + 16 * b'\x00' +
+                           self.raw_packet[20:] + self.secret).digest()
 
         return hash == self.authenticator
 
@@ -895,8 +888,8 @@ class AcctPacket(Packet):
 
         attr = self._PktEncodeAttributes()
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
-        self.authenticator = md5_constructor(header[0:4] + 16 * b'\x00' +
-                                             attr + self.secret).digest()
+        self.authenticator = hashlib.md5(header[0:4] + 16 * b'\x00' +
+                                         attr + self.secret).digest()
 
         ans = header + self.authenticator + attr
 
@@ -941,8 +934,8 @@ class CoAPacket(Packet):
         :rtype: boolean
         """
         assert (self.raw_packet)
-        hash = md5_constructor(self.raw_packet[0:4] + 16 * b'\x00' +
-                               self.raw_packet[20:] + self.secret).digest()
+        hash = hashlib.md5(self.raw_packet[0:4] + 16 * b'\x00' +
+                           self.raw_packet[20:] + self.secret).digest()
         return hash == self.authenticator
 
     def RequestPacket(self):
@@ -960,14 +953,14 @@ class CoAPacket(Packet):
             self.id = self.CreateID()
 
         header = struct.pack('!BBH', self.code, self.id, (20 + len(attr)))
-        self.authenticator = md5_constructor(header[0:4] + 16 * b'\x00' +
-                                             attr + self.secret).digest()
+        self.authenticator = hashlib.md5(header[0:4] + 16 * b'\x00' +
+                                         attr + self.secret).digest()
 
         if self.message_authenticator:
             self._refresh_message_authenticator()
             attr = self._PktEncodeAttributes()
-            self.authenticator = md5_constructor(header[0:4] + 16 * b'\x00' +
-                                                 attr + self.secret).digest()
+            self.authenticator = hashlib.md5(header[0:4] + 16 * b'\x00' +
+                                             attr + self.secret).digest()
 
         return header + self.authenticator + attr
 
