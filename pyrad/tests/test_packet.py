@@ -677,3 +677,9 @@ class AcctPacketTests(unittest.TestCase):
 
         # Vendor unknown preserved
         self.assertEqual(pkt[(594, 1)], [b'UNKNOWN_PRODUCT'])
+
+        raw_no_authenticator = raw[:4] + b"\x00" * 16 + raw[20:]
+        rebuilt = pkt.RequestPacket()
+        rebuilt_no_authenticator = rebuilt[:4] + b"\x00" * 16 + rebuilt[20:]
+
+        self.assertEqual(raw_no_authenticator, rebuilt_no_authenticator)
