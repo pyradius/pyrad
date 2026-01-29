@@ -10,8 +10,8 @@ readme = "README.rst"
 license = { text = "BSD-3-Clause" }
 requires-python = ">=3.8"
 authors = [
-  { name = "Istvan Ruzman", email = "istvan@ruzman.eu" },
   { name = "Christian Giese", email = "gic@gicnet.de" },
+  { name = "Istvan Ruzman", email = "istvan@ruzman.eu" },
   { name = "Stefan Lieberth", email = "stefan@lieberth.net" },
 ]
 keywords = ["radius", "authentication", "AAA", "accounting", "authorization", "RADIUS"]

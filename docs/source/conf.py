@@ -134,7 +134,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'pyrad.tex', u'pyrad Documentation',
-     u'Christian Giese and Istvan Ruzman', 'manual'),
+     u'Christian Giese, Istvan Ruzman and Stefan Lieberth', 'manual'),
 ]
 
 
