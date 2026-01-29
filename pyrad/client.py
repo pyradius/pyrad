@@ -9,7 +9,6 @@ import select
 import socket
 import time
 import struct
-import six
 from pyrad import host
 from pyrad import packet
 
@@ -35,7 +34,7 @@ class Client(host.Host):
     :type timeout: float
     """
     def __init__(self, server, authport=1812, acctport=1813,
-                 coaport=3799, secret=six.b(''), dict=None, retries=3, timeout=5, enforce_ma=False):
+                 coaport=3799, secret=b'', dict=None, retries=3, timeout=5, enforce_ma=False):
         """Constructor.
 
         :param   server: hostname or IP address of RADIUS server
