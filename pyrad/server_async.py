@@ -7,7 +7,7 @@ import logging
 
 from abc import abstractmethod, ABCMeta
 from enum import Enum
-from datetime import datetime
+from datetime import datetime, timezone
 from pyrad.packet import Packet, AccessAccept, AccessReject, \
     AccountingRequest, AccountingResponse, \
     DisconnectACK, DisconnectNAK, DisconnectRequest, CoARequest, \
@@ -52,7 +52,7 @@ class DatagramProtocolServer(asyncio.Protocol):
     def datagram_received(self, data, addr):
         self.logger.debug('[%s:%d] Received %d bytes from %s', self.ip, self.port, len(data), addr)
 
-        receive_date = datetime.utcnow()
+        receive_date = datetime.now(timezone.utc)
 
         if addr[0] in self.hosts:
             remote_host = self.hosts[addr[0]]
@@ -112,7 +112,7 @@ class DatagramProtocolServer(asyncio.Protocol):
             else:
                 self.logger.error('[%s:%d] Error for packet from %s: %s', self.ip, self.port, addr, exc)
 
-        process_date = datetime.utcnow()
+        process_date = datetime.now(timezone.utc)
         self.logger.debug('[%s:%d] Request from %s processed in %d ms', self.ip, self.port, addr, (process_date-receive_date).microseconds/1000)
 
     def error_received(self, exc):
