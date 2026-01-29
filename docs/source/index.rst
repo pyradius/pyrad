@@ -3,7 +3,7 @@
 :mod:`pyrad` -- RADIUS for Python
 *********************************
 
-:Author: Wichert Akkerman
+:Author: Christian Giese (GIC-de), Istvan Ruzman (Istvan91) and Stefan Lieberth (slieberth)
 :Version: |version|
 
 Introduction
@@ -43,13 +43,42 @@ Here is an example of doing a authentication request::
 Requirements & Installation
 ===========================
 
-pyrad requires Python 3.6 or later
+pyrad requires Python 3.8 or later
 
 Installing is simple; pyrad uses the standard distutils system for installing
 Python modules::
 
   python setup.py install
 
+Author, Copyright, Availability
+===============================
+
+pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by 
+Christian Giese (GIC-de), Istvan Ruzman (Istvan91) and  Stefan Lieberth (slieberth). 
+
+We’re looking for contributors to support the pyrad team! If you’re interested in 
+helping with development, testing, documentation, or other areas, please contact 
+us directly.
+
+This project is licensed under a BSD license.
+
+Copyright and license information can be found in the LICENSE.txt file.
+
+The current version and documentation can be found on pypi:
+https://pypi.org/project/pyrad/
+
+Bugs and wishes can be submitted in the pyrad issue tracker on github:
+https://github.com/pyradius/pyrad/issues
+
+Related Projects & Forks
+========================
+
+**pyrad2:** Noteworthy fork with experimental RadSec (RFC 6614) support. Targets Python 3.12+, 
+adds extensive type hints, boosts test coverage, and includes fresh bug fixes.
+https://github.com/nicholasamorim/pyrad2
+
+**pyrad-server:** Lab-grade RADIUS test server built on top of pyrad.
+https://github.com/slieberth/pyrad-server
 
 API Documentation
 =================
