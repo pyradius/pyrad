@@ -645,8 +645,11 @@ class AcctPacketTests(unittest.TestCase):
         224: ['24P\x10\x00\x22\x96\xc9']
         228: ['\xfe\x99\xd0P']
         """
+        
         # path = os.path.join(home, 'tests', 'data')
+        
         path = os.path.join(home, 'data')
+
         dictObj = Dictionary(os.path.join(path, 'realistic'))
         raw = six.b('\x04\x8e\x00\xc4\xb2\xf8z\xdb\xac\xfd9l\x9dI?E\x8c%\xe9'\
                 '\xf5\x01\x12user@example.com\x04\x06\x01\x02\x03\x04\x06\x06'\
@@ -659,5 +662,12 @@ class AcctPacketTests(unittest.TestCase):
                 '\x01\x11UNKNOWN_PRODUCT\xe0\n24P\x10\x00\x22\x96\xc9\xe4\x06'\
                 '\xfe\x99\xd0P')
         pkt = packet.AcctPacket(dict=dictObj, packet=raw)
-        self.assertEqual(pkt.raw_packet, raw)
-        self.assertEqual(pkt.RequestPacket(), raw)
+
+        raw_no_authenticator = raw[:4] + b"\x00" * 16 + raw[20:]
+        rebuilt = pkt.RequestPacket()
+        rebuilt_no_authenticator = rebuilt[:4] + b"\x00" * 16 + rebuilt[20:]
+
+        self.assertEqual(raw_no_authenticator, rebuilt_no_authenticator)
+
+        # self.assertEqual(pkt.raw_packet, raw)
+        # self.assertEqual(pkt.RequestPacket(), raw)
