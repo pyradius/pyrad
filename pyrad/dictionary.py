@@ -133,7 +133,7 @@ class Attribute(object):
                 self.values.Add(key, value)
 
 
-class Dictionary(object):
+class Dictionary:
     """RADIUS dictionary class.
     This class stores all information about vendors, attributes and their
     values as defined in RADIUS dictionary files.

@@ -11,7 +11,7 @@ RADIUS $INCLUDE directives behind the scene.
 import os
 
 
-class _Node(object):
+class _Node:
     """Dictionary file node
 
     A single dictionary file.
@@ -36,7 +36,7 @@ class _Node(object):
         return self.lines[self.current - 1]
 
 
-class DictFile(object):
+class DictFile:
     """Dictionary file class
 
     An iterable file type that handles $INCLUDE
@@ -111,4 +111,3 @@ class DictFile(object):
                 else:
                     return line
         raise StopIteration
-    next = __next__  # BBB for python <3
