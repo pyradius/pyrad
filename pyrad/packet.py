@@ -9,7 +9,6 @@ from pyrad import tools
 import hashlib
 import hmac
 import struct
-import sys
 
 try:
     import secrets
@@ -18,16 +17,6 @@ except ImportError:
     import random
     random_generator = random.SystemRandom()
 
-
-def _hmac_md5(*args, **kwargs):
-    """Py3 hmac.new() wrapper with explicit MD5 digestmod."""
-    return hmac.new(*args, digestmod='MD5', **kwargs)
-
-
-if sys.version_info >= (3, 0):
-    hmac_new = _hmac_md5
-else:
-    hmac_new = hmac.new
 
 # Packet codes
 AccessRequest = 1
@@ -138,7 +127,7 @@ class Packet(OrderedDict):
         return self.message_authenticator
 
     def _refresh_message_authenticator(self):
-        hmac_constructor = hmac_new(self.secret)
+        hmac_constructor = hmac.new(self.secret, digestmod='MD5')
 
         # Maintain a zero octets content for md5 and hmac calculation.
         self['Message-Authenticator'] = 16 * b'\00'
@@ -205,7 +194,7 @@ class Packet(OrderedDict):
         header = struct.pack('!BBH', self.code, self.id,
                              (20 + len(attr)))
 
-        hmac_constructor = hmac_new(key)
+        hmac_constructor = hmac.new(key, digestmod='MD5')
         hmac_constructor.update(header)
         if self.code in (AccountingRequest, DisconnectRequest,
                          CoARequest, AccountingResponse):
@@ -700,11 +689,12 @@ class AuthPacket(Packet):
             header = struct.pack(
                 '!BBH16s', self.code, self.id, (20 + 18 + len(attr)), self.authenticator
             )
-            digest = hmac_new(
+            digest = hmac.new(
                 self.secret,
                 header
                 + attr
                 + struct.pack('!BB16s', 80, struct.calcsize('!BB16s'), b''),
+                digestmod='MD5'
             ).digest()
             return (
                 header
