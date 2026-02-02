@@ -1,3 +1,4 @@
+import hashlib
 import hmac
 import os
 import struct
@@ -9,13 +10,6 @@ from collections import OrderedDict
 from pyrad import packet
 from pyrad.client import Client
 from pyrad.dictionary import Dictionary
-try:
-    import hashlib
-    md5_constructor = hashlib.md5
-except ImportError:
-    # BBB for python 2.4
-    import md5
-    md5_constructor = md5.new
 
 
 class UtilityTests(unittest.TestCase):
@@ -106,17 +100,17 @@ class PacketTests(unittest.TestCase):
                              request.id, (20 + len(attributes)))
 
         # Calculate the Message-Authenticator and update the attribute
-        hmac_constructor = hmac.new(request.secret, None, md5_constructor)
+        hmac_constructor = hmac.new(request.secret, None, hashlib.md5)
         hmac_constructor.update(header + request.authenticator + attributes)
         updated_message_authenticator = hmac_constructor.digest()
         attributes = attributes.replace(b'\x00' * 16,
                                         updated_message_authenticator)
 
         # Calculate the response authenticator
-        authenticator = md5_constructor(header
-                                        + request.authenticator
-                                        + attributes
-                                        + request.secret).digest()
+        authenticator = hashlib.md5(header
+                                    + request.authenticator
+                                    + attributes
+                                    + request.secret).digest()
 
         reply_bytes = header + authenticator + attributes
         return packet.AuthPacket(packet=reply_bytes, dict=self.dict)
@@ -554,7 +548,7 @@ class AuthPacketChapTests(unittest.TestCase):
     def testVerifyChapPasswd(self):
         chap_id = b'9'
         chap_challenge = b'987654321'
-        chap_password = chap_id + md5_constructor(
+        chap_password = chap_id + hashlib.md5(
                 chap_id + b'test_password' + chap_challenge).digest()
         pkt = self.client.CreateAuthPacket(
             code=packet.AccessChallenge,
