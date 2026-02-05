@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.5.3 - Feb 5, 2026
+2.5.4 - Feb 5, 2026
 -------------------
 
 * remove python2 leftovers
