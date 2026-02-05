@@ -34,7 +34,7 @@ dependencies = [
   "netaddr>=0.8.0",
 ]
 
-[dependency-groups]
+[project.optional-dependencies]
 test = [
   "pytest>=8",
 ]
