@@ -167,6 +167,9 @@ def EncodeAscendBinary(orig_str):
         "dportq":    b"\x00",
     }
 
+    if orig_str.strip() == "delete":
+        return 8 * b"\x00"
+
     for t in orig_str.split(" "):
         key, value = t.split("=")
         if key == "family" and value == "ipv6":
