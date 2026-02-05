@@ -1,6 +1,12 @@
 Changelog
 =========
 
+2.5.3 - Feb 5, 2026
+-------------------
+
+* remove python2 leftovers
+* add support for Ascend-Data-Filter "delete" keyword
+
 2.5.2 - Jan 29, 2026
 --------------------
 
