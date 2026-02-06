@@ -97,13 +97,15 @@ def test_auth1():
             client.deinitialize_transports()))
         print('END')
 
-        del client
     except Exception as exc:
         print('Error: ', exc)
         print('\n'.join(traceback.format_exc().splitlines()))
         # Close transports
         loop.run_until_complete(asyncio.ensure_future(
             client.deinitialize_transports()))
+
+    finally:
+        del client
 
     loop.close()
 
@@ -150,13 +152,16 @@ def test_multi_auth():
             client.deinitialize_transports()))
         print('END')
 
-        del client
     except Exception as exc:
         print('Error: ', exc)
         print('\n'.join(traceback.format_exc().splitlines()))
         # Close transports
         loop.run_until_complete(asyncio.ensure_future(
             client.deinitialize_transports()))
+
+    finally:
+        del client
+
 
     loop.close()
 

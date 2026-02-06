@@ -12,7 +12,7 @@ from pyrad.server import RemoteHost
 try:
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-except:
+except ModuleNotFoundError:
     pass
 
 logging.basicConfig(level="DEBUG",
@@ -100,7 +100,7 @@ if __name__ == '__main__':
         try:
             # start server
             loop.run_forever()
-        except KeyboardInterrupt as k:
+        except KeyboardInterrupt:
             pass
 
         # Close transports

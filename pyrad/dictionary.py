@@ -177,7 +177,7 @@ class Dictionary:
     has_key = __contains__
 
     def __ParseAttribute(self, state, tokens):
-        if not len(tokens) in [4, 5]:
+        if len(tokens) not in [4, 5]:
             raise ParseError(
                 'Incorrect number of tokens for attribute definition',
                 name=state['file'],
@@ -308,8 +308,8 @@ class Dictionary:
                         file=state['file'],
                         line=state['line'])
             try:
-                (t, l) = tuple(int(a) for a in fmt[1].split(','))
-                if t not in [1, 2, 4] or l not in [0, 1, 2]:
+                (token, length) = tuple(int(a) for a in fmt[1].split(','))
+                if token not in [1, 2, 4] or length not in [0, 1, 2]:
                     raise ParseError(
                         'Unknown vendor format specification %s' % (fmt[1]),
                         file=state['file'],
