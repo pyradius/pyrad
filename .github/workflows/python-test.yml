@@ -28,12 +28,11 @@ jobs:
     # https://docs.astral.sh/ruff/integrations/#github-actions
     - name: Run ruff check
       run: uv run ruff check --output-format=github .
+    - name: Run pytest with coverage
       run: |
-    - name: Run unittest with coverage
-      run: |
-        coverage run -m unittest discover
-        coverage report -m
-        coverage lcov
+        uv run coverage run -m pytest
+        uv run coverage report -m
+        uv run coverage lcov
     - name: Coveralls
       uses: coverallsapp/github-action@v2
       with:
