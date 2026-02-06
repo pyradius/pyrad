@@ -35,13 +35,18 @@ dependencies = [
 ]
 
 [dependency-groups]
+lint = [
+  "ruff",
+]
 test = [
+  "coverage",
+  "lcov",
   "pytest>=8",
 ]
 docs = [
-    "sphinx>=7.0",
-    "sphinx-autodoc-typehints",
-    "sphinx-rtd-theme>=2.0"
+  "sphinx>=7.0",
+  "sphinx-autodoc-typehints",
+  "sphinx-rtd-theme>=2.0",
 ]
 
 [project.urls]
