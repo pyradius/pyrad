@@ -9,8 +9,7 @@ sphinx:
   configuration: docs/source/conf.py
 
 python:
-  install:
-    - method: pip
-      path: .
-      extra_requirements:
-        - docs
+  jobs:
+    install:
+      - pip install --upgrade pip
+      - pip install . --group docs
