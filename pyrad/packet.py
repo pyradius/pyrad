@@ -237,6 +237,8 @@ class Packet(OrderedDict):
         if attr.values.HasBackward(value):
             return attr.values.GetBackward(value)
         else:
+            if attr.encrypt:
+                return tools.DecodeAttr('octets', value)
             return tools.DecodeAttr(attr.type, value)
 
     def _EncodeValue(self, attr, value):
