@@ -17,7 +17,7 @@ class MockPacket:
             raise PacketError
         return self.reply
 
-    def VerifyReply(self, reply, rawreply):
+    def VerifyReply(self, reply, rawreply, enforce_ma=False):
         return self.verify
 
     def RequestPacket(self):

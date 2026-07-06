@@ -168,7 +168,7 @@ class Client(host.Host):
 
                 try:
                     reply = pkt.CreateReply(packet=rawreply)
-                    if pkt.VerifyReply(reply, rawreply):
+                    if pkt.VerifyReply(reply, rawreply, enforce_ma=self.enforce_ma):
                         if hasattr(pkt, 'authenticator'):
                             reply.request_authenticator = pkt.authenticator
                         return reply
