@@ -721,6 +721,11 @@ class AuthPacket(Packet):
         :return:         plaintext password
         :rtype:          unicode string
         """
+        if isinstance(password, str):
+            password = password.encode('latin1')
+        elif isinstance(password, bytearray):
+            password = bytes(password)
+
         buf = password
         pw = b''
 
