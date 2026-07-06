@@ -79,9 +79,6 @@ class DatagramProtocolServer(asyncio.Protocol):
                 req = AuthPacket(secret=remote_host.secret,
                                  dict=self.server.dict,
                                  packet=data)
-                if self.server.enable_pkt_verify:
-                    if not req.VerifyAuthRequest():
-                        raise PacketError('Packet verification failed')
 
             elif self.server_type == ServerType.Coa:
                 if req.code != DisconnectRequest and req.code != CoARequest:
