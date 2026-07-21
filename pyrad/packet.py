@@ -570,7 +570,7 @@ class Packet(OrderedDict):
 
             packet = packet[attrlen:]
 
-    def _salt_en_decrypt(self, data, salt):
+    def _salt_en_decrypt(self, data, salt, encrypt=True):
         result = b''
         if self.request_authenticator is not None:
             last = self.request_authenticator + salt
@@ -578,10 +578,15 @@ class Packet(OrderedDict):
             last = self.authenticator + salt
         while data:
             hash = hashlib.md5(self.secret + last).digest()
+            block = b''
             for i in range(16):
-                result += bytes((hash[i] ^ data[i],))
+                block += bytes((hash[i] ^ data[i],))
+            result += block
 
-            last = result[-16:]
+            # RFC 2868 3.5: each block chains on the ciphertext block, which is the
+            # output when encrypting but the input when decrypting. Chaining on the
+            # output unconditionally corrupted every block past the first on decrypt.
+            last = block if encrypt else data[:16]
             data = data[16:]
         return result
 
@@ -627,7 +632,7 @@ class Packet(OrderedDict):
         salt = value[:2]
 
         # decrypt
-        value = self._salt_en_decrypt(value[2:], salt)
+        value = self._salt_en_decrypt(value[2:], salt, encrypt=False)
 
         # remove padding
         length = value[0]

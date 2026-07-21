@@ -165,6 +165,16 @@ class PacketTests(unittest.TestCase):
         self.packet['Test-Encrypted-Integer'] = 10
         self.assertEqual(self.packet['Test-Encrypted-Integer'], [10])
 
+    def testSaltCryptRoundTrip(self):
+        # SaltDecrypt must invert SaltCrypt past the first 16-byte block. The
+        # chaining used the ciphertext when encrypting but the plaintext when
+        # decrypting, so anything over one block (MS-MPPE keys, long
+        # Tunnel-Password) came back corrupt after byte 15.
+        self.packet.request_authenticator = self.packet.authenticator
+        for value in (b'x', b'0123456789abcde', bytes(range(32)), bytes(range(100))):
+            self.assertEqual(
+                self.packet.SaltDecrypt(self.packet.SaltCrypt(value)), value)
+
     def testHasKey(self):
         self.assertEqual(self.packet.has_key('Test-String'), False)
         self.assertEqual('Test-String' in self.packet, False)
