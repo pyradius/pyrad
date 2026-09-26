@@ -13,6 +13,8 @@ from pyrad.server import Server
 from pyrad.server import ServerPacketError
 from pyrad.packet import AccessRequest
 from pyrad.packet import AccountingRequest
+from pyrad.packet import CoARequest
+from pyrad.packet import DisconnectRequest
 
 
 class TrivialObject:
@@ -101,6 +103,30 @@ class SocketTests(unittest.TestCase):
         self.assertEqual(len(self.server.acctfds), 1)
         self.assertEqual(self.server.acctfds[0].address,
                          ('2001:db8:123::1', 1813))
+
+    def testBindCoA(self):
+        self.server.coa_enabled = True
+        self.server.BindToAddress('192.168.13.13')
+        self.assertEqual(self.server.coafds[0].address, ('192.168.13.13', 3799))
+
+    def testBindUnknownAddress(self):
+        def getaddrinfo(*args):
+            raise socket.gaierror
+        orggetaddrinfo = socket.getaddrinfo
+        socket.getaddrinfo = getaddrinfo
+        try:
+            self.server.BindToAddress('unknown.invalid')
+        finally:
+            socket.getaddrinfo = orggetaddrinfo
+        self.assertEqual(self.server.authfds, [])
+
+    def testPrepareSocketCoAFds(self):
+        self.server._poll = MockPoll()
+        self.server._fdmap = {}
+        self.server.coa_enabled = True
+        self.server.coafds = [MockFd(12)]
+        self.server._PrepareSockets()
+        self.assertEqual(self.server._realcoafds, [12])
 
     def testGrabPacket(self):
         def gen(data):
@@ -226,6 +252,35 @@ class AcctPacketHandlingTests(unittest.TestCase):
         Server.HandleAcctPacket = hap
 
 
+class CoaPacketHandlingTests(unittest.TestCase):
+    def setUp(self):
+        self.server = Server()
+        self.server.hosts['0.0.0.0'] = TrivialObject()
+        self.server.hosts['0.0.0.0'].secret = 'supersecret'
+        self.packet = TrivialObject()
+        self.packet.source = ('host', 'port')
+        self.handled = []
+        self.server.HandleCoaPacket = lambda pkt: self.handled.append(('coa', pkt))
+        self.server.HandleDisconnectPacket = lambda pkt: self.handled.append(('disconnect', pkt))
+
+    def testHandleCoaPacket(self):
+        self.packet.code = CoARequest
+        self.server._HandleCoaPacket(self.packet)
+        self.assertEqual(self.handled, [('coa', self.packet)])
+        # the secret of the default host is used for unknown hosts
+        self.assertEqual(self.packet.secret, 'supersecret')
+
+    def testHandleDisconnectPacket(self):
+        self.packet.code = DisconnectRequest
+        self.server._HandleCoaPacket(self.packet)
+        self.assertEqual(self.handled, [('disconnect', self.packet)])
+
+    def testHandleCoaPacketWrongPort(self):
+        self.packet.code = AccessRequest
+        self.assertRaises(ServerPacketError, self.server._HandleCoaPacket, self.packet)
+        self.assertEqual(self.handled, [])
+
+
 class OtherTests(unittest.TestCase):
     def setUp(self):
         self.server = Server()
@@ -270,6 +325,23 @@ class OtherTests(unittest.TestCase):
         self.assertEqual([x[0] for x in self.server.called],
                          ['_GrabPacket', '_HandleAcctPacket'])
         self.assertEqual(self.server.called[0][1][1], fd)
+
+    def testCoaProcessInput(self):
+        fd = MockFd(1)
+        self.server._realauthfds = []
+        self.server._realacctfds = []
+        self.server.coa_enabled = True
+        MockClassMethod(Server, '_GrabPacket')
+        MockClassMethod(Server, '_HandleCoaPacket')
+
+        self.server._ProcessInput(fd)
+        self.assertEqual([x[0] for x in self.server.called],
+                         ['_GrabPacket', '_HandleCoaPacket'])
+
+    def testUnknownProcessInput(self):
+        self.server._realauthfds = []
+        self.server._realacctfds = []
+        self.assertRaises(ServerPacketError, self.server._ProcessInput, MockFd(1))
 
 
 class ServerRunTests(unittest.TestCase):
