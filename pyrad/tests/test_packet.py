@@ -7,6 +7,7 @@ import unittest
 from . import home
 
 from collections import OrderedDict
+from io import StringIO
 from pyrad import packet
 from pyrad.client import Client
 from pyrad.dictionary import Dictionary
@@ -544,6 +545,24 @@ class AuthPacketTests(unittest.TestCase):
         self.assertEqual(self.packet.PwDecrypt(
                 b'\xd3U;\xb23\r\x11\xba\x07\xe3\xa8*\xa8x\x14\x01'),
                 'Simplon')
+
+    def testPwDecryptNamedAttribute(self):
+        # The encrypted value is not valid UTF-8 and must survive the
+        # string decoding of the named attribute access (#232).
+        dictionary = Dictionary(StringIO('ATTRIBUTE User-Password 2 string\n'))
+        request = packet.AuthPacket(secret=b'secret', dict=dictionary,
+                                    authenticator=b'0123456789ABCDEF')
+        request['User-Password'] = request.PwCrypt('Simplon')
+        pkt = packet.AuthPacket(packet=request.RequestPacket(),
+                                secret=b'secret', dict=dictionary)
+        self.assertEqual(pkt.PwDecrypt(pkt['User-Password'][0]), 'Simplon')
+
+    def testPwDecryptUtf8String(self):
+        # An encrypted value which is valid UTF-8 is decoded to str by the
+        # named attribute access and must be converted back losslessly (#192).
+        encrypted = ('\xe9' * 8).encode('utf-8')
+        self.assertEqual(self.packet.PwDecrypt(encrypted.decode('utf-8')),
+                         self.packet.PwDecrypt(encrypted))
 
 
 class AuthPacketChapTests(unittest.TestCase):

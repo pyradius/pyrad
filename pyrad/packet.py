@@ -725,7 +725,8 @@ class AuthPacket(Packet):
         :rtype:          unicode string
         """
         if isinstance(password, str):
-            password = password.encode('latin1')
+            # str values are created by DecodeString using strict UTF-8
+            password = password.encode('utf-8')
         elif isinstance(password, bytearray):
             password = bytes(password)
 
