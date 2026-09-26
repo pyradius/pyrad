@@ -15,7 +15,6 @@ jobs:
       fail-fast: false
       matrix:
         freeradius-version:
-          - 'latest-3.0'
           - 'latest-3.2'
         python-version:
           - '3.10'
