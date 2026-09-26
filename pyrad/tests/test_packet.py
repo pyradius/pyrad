@@ -766,3 +766,85 @@ class AcctPacketTests(unittest.TestCase):
         rebuilt_no_authenticator = rebuilt[:4] + b"\x00" * 16 + rebuilt[20:]
 
         self.assertEqual(raw_no_authenticator, rebuilt_no_authenticator)
+
+
+class PacketEdgeCaseTests(unittest.TestCase):
+    def setUp(self):
+        self.dict = Dictionary(os.path.join(home, 'data', 'full'))
+
+    def testAuthenticatorMustBeBytes(self):
+        self.assertRaises(TypeError, packet.Packet, authenticator='0123456789abcdef')
+
+    def testAddMessageAuthenticatorCreatesIdAndAuthenticator(self):
+        pkt = packet.AuthPacket(secret=b'secret', dict=self.dict)
+        pkt.id = None
+        pkt.add_message_authenticator()
+        self.assertIsNotNone(pkt.id)
+        self.assertIsNotNone(pkt.authenticator)
+        self.assertTrue(pkt.get_message_authenticator())
+        self.assertEqual(len(pkt[80][0]), 16)
+
+    def testMessageAuthenticatorWithoutAuthenticator(self):
+        pkt = packet.Packet(code=packet.AccessAccept, secret=b'secret', dict=self.dict)
+        pkt.add_message_authenticator()
+        self.assertRaises(Exception, pkt._refresh_message_authenticator)
+
+    def testVerifyMessageAuthenticatorErrors(self):
+        pkt = packet.AuthPacket(secret=b'secret', dict=self.dict)
+        self.assertRaises(Exception, pkt.verify_message_authenticator)
+        pkt.add_message_authenticator()
+        pkt.secret = None
+        self.assertRaises(Exception, pkt.verify_message_authenticator)
+
+    def testTaggedAttributes(self):
+        # RFC 2868 section 3: the tag replaces the first octet of integers
+        dictionary = Dictionary(StringIO(
+            'ATTRIBUTE Tunnel-Type 64 integer has_tag\n'
+            'ATTRIBUTE Tunnel-Private-Group-Id 81 string has_tag\n'))
+        pkt = packet.Packet(dict=dictionary)
+        pkt['Tunnel-Type:1'] = 3
+        pkt['Tunnel-Private-Group-Id:2'] = 'vlan'
+        self.assertEqual(pkt[64], [b'\x01\x00\x00\x03'])
+        self.assertEqual(pkt[81], [b'\x02vlan'])
+
+    def testGetDefault(self):
+        pkt = packet.Packet(dict=self.dict)
+        self.assertEqual(pkt.get('Test-String', 'default'), 'default')
+
+    def testTlvAttributeRoundTrip(self):
+        pkt = packet.AuthPacket(secret=b'secret', dict=self.dict,
+                                authenticator=b'0123456789ABCDEF',
+                                **{'Test-Tlv-Str': 'text', 'Test-Tlv-Int': 10})
+        decoded = packet.AuthPacket(packet=pkt.RequestPacket(), secret=b'secret',
+                                    dict=self.dict)
+        self.assertEqual(decoded['Test-Tlv'],
+                         {'Test-Tlv-Str': ['text'], 'Test-Tlv-Int': [10]})
+
+    def testEapMd5MessageAuthenticator(self):
+        pkt = packet.AuthPacket(secret=b'secret', dict=self.dict, auth_type='eap-md5',
+                                authenticator=b'0123456789ABCDEF')
+        pkt['Test-String'] = 'eap'
+        received = packet.AuthPacket(packet=pkt.RequestPacket(), secret=b'secret',
+                                     dict=self.dict)
+        self.assertTrue(received.verify_message_authenticator())
+
+    def testPwDecryptBytearray(self):
+        pkt = packet.AuthPacket(secret=b'secret', authenticator=b'0123456789ABCDEF')
+        self.assertEqual(pkt.PwDecrypt(bytearray(pkt.PwCrypt('password'))), 'password')
+
+    def testSaltCryptString(self):
+        pkt = packet.AuthPacket(secret=b'secret', authenticator=b'0123456789ABCDEF')
+        self.assertEqual(pkt.SaltDecrypt(pkt.SaltCrypt('password')), b'password')
+
+    def testVerifyChapPasswdInvalidLength(self):
+        pkt = packet.AuthPacket(secret=b'secret', dict=self.dict)
+        pkt[3] = [b'\x01short']
+        self.assertFalse(pkt.VerifyChapPasswd('password'))
+        self.assertIsNotNone(pkt.authenticator)
+
+    def testRequestPacketCreatesId(self):
+        for klass in (packet.AcctPacket, packet.CoAPacket):
+            pkt = klass(secret=b'secret', dict=self.dict)
+            pkt.id = None
+            pkt.RequestPacket()
+            self.assertIsNotNone(pkt.id)
