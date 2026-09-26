@@ -152,6 +152,13 @@ class ClientVerifyReplyTests(BlastRadiusTestCase):
         raw = self.reply(req, Proxy_State=b'other')
         self.assertFalse(self.verify(req, raw))
 
+    def testAccountingResponseWithoutMessageAuthenticator(self):
+        # enforce_ma only applies to replies to Access-Request and Status-Server
+        req = self.client.CreateAcctPacket(User_Name='alice')
+        received = packet.AcctPacket(packet=req.RequestPacket(), secret=SECRET, dict=self.dict)
+        raw = received.CreateReply().ReplyPacket()
+        self.assertTrue(self.verify(req, raw, enforce_ma=True))
+
     def testCoAAckMessageAuthenticator(self):
         req = packet.CoAPacket(secret=SECRET, dict=self.dict, User_Name='alice',
                                message_authenticator=True)

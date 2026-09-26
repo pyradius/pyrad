@@ -463,7 +463,7 @@ class Packet(OrderedDict):
                     original_authenticator=self.authenticator,
                     original_code=self.code):
                 return False
-        elif enforce_ma:
+        elif enforce_ma and self.code in (AccessRequest, StatusServer):
             return False
 
         if self.code in (AccessRequest, StatusServer):
