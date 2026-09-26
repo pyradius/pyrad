@@ -1,0 +1,41 @@
+# Run the pyrad clients against a real FreeRADIUS server.
+
+name: Integration Test
+
+on:
+  push:
+    branches: [ master, development ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  freeradius:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        freeradius-version:
+          - 'latest-3.0'
+          - 'latest-3.2'
+        python-version:
+          - '3.10'
+          - '3.14'
+    steps:
+    - uses: actions/checkout@v6
+    - name: Start FreeRADIUS ${{ matrix.freeradius-version }}
+      run: |
+        docker run -d --name freeradius --network host \
+          -v "$PWD/tests/integration/freeradius/clients.conf:/opt/etc/raddb/clients.conf:ro" \
+          -v "$PWD/tests/integration/freeradius/authorize:/opt/etc/raddb/mods-config/files/authorize:ro" \
+          freeradius/freeradius-server:${{ matrix.freeradius-version }}-alpine -X
+    - name: Install uv and Python ${{ matrix.python-version }}
+      uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: uv sync --group test
+    - name: Run integration tests
+      run: uv run pytest tests/integration
+    - name: FreeRADIUS log
+      if: always()
+      run: docker logs freeradius

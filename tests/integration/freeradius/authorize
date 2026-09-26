@@ -1,0 +1,7 @@
+# FreeRADIUS users file used by the pyrad integration tests.
+alice	Cleartext-Password := "alice-password"
+	Reply-Message := "Hello, %{User-Name}",
+	Framed-IP-Address := 10.0.0.1
+
+bob	Cleartext-Password := "a-very-long-password-exceeding-sixteen-octets"
+	Reply-Message := "Hello, %{User-Name}"
