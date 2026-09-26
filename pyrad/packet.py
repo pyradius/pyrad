@@ -490,34 +490,54 @@ class Packet(OrderedDict):
         if len(data) < 6:
             return [(26, data)]
 
-        (vendor, atype, length) = struct.unpack('!LBB', data[:6])[0:3]
+        vendor = struct.unpack('!L', data[:4])[0]
+        sub_attributes = self._PktSplitSubAttributes(data, 4)
+        if sub_attributes is None:
+            # Sub-attribute lengths do not add up, keep the raw attribute
+            return [(26, data)]
+
+        (atype, value) = sub_attributes[0]
         try:
             if self._PktIsTlvAttribute((vendor, atype)):
-                self._PktDecodeTlvAttribute((vendor, atype), data[6:length + 4])
+                self._PktDecodeTlvAttribute((vendor, atype), value)
                 tlvs = []  # tlv is added to the packet inside _PktDecodeTlvAttribute
             else:
-                tlvs = [((vendor, atype), data[6:length + 4])]
+                tlvs = [((vendor, atype), value)]
+        except PacketError:
+            raise
         except Exception:
             return [(26, data)]
 
-        sumlength = 4 + length
-        while len(data) > sumlength:
-            try:
-                atype, length = struct.unpack('!BB', data[sumlength:sumlength+2])[0:2]
-            except Exception:
-                return [(26, data)]
-            tlvs.append(((vendor, atype), data[sumlength+2:sumlength+length]))
-            sumlength += length
+        for (atype, value) in sub_attributes[1:]:
+            tlvs.append(((vendor, atype), value))
         return tlvs
 
-    def _PktDecodeTlvAttribute(self, code, data):
-        sub_attributes = self.setdefault(code, {})
-        loc = 0
+    @staticmethod
+    def _PktSplitSubAttributes(data, loc=0):
+        """Split data into (type, value) sub-attributes.
 
+        :return: list of (type, value) tuples or None if the sub-attribute
+                 lengths are invalid (RFC 2865 section 5.26)
+        """
+        sub_attributes = []
         while loc < len(data):
-            atype, length = struct.unpack('!BB', data[loc:loc+2])[0:2]
-            sub_attributes.setdefault(atype, []).append(data[loc+2:loc+length])
+            if len(data) - loc < 2:
+                return None
+            (atype, length) = struct.unpack('!BB', data[loc:loc+2])
+            if length < 2 or loc + length > len(data):
+                return None
+            sub_attributes.append((atype, data[loc+2:loc+length]))
             loc += length
+        return sub_attributes
+
+    def _PktDecodeTlvAttribute(self, code, data):
+        sub_attributes = self._PktSplitSubAttributes(data)
+        if sub_attributes is None:
+            raise PacketError('TLV sub-attribute length is invalid')
+
+        tlv = self.setdefault(code, {})
+        for (atype, value) in sub_attributes:
+            tlv.setdefault(atype, []).append(value)
 
     def _PktIsTlvAttribute(self, code):
         attr = self.dict.attributes.get(self._DecodeKey(code))

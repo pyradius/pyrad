@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import os
+import signal
 import struct
 import unittest
 
@@ -372,7 +373,7 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(self.packet[4], {1: [b'value', b'other']})
 
         # add a different sub attribute
-        decode(4, b'\x02\x07\x00\x00\x00\x01')
+        decode(4, b'\x02\x06\x00\x00\x00\x01')
         self.assertEqual(self.packet[4], {
             1: [b'value', b'other'],
             2: [b'\x00\x00\x00\x01']
@@ -486,6 +487,65 @@ class PacketTests(unittest.TestCase):
         self.packet.AddAttribute('Test-String', ['2', '3'])
         self.assertEqual(self.packet['Test-String'], ['1', '1', '2', '3'])
 
+
+
+class DecodeTimeout(BaseException):
+    """Raised by the alarm handler; a BaseException so that broad
+    ``except Exception`` blocks in the decoder cannot swallow it."""
+
+
+@unittest.skipUnless(hasattr(signal, 'setitimer'), 'requires signal.setitimer')
+class MalformedAttributeDecodeTests(unittest.TestCase):
+    """Malformed (sub-)attribute lengths must not hang or crash the decoder."""
+
+    def setUp(self):
+        self.dict = Dictionary(os.path.join(home, 'data', 'full'))
+        self.packet = packet.Packet(dict=self.dict)
+
+        def timeout(signum, frame):
+            raise DecodeTimeout('decoder did not terminate')
+        self.old_handler = signal.signal(signal.SIGALRM, timeout)
+        signal.setitimer(signal.ITIMER_REAL, 2)
+
+    def tearDown(self):
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, self.old_handler)
+
+    @staticmethod
+    def _raw(attributes):
+        return struct.pack('!BBH', 1, 2, 20 + len(attributes)) + \
+            b'1234567890123456' + attributes
+
+    def testVendorAttributeWithZeroLength(self):
+        vsa = b'\x00\x00\x00\x10\x01\x00'
+        self.packet.DecodePacket(self._raw(b'\x1a\x08' + vsa))
+        self.assertEqual(self.packet[26], [vsa])
+
+    def testVendorAttributeWithZeroLengthSecondSubAttribute(self):
+        vsa = b'\x00\x00\x00\x10\x02\x07value\x01\x00'
+        self.packet.DecodePacket(self._raw(b'\x1a\x0f' + vsa))
+        self.assertEqual(self.packet[26], [vsa])
+
+    def testVendorAttributeWithTooLongSubAttribute(self):
+        vsa = b'\x00\x00\x00\x10\x02\x09value'
+        self.packet.DecodePacket(self._raw(b'\x1a\x0d' + vsa))
+        self.assertEqual(self.packet[26], [vsa])
+
+    def testTlvAttributeWithZeroLength(self):
+        self.assertRaises(packet.PacketError, self.packet.DecodePacket,
+                          self._raw(b'\x04\x06\x01\x00zz'))
+
+    def testTlvAttributeWithTruncatedSubAttribute(self):
+        self.assertRaises(packet.PacketError, self.packet.DecodePacket,
+                          self._raw(b'\x04\x03\x01'))
+
+    def testTlvAttributeWithTooLongSubAttribute(self):
+        self.assertRaises(packet.PacketError, self.packet.DecodePacket,
+                          self._raw(b'\x04\x09\x01\x09value'))
+
+    def testVendorTlvAttributeWithZeroLength(self):
+        self.assertRaises(packet.PacketError, self.packet.DecodePacket,
+                          self._raw(b'\x1a\x0c\x00\x00\x00\x10\x03\x06\x01\x00zz'))
 
 class AuthPacketConstructionTests(PacketConstructionTests):
     klass = packet.AuthPacket
