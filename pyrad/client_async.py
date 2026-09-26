@@ -318,16 +318,16 @@ class ClientAsync:
         talks to. This is initializing the new packet with the
         dictionary and secret used for the client.
 
+        A Message-Authenticator is added by default as countermeasure
+        against the BlastRADIUS attack (CVE-2024-3596), which can be
+        disabled with message_authenticator=False.
+
         :return: a new empty packet instance
         :rtype:  pyrad.packet.Packet
         """
         if not self.protocol_auth:
             raise Exception('Transport not initialized')
-        if self.enforce_ma:
-            return AuthPacket(dict=self.dict,
-                              id=self.protocol_auth.create_id(),
-                              secret=self.secret,
-                              message_authenticator=True, **args)
+        args.setdefault('message_authenticator', True)
 
         return AuthPacket(dict=self.dict,
                           id=self.protocol_auth.create_id(),

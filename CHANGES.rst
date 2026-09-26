@@ -1,6 +1,26 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+* BlastRADIUS (CVE-2024-3596) countermeasures (#200):
+
+  * Clients add a Message-Authenticator to all Access-Request and
+    Status-Server packets by default.
+  * Clients always verify a Message-Authenticator in replies (enforce_ma
+    verified the request instead) and discard replies with unexpected
+    Proxy-State attributes.
+  * Servers add a Message-Authenticator to all replies to Access-Requests,
+    verify it in received Access-Requests and can require it with the new
+    enforce_ma option.
+  * Message-Authenticator is added as first attribute and verification
+    uses the correct authenticator for received replies, including
+    CoA/Disconnect ACK/NAK and replies to Status-Server.
+
+* Copy Proxy-State attributes into replies (RFC 2865 section 5.33).
+* Fix the length of CoA and Disconnect requests with Message-Authenticator.
+
 2.5.4 - Feb 5, 2026
 -------------------
 

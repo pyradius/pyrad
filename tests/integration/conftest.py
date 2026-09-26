@@ -1,7 +1,9 @@
 """Fixtures for integration tests against a running FreeRADIUS server.
 
 The server address and shared secret can be overridden with the
-``RADIUS_SERVER`` and ``RADIUS_SECRET`` environment variables.
+``RADIUS_SERVER`` and ``RADIUS_SECRET`` environment variables. The tests
+of the pyrad server use radclient in the FreeRADIUS docker container named
+by ``FREERADIUS_CONTAINER`` and are skipped if it is not set.
 """
 import os
 import time
@@ -18,6 +20,9 @@ DICTIONARY = Path(__file__).resolve().parents[2] / "example" / "dictionary"
 SERVER = os.environ.get("RADIUS_SERVER", "127.0.0.1")
 SECRET = os.environ.get("RADIUS_SECRET", "testing123").encode()
 STARTUP_TIMEOUT = float(os.environ.get("RADIUS_STARTUP_TIMEOUT", "30"))
+# FreeRADIUS requires a Message-Authenticator from this client address
+STRICT_CLIENT = "127.0.0.2"
+CONTAINER = os.environ.get("FREERADIUS_CONTAINER")
 
 
 @pytest.fixture(scope="session")
@@ -33,7 +38,6 @@ def radius_server(dictionary):
     deadline = time.monotonic() + STARTUP_TIMEOUT
     while True:
         req = client.CreateAuthPacket(code=packet.StatusServer)
-        req.add_message_authenticator()
         try:
             client.SendPacket(req)
             return SERVER

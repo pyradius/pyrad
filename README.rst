@@ -57,6 +57,25 @@ Here is an example of doing an authentication request:
         print(f"{key}: {val}")
 
 
+BlastRADIUS
+===========
+
+pyrad implements the countermeasures against the BlastRADIUS attack
+(CVE-2024-3596, https://blastradius.fail):
+
+* Clients add a Message-Authenticator as first attribute to all
+  Access-Request and Status-Server packets (disable per packet with
+  ``message_authenticator=False``).
+* A Message-Authenticator in a reply or request is always verified.
+  Replies containing Proxy-State attributes which were not sent in the
+  request are discarded.
+* Servers add a Message-Authenticator as first attribute to all replies to
+  Access-Requests and copy the Proxy-State attributes from the request.
+* ``Client(enforce_ma=True)`` discards replies and
+  ``Server(enforce_ma=True)`` or ``ServerAsync(enforce_ma=True)`` drops
+  Access-Requests without Message-Authenticator. This is recommended if
+  all peers support it.
+
 Requirements & Installation
 ===========================
 
