@@ -229,9 +229,13 @@ def EncodeDate(num):
 # -------------------------
 
 def DecodeString(value):
-    # Be tolerant: bytes -> utf-8 (replace), else passthrough
+    # Values which are not valid UTF-8 (e.g. an encrypted User-Password)
+    # are returned as bytes so no data is lost.
     if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
+        try:
+            return value.decode("utf-8")
+        except UnicodeDecodeError:
+            return value
     return value
 
 
