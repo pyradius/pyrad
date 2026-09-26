@@ -4,6 +4,7 @@ radclient runs in the FreeRADIUS docker container (host network) with
 ``-b``, which enables its BlastRADIUS checks: the reply must contain a
 Message-Authenticator and must echo the Proxy-State attributes exactly.
 """
+import socket
 import subprocess
 import threading
 
@@ -17,9 +18,23 @@ from .conftest import CONTAINER, SECRET, SERVER
 pytestmark = pytest.mark.skipif(
     not CONTAINER, reason="FREERADIUS_CONTAINER is not set")
 
-AUTH_PORT = 18120
-STRICT_AUTH_PORT = 18121
 PASSWORD = "alice-password"
+
+
+def free_ports(count):
+    """Return distinct free UDP ports; FreeRADIUS shares the host network
+    and uses ports like 18120 (inner-tunnel) itself."""
+    sockets = [socket.socket(socket.AF_INET, socket.SOCK_DGRAM) for _ in range(count)]
+    try:
+        for sock in sockets:
+            sock.bind((SERVER, 0))
+        return [sock.getsockname()[1] for sock in sockets]
+    finally:
+        for sock in sockets:
+            sock.close()
+
+
+AUTH_PORT, STRICT_AUTH_PORT = free_ports(2)
 
 
 class PyradServer(Server):
