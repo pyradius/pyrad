@@ -109,7 +109,7 @@ class DatagramProtocolClient(asyncio.Protocol):
 
     def connection_lost(self, exc):
         if exc:
-            self.logger.warn('[%s:%d] Connection lost: %s', self.server, self.port, str(exc))
+            self.logger.warning('[%s:%d] Connection lost: %s', self.server, self.port, str(exc))
         else:
             self.logger.info('[%s:%d] Transport closed', self.server, self.port)
 
@@ -130,9 +130,9 @@ class DatagramProtocolClient(asyncio.Protocol):
                     # Remove request from map
                     del self.pending_requests[reply.id]
                 else:
-                    self.logger.warn('[%s:%d] Ignore invalid reply for id %d: %s', self.server, self.port, reply.id, data)
+                    self.logger.warning('[%s:%d] Ignore invalid reply for id %d: %s', self.server, self.port, reply.id, data)
             else:
-                self.logger.warn('[%s:%d] Ignore invalid reply: %s', self.server, self.port, data)
+                self.logger.warning('[%s:%d] Ignore invalid reply: %s', self.server, self.port, data)
 
         except Exception as exc:
             self.logger.error('[%s:%d] Error on decode packet: %s', self.server, self.port, exc)
