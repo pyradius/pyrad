@@ -155,6 +155,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
         self.packet = TrivialObject()
         self.packet.code = AccessRequest
         self.packet.source = ('host', 'port')
+        self.packet.message_authenticator = None
 
     def testHandleAuthPacketUnknownHost(self):
         self.packet.source = ('stranger', 'port')

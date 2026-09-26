@@ -34,6 +34,8 @@ jobs:
     - name: Install dependencies
       run: uv sync --group test
     - name: Run integration tests
+      env:
+        FREERADIUS_CONTAINER: freeradius
       run: uv run pytest tests/integration
     - name: FreeRADIUS log
       if: always()

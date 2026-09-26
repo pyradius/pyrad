@@ -46,6 +46,25 @@ class ServerPacketError(Exception):
     """
 
 
+def CheckMessageAuthenticator(pkt, enforce_ma=False):
+    """Check the Message-Authenticator of a received Access-Request
+    (BlastRADIUS countermeasure, CVE-2024-3596).
+
+    :param pkt:        received packet with secret set
+    :type  pkt:        Packet class instance
+    :param enforce_ma: require a Message-Authenticator
+    :type  enforce_ma: bool
+    :raise ServerPacketError: if the packet should be dropped
+    """
+    if pkt.message_authenticator:
+        if not pkt.verify_message_authenticator():
+            raise ServerPacketError(
+                'Received Access-Request with invalid Message-Authenticator')
+    elif enforce_ma:
+        raise ServerPacketError(
+            'Received Access-Request without Message-Authenticator')
+
+
 class Server(host.Host):
     """Basic RADIUS server.
     This class implements the basics of a RADIUS server. It takes care
@@ -65,7 +84,8 @@ class Server(host.Host):
     MaxPacketSize = 8192
 
     def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=3799,
-                 hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False):
+                 hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False,
+                 enforce_ma=False):
         """Constructor.
 
         :param     addresses: IP addresses to listen on
@@ -86,6 +106,10 @@ class Server(host.Host):
         :type   acct_enabled: bool
         :param   coa_enabled: enable coa server (default False)
         :type    coa_enabled: bool
+        :param    enforce_ma: drop Access-Requests without Message-Authenticator
+                              (default False, an invalid Message-Authenticator
+                              is always dropped)
+        :type     enforce_ma: bool
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
         if hosts is None:
@@ -99,6 +123,7 @@ class Server(host.Host):
         self.acctfds = []
         self.coa_enabled = coa_enabled
         self.coafds = []
+        self.enforce_ma = enforce_ma
 
         for addr in addresses:
             self.BindToAddress(addr)
@@ -217,6 +242,7 @@ class Server(host.Host):
         if pkt.code != packet.AccessRequest:
             raise ServerPacketError(
                 'Received non-authentication packet on authentication port')
+        CheckMessageAuthenticator(pkt, self.enforce_ma)
         self.HandleAuthPacket(pkt)
 
     def _HandleAcctPacket(self, pkt):

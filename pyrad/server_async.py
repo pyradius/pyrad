@@ -14,7 +14,7 @@ from pyrad.packet import Packet, AccessAccept, AccessReject, \
     CoAACK, CoANAK, AccessRequest, AuthPacket, AcctPacket, CoAPacket, \
     PacketError
 
-from pyrad.server import ServerPacketError
+from pyrad.server import ServerPacketError, CheckMessageAuthenticator
 
 
 class ServerType(Enum):
@@ -79,6 +79,7 @@ class DatagramProtocolServer(asyncio.Protocol):
                 req = AuthPacket(secret=remote_host.secret,
                                  dict=self.server.dict,
                                  packet=data)
+                CheckMessageAuthenticator(req, self.server.enforce_ma)
 
             elif self.server_type == ServerType.Coa:
                 if req.code != DisconnectRequest and req.code != CoARequest:
@@ -135,7 +136,7 @@ class ServerAsync(metaclass=ABCMeta):
                  coa_port=3799, hosts=None, dictionary=None,
                  loop=None, logger_name='pyrad',
                  enable_pkt_verify=False,
-                 debug=False):
+                 debug=False, enforce_ma=False):
 
         if not loop:
             self.loop = asyncio.get_event_loop()
@@ -161,6 +162,7 @@ class ServerAsync(metaclass=ABCMeta):
         self.enable_pkt_verify = enable_pkt_verify
 
         self.debug = debug
+        self.enforce_ma = enforce_ma
 
     def __request_handler__(self, protocol, req, addr):
 

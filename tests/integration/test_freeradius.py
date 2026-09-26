@@ -1,8 +1,8 @@
 """Integration tests for the pyrad clients against FreeRADIUS.
 
 Users and clients are configured in ``tests/integration/freeradius``.
-FreeRADIUS 3.2 requires a Message-Authenticator once a client has sent
-one, so all Access-Requests include it.
+pyrad adds a Message-Authenticator to all Access-Requests by default and
+FreeRADIUS 3.2 adds one to all replies (BlastRADIUS countermeasures).
 """
 import asyncio
 import hashlib
@@ -14,20 +14,18 @@ from pyrad import packet
 from pyrad.client import Client, Timeout
 from pyrad.client_async import ClientAsync
 
-from .conftest import SECRET, SERVER
+from .conftest import SECRET, SERVER, STRICT_CLIENT
 
 
 def auth_request(client, user, password, **attributes):
     req = client.CreateAuthPacket(code=packet.AccessRequest,
                                   User_Name=user, **attributes)
-    req.add_message_authenticator()
     req["User-Password"] = req.PwCrypt(password)
     return req
 
 
 def chap_request(client, user, password):
     req = client.CreateAuthPacket(code=packet.AccessRequest, User_Name=user)
-    req.add_message_authenticator()
     chap_id = os.urandom(1)
     challenge = os.urandom(16)
     req["CHAP-Challenge"] = challenge
@@ -80,6 +78,29 @@ def test_enforce_message_authenticator(dictionary):
     assert "Message-Authenticator" in reply
 
 
+def test_proxy_state_is_echoed(dictionary):
+    client = Client(server=SERVER, secret=SECRET, dict=dictionary,
+                    retries=2, timeout=2, enforce_ma=True)
+    req = auth_request(client, "alice", "alice-password",
+                       Proxy_State=[b"first", b"second"])
+    reply = client.SendPacket(req)
+    assert reply.code == packet.AccessAccept
+    assert reply["Proxy-State"] == [b"first", b"second"]
+
+
+def test_require_message_authenticator(dictionary):
+    # FreeRADIUS requires a Message-Authenticator from 127.0.0.2
+    client = Client(server=SERVER, secret=SECRET, dict=dictionary,
+                    retries=1, timeout=2, enforce_ma=True)
+    client.bind((STRICT_CLIENT, 0))
+    reply = client.SendPacket(auth_request(client, "alice", "alice-password"))
+    assert reply.code == packet.AccessAccept
+
+    with pytest.raises(Timeout):
+        client.SendPacket(auth_request(client, "alice", "alice-password",
+                                       message_authenticator=False))
+
+
 def test_wrong_secret_is_dropped(dictionary):
     client = Client(server=SERVER, secret=b"wrong-secret", dict=dictionary,
                     retries=1, timeout=1)
@@ -89,7 +110,6 @@ def test_wrong_secret_is_dropped(dictionary):
 
 def test_status_server(client):
     req = client.CreateAuthPacket(code=packet.StatusServer)
-    req.add_message_authenticator()
     reply = client.SendPacket(req)
     assert reply.code == packet.AccessAccept
 

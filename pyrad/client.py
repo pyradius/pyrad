@@ -49,7 +49,9 @@ class Client(host.Host):
         :type    secret: string
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
-        :param enforce_ma: Enforce usage and check of Message-Authenticator
+        :param enforce_ma: Require a Message-Authenticator in replies
+                           (a Message-Authenticator in a reply is always
+                           verified)
         :type  enforce_ma: boolean
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
@@ -99,12 +101,14 @@ class Client(host.Host):
         talks to. This is initializing the new packet with the
         dictionary and secret used for the client.
 
+        A Message-Authenticator is added by default as countermeasure
+        against the BlastRADIUS attack (CVE-2024-3596), which can be
+        disabled with message_authenticator=False.
+
         :return: a new empty packet instance
         :rtype:  pyrad.packet.AuthPacket
         """
-        if self.enforce_ma:
-            return host.Host.CreateAuthPacket(self, secret=self.secret,
-                                              message_authenticator=True, **args)
+        args.setdefault('message_authenticator', True)
         return host.Host.CreateAuthPacket(self, secret=self.secret, **args)
 
     def CreateAcctPacket(self, **args):
