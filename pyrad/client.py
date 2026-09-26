@@ -49,8 +49,9 @@ class Client(host.Host):
         :type    secret: string
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
-        :param enforce_ma: Require a Message-Authenticator in replies
-                           (a Message-Authenticator in a reply is always
+        :param enforce_ma: Require a Message-Authenticator in replies to
+                           Access-Request and Status-Server packets (a
+                           Message-Authenticator in a reply is always
                            verified)
         :type  enforce_ma: boolean
         """
