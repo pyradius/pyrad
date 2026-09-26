@@ -18,7 +18,7 @@ except pyrad.client.Timeout:
     print("RADIUS server does not reply")
     sys.exit(1)
 except socket.error as error:
-    print("Network error: " + error[1])
+    print("Network error: " + str(error))
     sys.exit(1)
 
 print("Attributes returned by server:")

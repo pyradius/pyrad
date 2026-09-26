@@ -1,6 +1,6 @@
-"""Python RADIUS client code.
+"""Python RADIUS client and server code.
 
-pyrad is an implementation of a RADIUS client as described in RFC2865.
+pyrad is an implementation of a RADIUS client/server as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
 them and decoding responses.
 
@@ -10,28 +10,35 @@ Here is an example of doing an authentication request::
   from pyrad.client import Client
   from pyrad.dictionary import Dictionary
 
-  srv = Client(server="radius.my.domain", secret="s3cr3t",
-    dict = Dictionary("dicts/dictionary", "dictionary.acc"))
+  srv = Client(server="radius.my.domain", secret=b"s3cr3t",
+               dict=Dictionary("dicts/dictionary", "dictionary.acc"))
 
-  req = srv.CreatePacket(code=pyrad.packet.AccessRequest,
-        User_Name = "wichert", NAS_Identifier="localhost")
+  req = srv.CreateAuthPacket(code=pyrad.packet.AccessRequest,
+                             User_Name="wichert", NAS_Identifier="localhost")
   req["User-Password"] = req.PwCrypt("password")
 
   reply = srv.SendPacket(req)
-  if reply.code = =pyrad.packet.AccessAccept:
-      print "access accepted"
+  if reply.code == pyrad.packet.AccessAccept:
+      print("access accepted")
   else:
-      print "access denied"
+      print("access denied")
 
-  print "Attributes returned by server:"
-  for i in reply.keys():
-      print "%s: %s" % (i, reply[i])
+  print("Attributes returned by server:")
+  for key, val in reply.items():
+      print(f"{key}: {val}")
 
 
-This package contains four modules:
+This package contains the following modules:
 
   - client: RADIUS client code
+  - client_async: asyncio based RADIUS client code
+  - server: RADIUS server code
+  - server_async: asyncio based RADIUS server code
+  - proxy: RADIUS proxy server code
+  - curved: Twisted based RADIUS client and server code
+  - host: base class for RADIUS clients and servers
   - dictionary: RADIUS attribute dictionary
+  - dictfile: dictionary file parser with $INCLUDE support
   - packet: a RADIUS packet as sent to/from servers
   - tools: utility functions
 """

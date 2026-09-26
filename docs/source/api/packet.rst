@@ -31,7 +31,6 @@ The following packet codes are defined:
 Constant name         Value
 ==================    ======
 AccessRequest         1
-------------------    ------
 AccessAccept          2
 AccessReject          3
 AccountingRequest     4

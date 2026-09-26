@@ -14,7 +14,7 @@ def SendPacket(srv, req):
         print("RADIUS server does not reply")
         sys.exit(1)
     except socket.error as error:
-        print("Network error: " + error[1])
+        print("Network error: " + str(error))
         sys.exit(1)
 
 srv = Client(server="localhost", secret=b"Kah3choteereethiejeimaeziecumi", dict=Dictionary("dictionary"))
