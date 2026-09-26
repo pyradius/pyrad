@@ -42,7 +42,7 @@ class DatagramProtocolServer(asyncio.Protocol):
 
     def connection_lost(self, exc):
         if exc:
-            self.logger.warn('[%s:%d] Connection lost: %s', self.ip, self.port, str(exc))
+            self.logger.warning('[%s:%d] Connection lost: %s', self.ip, self.port, str(exc))
         else:
             self.logger.info('[%s:%d] Transport closed', self.ip, self.port)
 
@@ -59,7 +59,7 @@ class DatagramProtocolServer(asyncio.Protocol):
         elif '0.0.0.0' in self.hosts:
             remote_host = self.hosts['0.0.0.0']
         else:
-            self.logger.warn('[%s:%d] Drop packet from unknown source %s', self.ip, self.port, addr)
+            self.logger.warning('[%s:%d] Drop packet from unknown source %s', self.ip, self.port, addr)
             return
 
         try:
