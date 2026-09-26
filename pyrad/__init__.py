@@ -4,7 +4,7 @@ pyrad is an implementation of a RADIUS client as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
 them and decoding responses.
 
-Here is an example of doing a authentication request::
+Here is an example of doing an authentication request::
 
   import pyrad.packet
   from pyrad.client import Client
@@ -32,7 +32,7 @@ This package contains four modules:
 
   - client: RADIUS client code
   - dictionary: RADIUS attribute dictionary
-  - packet: a RADIUS packet as send to/from servers
+  - packet: a RADIUS packet as sent to/from servers
   - tools: utility functions
 """
 

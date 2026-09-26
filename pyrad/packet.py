@@ -49,7 +49,7 @@ class Packet(OrderedDict):
     to preserve the ordering when encoding and decoding packets.
 
     There are two ways to use the map interface: if attribute
-    names are used pyrad take care of en-/decoding data. If
+    names are used pyrad takes care of en-/decoding data. If
     the attribute type number (or a vendor ID/attribute type
     tuple for vendor attributes) is used you work with the
     raw data.
@@ -144,9 +144,7 @@ class Packet(OrderedDict):
             # NOTE: self.authenticator on reply packet is initialized
             #       with request authenticator by design.
             #       For AccessAccept, AccessReject and AccessChallenge
-            #       it is needed use original Authenticator.
-            #       For AccessAccept, AccessReject and AccessChallenge
-            #       it is needed use original Authenticator.
+            #       the original Authenticator must be used.
             if self.authenticator is None:
                 raise Exception('No authenticator found')
             hmac_constructor.update(self.authenticator)
@@ -373,7 +371,7 @@ class Packet(OrderedDict):
         )
 
     def CreateID(self):
-        """Create a packet ID.  All RADIUS requests have a ID which is used to
+        """Create a packet ID.  All RADIUS requests have an ID which is used to
         identify a request. This is used to detect retries and replay attacks.
         This function returns a suitable random number that can be used as ID.
 
@@ -386,7 +384,7 @@ class Packet(OrderedDict):
     def ReplyPacket(self):
         """Create a ready-to-transmit authentication reply packet.
         Returns a RADIUS packet which can be directly transmitted
-        to a RADIUS server. This differs with Packet() in how
+        to a RADIUS client. This differs with Packet() in how
         the authenticator is calculated.
 
         :return: raw packet
@@ -867,7 +865,7 @@ class AcctPacket(Packet):
         return hash == self.authenticator
 
     def RequestPacket(self):
-        """Create a ready-to-transmit authentication request packet.
+        """Create a ready-to-transmit accounting request packet.
         Return a RADIUS packet which can be directly transmitted
         to a RADIUS server.
 

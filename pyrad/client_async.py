@@ -41,7 +41,7 @@ class DatagramProtocolClient(asyncio.Protocol):
 
                 req2delete = []
                 now = datetime.now()
-                next_weak_up = self.timeout
+                next_wake_up = self.timeout
                 # noinspection PyShadowingBuiltins
                 for id, req in self.pending_requests.items():
 
@@ -59,15 +59,15 @@ class DatagramProtocolClient(asyncio.Protocol):
                             req['retries'] += 1
                             self.logger.debug('[%s:%d] For request %d execute retry %d', self.server, self.port, id, req['retries'])
                             self.transport.sendto(req['packet'].RequestPacket())
-                    elif next_weak_up > secs:
-                        next_weak_up = secs
+                    elif next_wake_up > secs:
+                        next_wake_up = secs
 
                 # noinspection PyShadowingBuiltins
                 for id in req2delete:
-                    # Remove request for map
+                    # Remove request from map
                     del self.pending_requests[id]
 
-                await asyncio.sleep(next_weak_up)
+                await asyncio.sleep(next_wake_up)
 
         except asyncio.CancelledError:
             pass
@@ -127,7 +127,7 @@ class DatagramProtocolClient(asyncio.Protocol):
 
                 if packet.VerifyReply(reply, data, enforce_ma=self.client.enforce_ma):
                     req['future'].set_result(reply)
-                    # Remove request for map
+                    # Remove request from map
                     del self.pending_requests[reply.id]
                 else:
                     self.logger.warn('[%s:%d] Ignore invalid reply for id %d: %s', self.server, self.port, reply.id, data)
@@ -152,7 +152,7 @@ class DatagramProtocolClient(asyncio.Protocol):
         return self.packet_id
 
     def __str__(self):
-        return 'DatagramProtocolClient(server?=%s, port=%d)' % (self.server, self.port)
+        return 'DatagramProtocolClient(server=%s, port=%d)' % (self.server, self.port)
 
     # Used as protocol_factory
     def __call__(self):

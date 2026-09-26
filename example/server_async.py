@@ -56,7 +56,7 @@ class FakeServer(ServerAsync):
 
     def handle_coa_packet(self, protocol, pkt, addr):
 
-        print("Received an coa request")
+        print("Received a CoA request")
         print("Attributes: ")
         for attr in pkt.keys():
             print("%s: %s" % (attr, pkt[attr]))
@@ -66,7 +66,7 @@ class FakeServer(ServerAsync):
 
     def handle_disconnect_packet(self, protocol, pkt, addr):
 
-        print("Received an disconnect request")
+        print("Received a disconnect request")
         print("Attributes: ")
         for attr in pkt.keys():
             print("%s: %s" % (attr, pkt[attr]))

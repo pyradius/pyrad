@@ -71,7 +71,7 @@ class RADIUSAccounting(RADIUS):
     def processPacket(self, pkt):
         if pkt.code != packet.AccountingRequest:
             raise PacketError(
-                    'non-AccountingRequest packet on authentication socket')
+                    'non-AccountingRequest packet on accounting socket')
 
 
 if __name__ == '__main__':

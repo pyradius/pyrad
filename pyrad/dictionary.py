@@ -6,7 +6,7 @@ RADIUS uses dictionaries to define the attributes that can
 be used in packets. The Dictionary class stores the attribute
 definitions from one or more dictionary files.
 
-Dictionary files are textfiles with one command per line.
+Dictionary files are text files with one command per line.
 Comments are specified by starting with a # character, and empty
 lines are ignored.
 
@@ -351,7 +351,7 @@ class Dictionary:
 
         if state['vendor'] != vendor:
             raise ParseError(
-                    'Ending non-open vendor' + vendor,
+                    'Ending non-open vendor ' + vendor,
                     file=state['file'],
                     line=state['line'])
         state['vendor'] = ''

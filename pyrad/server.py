@@ -57,7 +57,7 @@ class Server(host.Host):
     :type  hosts: dictionary of Host class instances
     :ivar  _poll: poll object for network sockets
     :type  _poll: select.poll class instance
-    :ivar _fdmap: map of filedescriptors to network sockets
+    :ivar _fdmap: map of file descriptors to network sockets
     :type _fdmap: dictionary
     :cvar MaxPacketSize: maximum size of a RADIUS packet
     :type MaxPacketSize: integer
@@ -153,7 +153,7 @@ class Server(host.Host):
     def HandleAuthPacket(self, pkt):
         """Authentication packet handler.
         This is an empty function that is called when a valid
-        authentication packet has been received. It can be overriden in
+        authentication packet has been received. It can be overridden in
         derived classes to add custom behaviour.
 
         :param pkt: packet to process
@@ -163,7 +163,7 @@ class Server(host.Host):
     def HandleAcctPacket(self, pkt):
         """Accounting packet handler.
         This is an empty function that is called when a valid
-        accounting packet has been received. It can be overriden in
+        accounting packet has been received. It can be overridden in
         derived classes to add custom behaviour.
 
         :param pkt: packet to process
@@ -173,7 +173,7 @@ class Server(host.Host):
     def HandleCoaPacket(self, pkt):
         """CoA packet handler.
         This is an empty function that is called when a valid
-        accounting packet has been received. It can be overriden in
+        CoA packet has been received. It can be overridden in
         derived classes to add custom behaviour.
 
         :param pkt: packet to process
@@ -181,9 +181,9 @@ class Server(host.Host):
         """
 
     def HandleDisconnectPacket(self, pkt):
-        """CoA packet handler.
+        """Disconnect packet handler.
         This is an empty function that is called when a valid
-        accounting packet has been received. It can be overriden in
+        Disconnect packet has been received. It can be overridden in
         derived classes to add custom behaviour.
 
         :param pkt: packet to process
@@ -254,7 +254,7 @@ class Server(host.Host):
 
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.
-        This method assumes there is data waiting for to be read.
+        This method assumes there is data waiting to be read.
 
         :param fd: socket to read packet from
         :type  fd: socket class instance

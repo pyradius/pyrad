@@ -13,7 +13,7 @@ import socket
 
 class Proxy(Server):
     """Base class for RADIUS proxies.
-    This class extends tha RADIUS server class with the capability to
+    This class extends the RADIUS server class with the capability to
     handle communication with other RADIUS servers as well.
 
     :ivar _proxyfd: network socket used to communicate with other servers

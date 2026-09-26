@@ -35,7 +35,7 @@ class FakeServer(server.Server):
 
     def HandleCoaPacket(self, pkt):
 
-        print("Received an coa request")
+        print("Received a CoA request")
         print("Attributes: ")
         for attr in pkt.keys():
             print("%s: %s" % (attr, pkt[attr]))
@@ -45,7 +45,7 @@ class FakeServer(server.Server):
 
     def HandleDisconnectPacket(self, pkt):
 
-        print("Received an disconnect request")
+        print("Received a disconnect request")
         print("Attributes: ")
         for attr in pkt.keys():
             print("%s: %s" % (attr, pkt[attr]))

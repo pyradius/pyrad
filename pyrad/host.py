@@ -33,7 +33,7 @@ class Host:
 
     def CreatePacket(self, **args):
         """Create a new RADIUS packet.
-        This utility function creates a new RADIUS authentication
+        This utility function creates a new RADIUS
         packet which can be used to communicate with the RADIUS server
         this client talks to. This is initializing the new packet with
         the dictionary and secret used for the client.

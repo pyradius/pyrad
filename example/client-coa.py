@@ -10,9 +10,9 @@ import prctl
 class FakeCoA(server.Server):
 
     def HandleCoaPacket(self, pkt):
-        """Accounting packet handler.
+        """CoA packet handler.
         Function that is called when a valid
-        accounting packet has been received.
+        CoA packet has been received.
 
         :param pkt: packet to process
         :type  pkt: Packet class instance

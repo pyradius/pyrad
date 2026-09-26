@@ -59,7 +59,7 @@ class DatagramProtocolServer(asyncio.Protocol):
         elif '0.0.0.0' in self.hosts:
             remote_host = self.hosts['0.0.0.0']
         else:
-            self.logger.warn('[%s:%d] Drop package from unknown source %s', self.ip, self.port, addr)
+            self.logger.warn('[%s:%d] Drop packet from unknown source %s', self.ip, self.port, addr)
             return
 
         try:

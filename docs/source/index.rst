@@ -13,7 +13,7 @@ pyrad is an implementation of a RADIUS client/server as described in RFC2865.
 It takes care of all the details like building RADIUS packets, sending
 them and decoding responses.
 
-Here is an example of doing a authentication request::
+Here is an example of doing an authentication request::
 
     from pyrad.client import Client
     from pyrad.dictionary import Dictionary
@@ -54,7 +54,7 @@ Author, Copyright, Availability
 ===============================
 
 pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by 
-Christian Giese (GIC-de), Istvan Ruzman (Istvan91) and  Stefan Lieberth (slieberth). 
+Christian Giese (GIC-de), Istvan Ruzman (Istvan91) and Stefan Lieberth (slieberth). 
 
 We’re looking for contributors to support the pyrad team! If you’re interested in 
 helping with development, testing, documentation, or other areas, please contact 

@@ -30,7 +30,7 @@ Changelog
 
 * Fix for UTF-8
 
-* Fix fix usage of socket.getaddrinfo
+* Fix usage of socket.getaddrinfo
 
 * Fix #197 KeyError when handling CoA packet for 0.0.0.0
 
@@ -43,9 +43,9 @@ Changelog
 2.4 - Nov 23, 2020
 ------------------
 
-* Support poetry for for building this project
+* Support poetry for building this project
 
-* Use secrets.SysRandom instead of random.SystemRandom if possible
+* Use secrets.SystemRandom instead of random.SystemRandom if possible
 
 * `.get` on Packets has an optional default parameter (to mimic dict.get())
 
@@ -118,7 +118,7 @@ Changelog
 * Add support for Python 3.2.
 
 * Several code cleanups. As a side effect Python versions before 2.6
-  are unfortunatley no longer supported. If you use Python 2.5 or older
+  are unfortunately no longer supported. If you use Python 2.5 or older
   Pyrad 1.2 will still work for you.
 
 
@@ -131,10 +131,10 @@ Changelog
   for python 2.6. Patch from Jeremy Liané.
 
 * Support parsing VENDOR format specifications in dictionary files. Patch by
-  Kristoffer Grönlun.
+  Kristoffer Grönlund.
 
-* Supprt $INCLUDE directores in dictionary files. Patch by
-  Kristoffer Grönlun.
+* Support $INCLUDE directives in dictionary files. Patch by
+  Kristoffer Grönlund.
 
 * Standardize on 4 spaces for indents. Patch by Kristoffer Grönlund/
   Purplescout.
@@ -164,7 +164,7 @@ Changelog
 
 * Add unit tests. Pyrad now has 100% test coverage!
 
-* Moved the proxy server has been out of the server module to a new
+* The proxy server has been moved out of the server module to a new
   proxy module.
 
 * Fix several errors that prevented the proxy code from working.
@@ -225,7 +225,7 @@ Changelog
 * Pass on dict attribute when creating a reply packet. Requested by
   Thomas Boettcher.
 
-* Allow specififying new attributes when using
+* Allow specifying new attributes when using
   Server.CreateReplyPacket. Requested by Thomas Boettcher.
 
 
@@ -254,7 +254,7 @@ Changelog
 
 * Fix typo in server class which broke handling of accounting packets.
 
-* Create seperate AuthPacket and AcctPacket classes; this resulted in
+* Create separate AuthPacket and AcctPacket classes; this resulted in
   a fair number of API changes.
 
 * Packets now know how to create and verify replies.

@@ -65,7 +65,7 @@ class Client(host.Host):
     def bind(self, addr):
         """Bind socket to an address.
         Binding the socket used for communicating to an address can be
-        usefull when working on a machine with multiple addresses.
+        useful when working on a machine with multiple addresses.
 
         :param addr: network address (hostname or IP) and port to bind to
         :type  addr: host,port tuple
