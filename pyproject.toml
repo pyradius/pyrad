@@ -64,3 +64,7 @@ addopts = "-ra"
 
 [tool.setuptools.dynamic]
 version = { attr = "pyrad.__version__" }
+
+[tool.ruff.lint]
+# Pin the rule set so newer ruff releases do not enable additional rules.
+select = ["E4", "E7", "E9", "F"]
