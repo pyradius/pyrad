@@ -30,6 +30,11 @@ Unreleased
   (#232, #192).
 * Fix ServerAsync dropping all Access-Requests with enable_pkt_verify=True
   (#178).
+* Fix decoding of tagged attributes (RFC 2868). The tag is stripped from
+  the values, ``pkt['Tunnel-Type']`` returns the values of all tags and
+  ``pkt['Tunnel-Type:1']`` the values with tag 1. Decoding a tagged
+  Tunnel-Password no longer fails, and an untagged Tunnel-Password is sent
+  with the mandatory tag 0.
 * Copy Proxy-State attributes into replies (RFC 2865 section 5.33).
 * Fix the length of CoA and Disconnect requests with Message-Authenticator.
 * Fix ClientAsync retrying and timing out requests before the timeout passed.

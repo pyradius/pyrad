@@ -287,13 +287,35 @@ class Packet(OrderedDict):
         attr = self.dict.attributes[key]
         key = self._EncodeKey(key)
         if tag:
-            tag = struct.pack('B', int(tag))
+            tag = int(tag)
+            if not 0 <= tag <= 0x1F:
+                raise ValueError('Invalid tag %d for attribute %s' % (tag, attr.name))
+            tag = struct.pack('B', tag)
+        elif attr.has_tag and attr.encrypt == 2:
+            # RFC 2868 section 3.5: the tag of Tunnel-Password is not optional
+            tag = b'\x00'
+        if tag:
             if attr.type == "integer":
                 return (key, [tag + self._EncodeValue(attr, v)[1:] for v in values])
             else:
                 return (key, [tag + self._EncodeValue(attr, v) for v in values])
         else:
             return (key, [self._EncodeValue(attr, v) for v in values])
+
+    @staticmethod
+    def _SplitTag(attr, value):
+        """Split a raw value of a tagged attribute (RFC 2868 section 3) into
+        its tag and value. The tag replaces the first octet of integers and
+        always precedes the salt of encrypted values. For other types it is
+        optional and present if the first octet is at most 0x1F.
+        """
+        if not attr.has_tag or not value:
+            return (0, value)
+        if attr.type == 'integer':
+            return (value[0], b'\x00' + value[1:])
+        if attr.encrypt == 2 or value[0] <= 0x1F:
+            return (value[0], value[1:])
+        return (0, value)
 
     def _EncodeKey(self, key):
         if not isinstance(key, str):
@@ -344,6 +366,7 @@ class Packet(OrderedDict):
         if not isinstance(key, str):
             return OrderedDict.__getitem__(self, key)
 
+        key, _, tag = key.partition(':')
         values = OrderedDict.__getitem__(self, self._EncodeKey(key))
         attr = self.dict.attributes[key]
         if attr.type == 'tlv':  # return map from sub attribute code to its values
@@ -357,11 +380,18 @@ class Packet(OrderedDict):
         else:
             res = []
             for v in values:
-                res.append(self._DecodeValue(attr, v))
+                (value_tag, v) = self._SplitTag(attr, v)
+                if not tag or value_tag == int(tag):
+                    res.append(self._DecodeValue(attr, v))
+            if tag and not res:
+                raise KeyError('%s:%s' % (key, tag))
             return res
 
     def __contains__(self, key):
         try:
+            if isinstance(key, str) and ':' in key:
+                self.__getitem__(key)
+                return True
             return OrderedDict.__contains__(self, self._EncodeKey(key))
         except KeyError:
             return False
@@ -684,6 +714,9 @@ class Packet(OrderedDict):
         :return:        decrypted plaintext string
         :rtype:         unicode string
         """
+        if len(value) < 18 or (len(value) - 2) % 16:
+            raise PacketError('Invalid length of salt encrypted value')
+
         # extract salt
         salt = value[:2]
 

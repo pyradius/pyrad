@@ -807,6 +807,68 @@ class PacketEdgeCaseTests(unittest.TestCase):
         self.assertEqual(pkt[64], [b'\x01\x00\x00\x03'])
         self.assertEqual(pkt[81], [b'\x02vlan'])
 
+    def tagged_dictionary(self):
+        return Dictionary(StringIO(
+            'ATTRIBUTE Tunnel-Type 64 integer has_tag\n'
+            'ATTRIBUTE Tunnel-Password 69 string has_tag,encrypt=2\n'
+            'ATTRIBUTE Tunnel-Private-Group-Id 81 string has_tag\n'
+            'VALUE Tunnel-Type VLAN 13\n'))
+
+    def testTaggedAttributesRoundTrip(self):
+        dictionary = self.tagged_dictionary()
+        request = packet.AuthPacket(secret=b'secret', dict=dictionary,
+                                    authenticator=b'0123456789ABCDEF')
+        reply = request.CreateReply()
+        reply.AddAttribute('Tunnel-Type:1', 'VLAN')
+        reply.AddAttribute('Tunnel-Type:2', 'VLAN')
+        reply.AddAttribute('Tunnel-Private-Group-Id:1', '100')
+        reply.AddAttribute('Tunnel-Private-Group-Id:2', '200')
+        reply.AddAttribute('Tunnel-Password:1', 'first-tunnel-password')
+        reply.AddAttribute('Tunnel-Password:2', 'second')
+
+        decoded = packet.Packet(packet=reply.ReplyPacket(), secret=b'secret',
+                                dict=dictionary)
+        decoded.request_authenticator = request.authenticator
+        self.assertEqual(decoded['Tunnel-Type'], ['VLAN', 'VLAN'])
+        self.assertEqual(decoded['Tunnel-Type:2'], ['VLAN'])
+        self.assertEqual(decoded['Tunnel-Private-Group-Id'], ['100', '200'])
+        self.assertEqual(decoded['Tunnel-Private-Group-Id:1'], ['100'])
+        self.assertEqual(decoded['Tunnel-Private-Group-Id:2'], ['200'])
+        self.assertEqual(decoded['Tunnel-Password:1'], ['first-tunnel-password'])
+        self.assertEqual(decoded['Tunnel-Password:2'], ['second'])
+        self.assertTrue('Tunnel-Type:1' in decoded)
+        self.assertFalse('Tunnel-Type:3' in decoded)
+        self.assertRaises(KeyError, decoded.__getitem__, 'Tunnel-Type:3')
+        self.assertEqual(decoded.get('Tunnel-Type:3', []), [])
+
+    def testUntaggedAttributes(self):
+        dictionary = self.tagged_dictionary()
+        pkt = packet.AuthPacket(secret=b'secret', dict=dictionary,
+                                authenticator=b'0123456789ABCDEF')
+        pkt['Tunnel-Type'] = 'VLAN'
+        pkt['Tunnel-Private-Group-Id'] = 'vlan'
+        pkt['Tunnel-Password'] = 'password'
+        # RFC 2868 section 3.5: Tunnel-Password always has a tag
+        self.assertEqual(pkt[69][0][:1], b'\x00')
+        self.assertEqual(len(pkt[69][0]), 1 + 2 + 16)
+        self.assertEqual(pkt['Tunnel-Type'], ['VLAN'])
+        self.assertEqual(pkt['Tunnel-Type:0'], ['VLAN'])
+        self.assertEqual(pkt['Tunnel-Private-Group-Id'], ['vlan'])
+        self.assertEqual(pkt['Tunnel-Password'], ['password'])
+        # a first octet above 0x1F is part of the value, not a tag
+        pkt[81] = [b'\x1fvlan', b' vlan']
+        self.assertEqual(pkt['Tunnel-Private-Group-Id'], ['vlan', ' vlan'])
+
+    def testInvalidTag(self):
+        pkt = packet.Packet(dict=self.tagged_dictionary())
+        self.assertRaises(ValueError, pkt.__setitem__, 'Tunnel-Type:32', 'VLAN')
+
+    def testInvalidSaltEncryptedValue(self):
+        pkt = packet.Packet(secret=b'secret', dict=self.tagged_dictionary(),
+                            authenticator=b'0123456789ABCDEF')
+        pkt[69] = [b'\x01\x80\x00short']
+        self.assertRaises(packet.PacketError, pkt.__getitem__, 'Tunnel-Password')
+
     def testGetDefault(self):
         pkt = packet.Packet(dict=self.dict)
         self.assertEqual(pkt.get('Test-String', 'default'), 'default')
