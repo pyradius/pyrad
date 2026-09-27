@@ -1028,7 +1028,16 @@ class AuthPacket(Packet):
             password, hashlib.md5(chapid + userpwd + challenge).digest())
 
     def VerifyAuthRequest(self):
-        """Verify request authenticator.
+        """Check whether the authenticator is an accounting-style request
+        authenticator: the MD5 hash of the packet header, 16 zero octets,
+        the attributes and the secret (as for Accounting-Request,
+        RFC 2866 section 3).
+
+        This is not a verification of Access-Request packets: their
+        Request Authenticator is a random number (RFC 2865 section 3),
+        so this check fails for them. Use verify_message_authenticator
+        to authenticate an Access-Request or Status-Server packet with
+        a Message-Authenticator.
 
         :return: True if verification passed else False
         :rtype: boolean
