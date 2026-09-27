@@ -45,8 +45,8 @@ class DatagramProtocolClient(asyncio.Protocol):
                 # noinspection PyShadowingBuiltins
                 for id, req in self.pending_requests.items():
 
-                    secs = (req['send_date'] - now).seconds
-                    if secs > self.timeout:
+                    secs = (now - req['send_date']).total_seconds()
+                    if secs >= self.timeout:
                         if req['retries'] == self.retries:
                             self.logger.debug('[%s:%d] For request %d execute all retries', self.server, self.port, id)
                             req['future'].set_exception(
@@ -59,8 +59,9 @@ class DatagramProtocolClient(asyncio.Protocol):
                             req['retries'] += 1
                             self.logger.debug('[%s:%d] For request %d execute retry %d', self.server, self.port, id, req['retries'])
                             self.transport.sendto(req['packet'].RequestPacket())
-                    elif next_wake_up > secs:
-                        next_wake_up = secs
+                    elif next_wake_up > self.timeout - secs:
+                        # wake up when this request times out
+                        next_wake_up = self.timeout - secs
 
                 # noinspection PyShadowingBuiltins
                 for id in req2delete:

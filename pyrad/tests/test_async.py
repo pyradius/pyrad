@@ -245,6 +245,35 @@ class AsyncClientTests(unittest.TestCase):
                           (LOCALHOST, ports['local_acct_port']),
                           (LOCALHOST, ports['local_coa_port'])])
 
+    def testRetryTimeout(self):
+        timeout = 0.3
+
+        async def test():
+            loop = asyncio.get_running_loop()
+            protocol = DatagramProtocolClient(LOCALHOST, 1812, mock.Mock(), self.client,
+                                              retries=1, timeout=timeout)
+            sent = []
+            protocol.transport = mock.Mock()
+            protocol.transport.sendto.side_effect = lambda data: sent.append(loop.time())
+            handler = asyncio.ensure_future(protocol.__timeout_handler__())
+            # send while the timeout handler is sleeping
+            await asyncio.sleep(timeout / 2)
+            future = loop.create_future()
+            protocol.send_packet(packet.AuthPacket(id=1, secret=SECRET, dict=self.dict),
+                                 future)
+            with self.assertRaises(TimeoutError):
+                await asyncio.wait_for(future, 5 * timeout)
+            sent.append(loop.time())
+            handler.cancel()
+            await handler
+            self.assertEqual(protocol.pending_requests, {})
+            return sent
+        (request, retry, failed) = self.loop.run_until_complete(test())
+        # a request is retried and fails only after the timeout has passed
+        self.assertGreaterEqual(retry - request, timeout * 0.9)
+        self.assertGreaterEqual(failed - retry, timeout * 0.9)
+        self.assertLess(failed - request, 3 * timeout)
+
     def testProtocol(self):
         logger = mock.Mock()
         protocol = DatagramProtocolClient(LOCALHOST, 1812, logger, self.client)

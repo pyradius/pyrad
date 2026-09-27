@@ -20,6 +20,7 @@ Unreleased
 
 * Copy Proxy-State attributes into replies (RFC 2865 section 5.33).
 * Fix the length of CoA and Disconnect requests with Message-Authenticator.
+* Fix ClientAsync retrying and timing out requests before the timeout passed.
 
 2.5.4 - Feb 5, 2026
 -------------------
