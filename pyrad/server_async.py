@@ -47,6 +47,13 @@ class DatagramProtocolServer(asyncio.Protocol):
             self.logger.info('[%s:%d] Transport closed', self.ip, self.port)
 
     def send_response(self, reply, addr):
+        """Send a reply packet.
+
+        :param reply: reply packet
+        :type  reply: pyrad.packet.Packet
+        :param  addr: address of the client, as passed to the handler
+        :type   addr: (host, port) tuple
+        """
         self.transport.sendto(reply.ReplyPacket(), addr)
 
     def datagram_received(self, data, addr):
@@ -131,12 +138,44 @@ class DatagramProtocolServer(asyncio.Protocol):
 
 
 class ServerAsync(metaclass=ABCMeta):
+    """Basic asyncio RADIUS server.
+    Derive from this class and implement the handle_auth_packet,
+    handle_acct_packet, handle_coa_packet and handle_disconnect_packet
+    methods, then call initialize_transports to start listening.
+    """
 
     def __init__(self, auth_port=1812, acct_port=1813,
                  coa_port=3799, hosts=None, dictionary=None,
                  loop=None, logger_name='pyrad',
                  enable_pkt_verify=True,
                  debug=False, enforce_ma=False):
+        """Constructor.
+
+        :param  auth_port: port to listen on for authentication packets
+        :type   auth_port: integer
+        :param  acct_port: port to listen on for accounting packets
+        :type   acct_port: integer
+        :param   coa_port: port to listen on for CoA packets
+        :type    coa_port: integer
+        :param      hosts: hosts who we can talk to
+        :type       hosts: dictionary mapping IP to RemoteHost class instances
+        :param dictionary: RADIUS dictionary to use
+        :type  dictionary: pyrad.dictionary.Dictionary
+        :param       loop: Python loop handler
+        :type        loop: asyncio event loop
+        :param logger_name: name of the logger
+        :type  logger_name: string
+        :param enable_pkt_verify: drop accounting, CoA and Disconnect requests
+                                  with an invalid request authenticator
+                                  (default True)
+        :type  enable_pkt_verify: bool
+        :param      debug: log the traceback of errors
+        :type       debug: bool
+        :param enforce_ma: drop Access-Requests without Message-Authenticator
+                           (default False, an invalid Message-Authenticator
+                           is always dropped)
+        :type  enforce_ma: bool
+        """
 
         if not loop:
             self.loop = asyncio.get_event_loop()
@@ -210,6 +249,9 @@ class ServerAsync(metaclass=ABCMeta):
 
         :param pkt:   original packet
         :type pkt:    Packet instance
+        :param attributes: attributes to add to the reply
+        :return:      reply packet
+        :rtype:       Packet instance
         """
         reply = pkt.CreateReply(**attributes)
         return reply
@@ -217,6 +259,18 @@ class ServerAsync(metaclass=ABCMeta):
     async def initialize_transports(self, enable_acct=False,
                                     enable_auth=False, enable_coa=False,
                                     addresses=None):
+        """Open the sockets and start listening.
+        At least one transport has to be enabled.
+
+        :param enable_acct: listen for accounting packets
+        :type  enable_acct: bool
+        :param enable_auth: listen for authentication packets
+        :type  enable_auth: bool
+        :param  enable_coa: listen for CoA and Disconnect packets
+        :type   enable_coa: bool
+        :param   addresses: IP addresses to listen on (default 127.0.0.1)
+        :type    addresses: sequence of strings
+        """
 
         task_list = []
 
@@ -295,7 +349,15 @@ class ServerAsync(metaclass=ABCMeta):
 
     # noinspection SpellCheckingInspection
     async def deinitialize_transports(self, deinit_coa=True, deinit_auth=True, deinit_acct=True):
+        """Close the sockets.
 
+        :param deinit_coa:  close the CoA transports
+        :type  deinit_coa:  bool
+        :param deinit_auth: close the authentication transports
+        :type  deinit_auth: bool
+        :param deinit_acct: close the accounting transports
+        :type  deinit_acct: bool
+        """
         if deinit_coa:
             for proto in self.coa_protocols:
                 await proto.close_transport()
@@ -319,16 +381,32 @@ class ServerAsync(metaclass=ABCMeta):
 
     @abstractmethod
     def handle_auth_packet(self, protocol, pkt, addr):
-        pass
+        """Authentication packet handler.
+        Called for each valid Access-Request. Send the reply with
+        protocol.send_response(reply, addr).
+
+        :param protocol: protocol the packet was received on
+        :type  protocol: DatagramProtocolServer
+        :param      pkt: packet to process
+        :type       pkt: pyrad.packet.AuthPacket
+        :param     addr: address of the client
+        :type      addr: (host, port) tuple
+        """
 
     @abstractmethod
     def handle_acct_packet(self, protocol, pkt, addr):
-        pass
+        """Accounting packet handler.
+        Called for each valid Accounting-Request, see handle_auth_packet.
+        """
 
     @abstractmethod
     def handle_coa_packet(self, protocol, pkt, addr):
-        pass
+        """CoA packet handler.
+        Called for each valid CoA-Request, see handle_auth_packet.
+        """
 
     @abstractmethod
     def handle_disconnect_packet(self, protocol, pkt, addr):
-        pass
+        """Disconnect packet handler.
+        Called for each valid Disconnect-Request, see handle_auth_packet.
+        """

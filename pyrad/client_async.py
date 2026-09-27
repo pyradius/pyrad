@@ -163,15 +163,16 @@ class DatagramProtocolClient(asyncio.Protocol):
 
 
 class ClientAsync:
-    """Basic RADIUS client.
+    """Basic asyncio RADIUS client.
     This class implements a basic RADIUS client. It can send requests
     to a RADIUS server, taking care of timeouts and retries, and
-    validate its replies.
+    validate its replies. Call initialize_transports before creating
+    and sending packets.
 
     :ivar retries: number of times to retry sending a RADIUS request
     :type retries: integer
     :ivar timeout: number of seconds to wait for an answer
-    :type timeout: integer
+    :type timeout: float
     """
     # noinspection PyShadowingBuiltins
     def __init__(self, server, auth_port=1812, acct_port=1813,
@@ -190,11 +191,22 @@ class ClientAsync:
         :param  coa_port: port to use for CoA packets
         :type   coa_port: integer
         :param    secret: RADIUS secret
-        :type     secret: string
+        :type     secret: bytes
         :param      dict: RADIUS dictionary
         :type       dict: pyrad.dictionary.Dictionary
         :param      loop: Python loop handler
         :type       loop:  asyncio event loop
+        :param   retries: number of times to send a request
+        :type    retries: integer
+        :param   timeout: number of seconds to wait for a reply
+        :type    timeout: float
+        :param logger_name: name of the logger
+        :type  logger_name: string
+        :param enforce_ma: Require a Message-Authenticator in replies to
+                           Access-Request and Status-Server packets (a
+                           Message-Authenticator in a reply is always
+                           verified)
+        :type  enforce_ma: boolean
         """
         if not loop:
             self.loop = asyncio.get_event_loop()
@@ -222,6 +234,26 @@ class ClientAsync:
                                     enable_auth=False, enable_coa=False,
                                     local_addr=None, local_auth_port=None,
                                     local_acct_port=None, local_coa_port=None):
+        """Open the sockets to the server.
+        At least one transport has to be enabled. Packets can only be
+        created and sent for enabled transports.
+
+        :param     enable_acct: open the accounting transport
+        :type      enable_acct: bool
+        :param     enable_auth: open the authentication transport
+        :type      enable_auth: bool
+        :param      enable_coa: open the CoA transport
+        :type       enable_coa: bool
+        :param      local_addr: local address to bind to (used together
+                                with the local ports)
+        :type       local_addr: string
+        :param local_auth_port: local port of the authentication transport
+        :type  local_auth_port: integer
+        :param local_acct_port: local port of the accounting transport
+        :type  local_acct_port: integer
+        :param  local_coa_port: local port of the CoA transport
+        :type   local_coa_port: integer
+        """
 
         task_list = []
 
@@ -300,6 +332,15 @@ class ClientAsync:
     async def deinitialize_transports(self, deinit_coa=True,
                                       deinit_auth=True,
                                       deinit_acct=True):
+        """Close the sockets to the server.
+
+        :param deinit_coa:  close the CoA transport
+        :type  deinit_coa:  bool
+        :param deinit_auth: close the authentication transport
+        :type  deinit_auth: bool
+        :param deinit_acct: close the accounting transport
+        :type  deinit_acct: bool
+        """
         if self.protocol_coa and deinit_coa:
             await self.protocol_coa.close_transport()
             del self.protocol_coa
@@ -326,7 +367,7 @@ class ClientAsync:
         disabled with message_authenticator=False.
 
         :return: a new empty packet instance
-        :rtype:  pyrad.packet.Packet
+        :rtype:  pyrad.packet.AuthPacket
         """
         if not self.protocol_auth:
             raise Exception('Transport not initialized')
@@ -338,14 +379,14 @@ class ClientAsync:
 
     # noinspection PyPep8Naming
     def CreateAcctPacket(self, **args):
-        """Create a new RADIUS packet.
+        """Create a new accounting RADIUS packet.
         This utility function creates a new RADIUS packet which can
         be used to communicate with the RADIUS server this client
         talks to. This is initializing the new packet with the
         dictionary and secret used for the client.
 
         :return: a new empty packet instance
-        :rtype:  pyrad.packet.Packet
+        :rtype:  pyrad.packet.AcctPacket
         """
         if not self.protocol_acct:
             raise Exception('Transport not initialized')
@@ -356,14 +397,14 @@ class ClientAsync:
 
     # noinspection PyPep8Naming
     def CreateCoAPacket(self, **args):
-        """Create a new RADIUS packet.
+        """Create a new CoA RADIUS packet.
         This utility function creates a new RADIUS packet which can
         be used to communicate with the RADIUS server this client
         talks to. This is initializing the new packet with the
         dictionary and secret used for the client.
 
         :return: a new empty packet instance
-        :rtype:  pyrad.packet.Packet
+        :rtype:  pyrad.packet.CoAPacket
         """
 
         if not self.protocol_coa:
@@ -385,10 +426,13 @@ class ClientAsync:
     # noinspection PyPep8Naming
     def SendPacket(self, pkt):
         """Send a packet to a RADIUS server.
+        The request is retried until a valid reply is received; invalid
+        replies are ignored.
 
         :param pkt: the packet to send
         :type  pkt: pyrad.packet.Packet
-        :return:    Future related with packet to send
+        :return:    future with the reply packet, or a TimeoutError if
+                    the server does not reply
         :rtype:     asyncio.Future
         """
 

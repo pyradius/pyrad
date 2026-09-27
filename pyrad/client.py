@@ -46,9 +46,13 @@ class Client(host.Host):
         :param coaport: port to use for CoA packets
         :type  coaport: integer
         :param   secret: RADIUS secret
-        :type    secret: string
+        :type    secret: bytes
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
+        :param  retries: number of times to send a request
+        :type   retries: integer
+        :param  timeout: number of seconds to wait for a reply
+        :type   timeout: float
         :param enforce_ma: Require a Message-Authenticator in replies to
                            Access-Request and Status-Server packets (a
                            Message-Authenticator in a reply is always
@@ -113,26 +117,26 @@ class Client(host.Host):
         return host.Host.CreateAuthPacket(self, secret=self.secret, **args)
 
     def CreateAcctPacket(self, **args):
-        """Create a new RADIUS packet.
+        """Create a new accounting RADIUS packet.
         This utility function creates a new RADIUS packet which can
         be used to communicate with the RADIUS server this client
         talks to. This is initializing the new packet with the
         dictionary and secret used for the client.
 
         :return: a new empty packet instance
-        :rtype:  pyrad.packet.Packet
+        :rtype:  pyrad.packet.AcctPacket
         """
         return host.Host.CreateAcctPacket(self, secret=self.secret, **args)
 
     def CreateCoAPacket(self, **args):
-        """Create a new RADIUS packet.
+        """Create a new CoA RADIUS packet.
         This utility function creates a new RADIUS packet which can
         be used to communicate with the RADIUS server this client
         talks to. This is initializing the new packet with the
         dictionary and secret used for the client.
 
         :return: a new empty packet instance
-        :rtype:  pyrad.packet.Packet
+        :rtype:  pyrad.packet.CoAPacket
         """
         return host.Host.CreateCoAPacket(self, secret=self.secret, **args)
 
@@ -186,6 +190,10 @@ class Client(host.Host):
 
     def SendPacket(self, pkt):
         """Send a packet to a RADIUS server.
+        Authentication packets are sent to the authport, CoA and
+        Disconnect packets to the coaport and accounting packets to the
+        acctport. The request is retried until a valid reply is received;
+        invalid replies are ignored.
 
         :param pkt: the packet to send
         :type pkt:  pyrad.packet.Packet

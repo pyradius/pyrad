@@ -2,7 +2,7 @@
 #
 # Copyright 2005,2007 Wichert Akkerman <wichert@wiggy.net>
 #
-# A RADIUS proxy as defined in RFC 2138
+# A RADIUS proxy as defined in RFC 2865
 
 from pyrad.server import ServerPacketError
 from pyrad.server import Server
@@ -56,8 +56,6 @@ class Proxy(Server):
 
         :param  fd: socket to read packet from
         :type   fd: socket class instance
-        :param pkt: packet to process
-        :type  pkt: Packet class instance
         """
         if fd.fileno() == self._proxyfd.fileno():
             pkt = self._GrabPacket(

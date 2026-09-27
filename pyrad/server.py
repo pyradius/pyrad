@@ -21,7 +21,7 @@ class RemoteHost:
         :param   address: IP address
         :type    address: string
         :param    secret: RADIUS secret
-        :type     secret: string
+        :type     secret: bytes
         :param      name: short name (used for logging only)
         :type       name: string
         :param  authport: port used for authentication packets
@@ -73,7 +73,7 @@ class Server(host.Host):
     in derived classes.
 
     :ivar  hosts: hosts who are allowed to talk to us
-    :type  hosts: dictionary of Host class instances
+    :type  hosts: dictionary mapping IP to RemoteHost class instances
     :ivar  _poll: poll object for network sockets
     :type  _poll: select.poll class instance
     :ivar _fdmap: map of file descriptors to network sockets
@@ -96,7 +96,8 @@ class Server(host.Host):
         :type       acctport: integer
         :param       coaport: port to listen on for CoA packets
         :type        coaport: integer
-        :param         hosts: hosts who we can talk to
+        :param         hosts: hosts who we can talk to, a host with the
+                              address 0.0.0.0 is used for all other clients
         :type          hosts: dictionary mapping IP to RemoteHost class instances
         :param          dict: RADIUS dictionary to use
         :type           dict: Dictionary class instance
@@ -104,7 +105,7 @@ class Server(host.Host):
         :type   auth_enabled: bool
         :param  acct_enabled: enable accounting server (default True)
         :type   acct_enabled: bool
-        :param   coa_enabled: enable coa server (default False)
+        :param   coa_enabled: enable CoA server (default False)
         :type    coa_enabled: bool
         :param    enforce_ma: drop Access-Requests without Message-Authenticator
                               (default False, an invalid Message-Authenticator
@@ -184,7 +185,8 @@ class Server(host.Host):
         """Authentication packet handler.
         This is an empty function that is called when a valid
         authentication packet has been received. It can be overridden in
-        derived classes to add custom behaviour.
+        derived classes to add custom behaviour. Send the reply with
+        SendReplyPacket(pkt.fd, reply).
 
         :param pkt: packet to process
         :type  pkt: Packet class instance
@@ -268,7 +270,7 @@ class Server(host.Host):
         self.HandleAcctPacket(pkt)
 
     def _HandleCoaPacket(self, pkt):
-        """Process a packet received on the coa port.
+        """Process a packet received on the CoA port.
         If this packet should be dropped instead of processed a
         ServerPacketError exception should be raised. The main loop will
         drop the packet and log the reason.
@@ -321,6 +323,9 @@ class Server(host.Host):
 
         :param pkt:   original packet
         :type pkt:    Packet instance
+        :param attributes: attributes to add to the reply
+        :return:      reply packet
+        :rtype:       Packet instance
         """
         reply = pkt.CreateReply(**attributes)
         reply.source = pkt.source
@@ -332,9 +337,8 @@ class Server(host.Host):
         PacketError exception should be raised. The main loop will
         drop the packet and log the reason.
 
-        This function calls either HandleAuthPacket() or
-        HandleAcctPacket() depending on which socket is being
-        processed.
+        This function calls _HandleAuthPacket(), _HandleAcctPacket() or
+        _HandleCoaPacket() depending on which socket is being processed.
 
         :param  fd: socket to read packet from
         :type   fd: socket class instance
@@ -355,7 +359,8 @@ class Server(host.Host):
         """Main loop.
         This method is the main loop for a RADIUS server. It waits
         for packets to arrive via the network and calls other methods
-        to process them.
+        to process them. Invalid packets are dropped and logged; other
+        exceptions raised by the handlers stop the main loop.
         """
         self._poll = select.poll()
         self._fdmap = {}

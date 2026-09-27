@@ -1,6 +1,6 @@
 """Python RADIUS client and server code.
 
-pyrad is an implementation of a RADIUS client/server as described in RFC2865.
+pyrad is an implementation of a RADIUS client/server as described in RFC 2865.
 It takes care of all the details like building RADIUS packets, sending
 them and decoding responses.
 
@@ -24,8 +24,8 @@ Here is an example of doing an authentication request::
       print("access denied")
 
   print("Attributes returned by server:")
-  for key, val in reply.items():
-      print(f"{key}: {val}")
+  for key in reply.keys():
+      print(f"{key}: {reply[key]}")
 
 
 This package contains the following modules:
@@ -45,9 +45,9 @@ This package contains the following modules:
 
 __docformat__ = 'epytext en'
 
-__author__ = 'Christian Giese <gic@gicnet.de>, Istvan Ruzman <istvan@ruzman.eu> and Stefan Lieberth <stefan@lieberth.net>'
+__author__ = 'Christian Giese <gic@gicnet.de>'
 __url__ = 'http://pyrad.readthedocs.io/en/latest/?badge=latest'
-__copyright__ = 'Copyright 2002-2026 Wichert Akkerman, Christian Giese, Istvan Ruzman and Stefan Lieberth. All rights reserved.'
+__copyright__ = 'Copyright 2002-2026 Wichert Akkerman, Christian Giese, Alan DeKok and Arran Cudbard-Bell. All rights reserved.'
 __version__ = '2.5.4'
 
 __all__ = ['client', 'dictionary', 'packet', 'server', 'tools', 'dictfile']

@@ -12,11 +12,11 @@ lines are ignored.
 
 The commands supported are::
 
-  ATTRIBUTE <attribute> <code> <type> [<vendor>]
+  ATTRIBUTE <attribute> <code> <type> [<vendor>|<flags>]
   specify an attribute and its type
 
   VALUE <attribute> <valuename> <value>
-  specify a value attribute
+  specify a named value of an attribute
 
   VENDOR <name> <id>
   specify a vendor ID
@@ -27,25 +27,39 @@ The commands supported are::
   END-VENDOR <vendorname>
   end definition of vendor attributes
 
+  $INCLUDE <filename>
+  read another dictionary file, relative to the current one
+
+The attribute flags are a comma separated list of:
+
+  has_tag
+  the attribute is tagged (RFC 2868)
+
+  encrypt=1
+  User-Password encryption (RFC 2865 section 5.2), which is not applied
+  automatically, see AuthPacket.PwCrypt and AuthPacket.PwDecrypt
+
+  encrypt=2
+  salt encryption (RFC 2868 section 3.5), applied automatically
 
 The datatypes currently supported are:
 
 +---------------+----------------------------------------------+
 | type          | description                                  |
 +===============+==============================================+
-| string        | ASCII string                                 |
+| string        | UTF-8 string                                 |
 +---------------+----------------------------------------------+
 | ipaddr        | IPv4 address                                 |
 +---------------+----------------------------------------------+
-| date          | 32 bits UNIX                                 |
+| date          | 32 bits UNIX timestamp                       |
 +---------------+----------------------------------------------+
 | octets        | arbitrary binary data                        |
 +---------------+----------------------------------------------+
-| abinary       | ascend binary data                           |
+| abinary       | Ascend binary filter                         |
 +---------------+----------------------------------------------+
 | ipv6addr      | 16 octets in network byte order              |
 +---------------+----------------------------------------------+
-| ipv6prefix    | 18 octets in network byte order              |
+| ipv6prefix    | up to 18 octets in network byte order        |
 +---------------+----------------------------------------------+
 | integer       | 32 bits unsigned number                      |
 +---------------+----------------------------------------------+
@@ -55,7 +69,7 @@ The datatypes currently supported are:
 +---------------+----------------------------------------------+
 | byte          | 8 bits unsigned number                       |
 +---------------+----------------------------------------------+
-| tlv           | Nested tag-length-value                      |
+| tlv           | nested type-length-value                     |
 +---------------+----------------------------------------------+
 | integer64     | 64 bits unsigned number                      |
 +---------------+----------------------------------------------+
@@ -87,10 +101,12 @@ DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date', 'octets',
 class ParseError(Exception):
     """Dictionary parser exceptions.
 
-    :ivar msg:        Error message
-    :type msg:        string
-    :ivar linenumber: Line number on which the error occurred
-    :type linenumber: integer
+    :ivar msg:  Error message
+    :type msg:  string
+    :ivar file: Name of the dictionary file
+    :type file: string
+    :ivar line: Line number on which the error occurred
+    :type line: integer
     """
 
     def __init__(self, msg=None, **data):
@@ -140,18 +156,19 @@ class Dictionary:
 
     :ivar vendors:    bidict mapping vendor name to vendor code
     :type vendors:    bidict
-    :ivar attrindex:  bidict mapping
+    :ivar attrindex:  bidict mapping attribute name to attribute code
+                      (or (vendor code, attribute code) tuple)
     :type attrindex:  bidict
-    :ivar attributes: bidict mapping attribute name to attribute class
-    :type attributes: bidict
+    :ivar attributes: mapping of attribute name to attribute class
+    :type attributes: dict
     """
 
     def __init__(self, dict=None, *dicts):
         """
         :param dict:  path of dictionary file or file-like object to read
         :type dict:   string or file
-        :param dicts: list of dictionaries
-        :type dicts:  sequence of strings or files
+        :param dicts: further dictionaries to read
+        :type dicts:  strings or files
         """
         self.vendors = bidict.BiDict()
         self.vendors.Add('', 0)

@@ -50,6 +50,12 @@ Unreleased
 * Replace deprecated datetime.utcnow() and Logger.warn calls in the asyncio
   client and server.
 * Fix the examples in the README, the docs and the package docstring.
+* Add a usage guide to the documentation (attributes, tagged and encrypted
+  attributes, accounting, CoA, Status-Server, servers and asyncio) and the
+  API documentation of ClientAsync and ServerAsync.
+* Fix wrong and missing parameter types and descriptions in the docstrings
+  (secrets and raw packets are bytes, AddAttribute only takes attribute
+  names) and document the asyncio transport and handler methods.
 
 2.5.4 - Feb 5, 2026
 -------------------
