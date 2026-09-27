@@ -2,6 +2,7 @@
 #
 # Copyright 2003-2004,2007,2016 Wichert Akkerman <wichert@wiggy.net>
 
+import ipaddress
 import select
 import socket
 from pyrad import host
@@ -63,6 +64,41 @@ def CheckMessageAuthenticator(pkt, enforce_ma=False):
     elif enforce_ma:
         raise ServerPacketError(
             'Received Access-Request without Message-Authenticator')
+
+
+def _HostAddresses(address):
+    """Return the keys under which a source address is looked up in a hosts
+    dictionary: the address as received and, for an IPv4-mapped IPv6
+    address (an IPv4 client of a dual stack socket bound to '::'), its IPv4
+    form.
+
+    :param address: source address of a packet
+    :type  address: string
+    :return: addresses to look up, in order
+    :rtype:  list of strings
+    """
+    addresses = [address]
+    try:
+        mapped = ipaddress.ip_address(address).ipv4_mapped
+    except (ValueError, AttributeError, TypeError):
+        mapped = None
+    if mapped is not None:
+        addresses.append(str(mapped))
+    return addresses
+
+
+def _LookupHost(hosts, address):
+    """Return the hosts entry of a source address, or None.
+
+    :param   hosts: hosts who are allowed to talk to us
+    :type    hosts: dictionary mapping IP to RemoteHost class instances
+    :param address: source address of a packet
+    :type  address: string
+    """
+    for key in _HostAddresses(address):
+        if key in hosts:
+            return hosts[key]
+    return None
 
 
 class Server(host.Host):
@@ -229,8 +265,9 @@ class Server(host.Host):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] in self.hosts:
-            pkt.secret = self.hosts[pkt.source[0]].secret
+        remote_host = _LookupHost(self.hosts, pkt.source[0])
+        if remote_host is not None:
+            pkt.secret = remote_host.secret
         elif '0.0.0.0' in self.hosts:
             pkt.secret = self.hosts['0.0.0.0'].secret
         else:

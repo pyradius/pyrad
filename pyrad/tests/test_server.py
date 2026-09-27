@@ -345,6 +345,46 @@ class PacketVerificationTests(unittest.TestCase):
         self.assertEqual(len(self.handled), 2)
 
 
+class MappedAddressTests(unittest.TestCase):
+    """A server bound to '::' (dual stack) sees IPv4 clients with an
+    IPv4-mapped IPv6 source address."""
+
+    def setUp(self):
+        self.server = Server(enable_pkt_verify=False)
+        self.server.hosts['127.0.0.1'] = RemoteHost('127.0.0.1', b'secret', 'v4')
+        self.packet = TrivialObject()
+        self.packet.code = AccountingRequest
+        self.packet.source = ('::ffff:127.0.0.1', 1813, 0, 0)
+        self.server.HandleAcctPacket = lambda pkt: None
+
+    def testMappedAddressUsesIPv4Host(self):
+        self.server._HandleAcctPacket(self.packet)
+        self.assertEqual(self.packet.secret, b'secret')
+        # the source is kept as received, it is needed to send the reply
+        self.assertEqual(self.packet.source, ('::ffff:127.0.0.1', 1813, 0, 0))
+
+    def testMappedAddressIsNotDefaultHost(self):
+        self.server.hosts['0.0.0.0'] = RemoteHost('0.0.0.0', b'default', 'default')
+        self.server._HandleAcctPacket(self.packet)
+        self.assertEqual(self.packet.secret, b'secret')
+
+    def testExactMatchWins(self):
+        self.server.hosts['::ffff:127.0.0.1'] = RemoteHost(
+            '::ffff:127.0.0.1', b'mapped', 'mapped')
+        self.server._HandleAcctPacket(self.packet)
+        self.assertEqual(self.packet.secret, b'mapped')
+
+    def testUnknownMappedAddress(self):
+        self.packet.source = ('::ffff:192.0.2.1', 1813, 0, 0)
+        self.assertRaises(ServerPacketError, self.server._HandleAcctPacket, self.packet)
+
+    def testIPv6Address(self):
+        self.server.hosts['::1'] = RemoteHost('::1', b'v6', 'v6')
+        self.packet.source = ('::1', 1813, 0, 0)
+        self.server._HandleAcctPacket(self.packet)
+        self.assertEqual(self.packet.secret, b'v6')
+
+
 class OtherTests(unittest.TestCase):
     def setUp(self):
         self.server = Server()

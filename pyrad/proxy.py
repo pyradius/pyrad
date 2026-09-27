@@ -6,6 +6,7 @@
 
 from pyrad.server import ServerPacketError
 from pyrad.server import Server
+from pyrad.server import _LookupHost
 from pyrad import packet
 import select
 import socket
@@ -36,9 +37,10 @@ class Proxy(Server):
         :param pkt: packet to process
         :type  pkt: Packet class instance
         """
-        if pkt.source[0] not in self.hosts:
+        remote_host = _LookupHost(self.hosts, pkt.source[0])
+        if remote_host is None:
             raise ServerPacketError('Received packet from unknown host')
-        pkt.secret = self.hosts[pkt.source[0]].secret
+        pkt.secret = remote_host.secret
 
         if pkt.code not in [packet.AccessAccept, packet.AccessReject,
                             packet.AccountingResponse]:

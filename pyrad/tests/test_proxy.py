@@ -58,6 +58,14 @@ class ProxyPacketHandlingTests(unittest.TestCase):
         self.proxy._HandleProxyPacket(self.packet)
         self.assertEqual(self.packet.secret, 'supersecret')
 
+    def testHandleProxyPacketMappedAddress(self):
+        self.proxy.hosts['127.0.0.1'] = TrivialObject()
+        self.proxy.hosts['127.0.0.1'].secret = 'v4secret'
+        self.packet.source = ('::ffff:127.0.0.1', 1812, 0, 0)
+        self.proxy._HandleProxyPacket(self.packet)
+        self.assertEqual(self.packet.secret, 'v4secret')
+        self.assertEqual(self.packet.source, ('::ffff:127.0.0.1', 1812, 0, 0))
+
     def testHandleProxyPacketHandlesWrongPacket(self):
         self.packet.code = AccessRequest
         try:
