@@ -38,6 +38,10 @@ Unreleased
 * Fix ClientAsync decrypting salt encrypted reply attributes, such as
   Tunnel-Password and MS-MPPE-Send-Key, with the wrong authenticator.
 * Copy Proxy-State attributes into replies (RFC 2865 section 5.33).
+* Decoding an integer, signed, short, byte, date, integer64, ipaddr,
+  ipv6addr or ipv6prefix attribute with a value of the wrong length raises
+  a ValueError instead of struct.error or returning a wrong value, such as
+  an IPv6 address for a 16 byte ipaddr value (#13).
 * Fix the length of CoA and Disconnect requests with Message-Authenticator.
 * Fix ClientAsync retrying and timing out requests before the timeout passed.
 * Verify the request authenticator of Accounting, CoA and Disconnect requests

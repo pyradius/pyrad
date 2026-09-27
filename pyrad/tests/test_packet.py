@@ -548,6 +548,12 @@ class MalformedAttributeDecodeTests(unittest.TestCase):
         self.assertRaises(packet.PacketError, self.packet.DecodePacket,
                           self._raw(b'\x1a\x0c\x00\x00\x00\x10\x03\x06\x01\x00zz'))
 
+    def testIntegerAttributeWithWrongLength(self):
+        # the raw value is kept, only decoding it raises a ValueError (#13)
+        self.packet.DecodePacket(self._raw(b'\x03\x04\x00\x01'))
+        self.assertEqual(self.packet[3], [b'\x00\x01'])
+        self.assertRaises(ValueError, self.packet.__getitem__, 'Test-Integer')
+
 class AuthPacketConstructionTests(PacketConstructionTests):
     klass = packet.AuthPacket
 

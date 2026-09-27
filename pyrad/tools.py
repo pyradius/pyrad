@@ -243,12 +243,22 @@ def DecodeOctets(value):
     return value
 
 
+def _CheckLength(value, length, datatype):
+    if len(value) != length:
+        raise ValueError("Invalid %s value: expected %d bytes, got %d"
+                         % (datatype, length, len(value)))
+
+
 def DecodeAddress(addr):
+    _CheckLength(addr, 4, "ipaddr")
     return str(ipaddress.ip_address(addr))
 
 
 def DecodeIPv6Prefix(addr):
     # RADIUS IPv6-Prefix is: 2 bytes (reserved, prefixlen) + prefix bytes (0..16)
+    if not 2 <= len(addr) <= 18:
+        raise ValueError("Invalid ipv6prefix value: expected 2 to 18 bytes, got %d"
+                         % len(addr))
     addr = addr + b"\x00" * (18 - len(addr))
     _, length = struct.unpack("!BB", addr[:2])
     prefix_bytes = addr[2:18]
@@ -257,6 +267,9 @@ def DecodeIPv6Prefix(addr):
 
 
 def DecodeIPv6Address(addr):
+    if len(addr) > 16:
+        raise ValueError("Invalid ipv6addr value: expected at most 16 bytes, got %d"
+                         % len(addr))
     addr = addr + b"\x00" * (16 - len(addr))
     return str(ipaddress.IPv6Address(addr))
 
@@ -266,14 +279,17 @@ def DecodeAscendBinary(value):
 
 
 def DecodeInteger(num, format="!I"):
+    _CheckLength(num, struct.calcsize(format), "integer")
     return struct.unpack(format, num)[0]
 
 
 def DecodeInteger64(num, format="!Q"):
+    _CheckLength(num, struct.calcsize(format), "integer64")
     return struct.unpack(format, num)[0]
 
 
 def DecodeDate(num):
+    _CheckLength(num, 4, "date")
     return struct.unpack("!I", num)[0]
 
 

@@ -138,6 +138,27 @@ class EncodingTests(unittest.TestCase):
                 0x01020304)
 
 
+class DecodeLengthTests(unittest.TestCase):
+    """Values with a wrong length raise a ValueError, not struct.error (#13)."""
+
+    def testFixedLengthTypes(self):
+        for datatype, length in (('integer', 4), ('signed', 4), ('short', 2),
+                                 ('byte', 1), ('date', 4), ('integer64', 8),
+                                 ('ipaddr', 4)):
+            for value in (b'', b'\x01' * (length - 1), b'\x01' * (length + 1)):
+                with self.subTest(datatype=datatype, length=len(value)):
+                    self.assertRaises(ValueError, tools.DecodeAttr, datatype, value)
+
+    def testIPv6Address(self):
+        self.assertRaises(ValueError, tools.DecodeAttr, 'ipv6addr', 17 * b'\x00')
+
+    def testIPv6Prefix(self):
+        for value in (b'', b'\x00', 19 * b'\x00'):
+            with self.subTest(length=len(value)):
+                self.assertRaises(ValueError, tools.DecodeAttr, 'ipv6prefix', value)
+        self.assertRaises(ValueError, tools.DecodeAttr, 'ipv6prefix', b'\x00\x81')
+
+
 class OctetsEncodingTests(unittest.TestCase):
     def testNone(self):
         self.assertEqual(tools.EncodeOctets(None), b'')
