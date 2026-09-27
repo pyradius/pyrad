@@ -5,6 +5,7 @@ import struct
 import time
 import types
 import unittest
+from io import StringIO
 from unittest import mock
 from .mock import MockPacket
 from .mock import MockPoll
@@ -17,9 +18,17 @@ from pyrad.packet import AccessAccept
 from pyrad.packet import AccessChallenge
 from pyrad.packet import AccessRequest
 from pyrad.packet import AccountingRequest
+from pyrad.dictionary import Dictionary
 
 BIND_IP = "127.0.0.1"
 BIND_PORT = 53535
+
+ACCT_DICTIONARY = '''
+ATTRIBUTE User-Name             1  string
+ATTRIBUTE Acct-Status-Type      40 integer
+ATTRIBUTE Acct-Delay-Time       41 integer
+VALUE     Acct-Status-Type      Start 1
+'''
 
 
 class ConstructionTests(unittest.TestCase):
@@ -134,6 +143,7 @@ class SocketTests(unittest.TestCase):
         self.client.retries = 2
         self.client.timeout = 1
         packet = MockPacket(AccountingRequest)
+        packet.dict = Dictionary(StringIO(ACCT_DICTIONARY))
         self.assertRaises(Timeout, self.client._SendPacket, packet, 432)
         self.assertEqual(packet["Acct-Delay-Time"], [1])
 
@@ -141,8 +151,18 @@ class SocketTests(unittest.TestCase):
         self.client.retries = 3
         self.client.timeout = 1
         packet = MockPacket(AccountingRequest)
+        packet.dict = Dictionary(StringIO(ACCT_DICTIONARY))
         self.assertRaises(Timeout, self.client._SendPacket, packet, 432)
         self.assertEqual(packet["Acct-Delay-Time"], [2])
+
+    def testAccountDelayWithoutDictionary(self):
+        self.client.retries = 2
+        self.client.timeout = 0
+        packet = MockPacket(AccountingRequest)
+        packet.dict = None
+        self.assertRaises(Timeout, self.client._SendPacket, packet, 432)
+        self.assertFalse("Acct-Delay-Time" in packet)
+        self.assertEqual(len(self.client._socket.output), 2)
 
     def testIgnorePacketError(self):
         self.client.retries = 1
@@ -282,3 +302,14 @@ class LoopbackTests(unittest.TestCase):
             self.assertRaises(Timeout, self.client.SendPacket,
                               self.client.CreateAcctPacket())
         self.assertLess(time.monotonic() - start, 2)
+
+    def testAccountDelayUndefined(self):
+        # a retry does not fail if the dictionary has no Acct-Delay-Time
+        self.client.dict = Dictionary(StringIO('ATTRIBUTE User-Name 1 string\n'))
+        self.client.retries = 2
+        self.client.timeout = 0.1
+        pkt = self.client.CreateAcctPacket(User_Name='alice')
+        self.assertRaises(Timeout, self.client.SendPacket, pkt)
+        self.server.recv(4096)
+        self.server.recv(4096)
+        self.assertEqual(pkt.keys(), ['User-Name'])

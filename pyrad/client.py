@@ -140,6 +140,18 @@ class Client(host.Host):
         """
         return host.Host.CreateCoAPacket(self, secret=self.secret, **args)
 
+    def _UpdateAcctDelayTime(self, pkt):
+        """Add the time waited for a reply to the Acct-Delay-Time of an
+        accounting request that is sent again. This is skipped if the
+        dictionary does not define Acct-Delay-Time."""
+        dictionary = getattr(pkt, 'dict', None)
+        if dictionary is None or 'Acct-Delay-Time' not in dictionary:
+            return
+        if 'Acct-Delay-Time' in pkt:
+            pkt['Acct-Delay-Time'] = pkt['Acct-Delay-Time'][0] + self.timeout
+        else:
+            pkt['Acct-Delay-Time'] = self.timeout
+
     def _SendPacket(self, pkt, port):
         """Send a packet to a RADIUS server.
 
@@ -155,11 +167,7 @@ class Client(host.Host):
 
         for attempt in range(self.retries):
             if attempt and pkt.code == packet.AccountingRequest:
-                if "Acct-Delay-Time" in pkt:
-                    pkt["Acct-Delay-Time"] = \
-                            pkt["Acct-Delay-Time"][0] + self.timeout
-                else:
-                    pkt["Acct-Delay-Time"] = self.timeout
+                self._UpdateAcctDelayTime(pkt)
 
             now = time.monotonic()
             waitto = now + self.timeout
