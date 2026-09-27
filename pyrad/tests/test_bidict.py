@@ -54,3 +54,40 @@ class BiDictTests(unittest.TestCase):
         self.assertRaises(KeyError, operator.getitem, self.bidict, "missing")
         self.assertEqual(self.bidict["shake"], "vanilla")
         self.assertEqual(self.bidict["pie"], "custard")
+
+    def testRedefinedKey(self):
+        self.bidict.Add("Old-Name", 5)
+        self.bidict.Add("Old-Name", 6)
+        self.assertEqual(self.bidict.GetForward("Old-Name"), 6)
+        self.assertEqual(self.bidict.GetBackward(6), "Old-Name")
+        self.assertEqual(self.bidict.HasBackward(5), False)
+        self.bidict.Add("New-Name", 5)
+        del self.bidict["Old-Name"]
+        self.assertEqual(self.bidict.forward, {"New-Name": 5})
+        self.assertEqual(self.bidict.backward, {5: "New-Name"})
+
+    def testRedefinedKeyKeepsAlias(self):
+        self.bidict.Add("Name", 5)
+        self.bidict.Add("Alias", 5)
+        self.assertEqual(self.bidict.GetBackward(5), "Alias")
+        self.bidict.Add("Alias", 6)
+        self.assertEqual(self.bidict.GetBackward(5), "Name")
+        self.assertEqual(self.bidict.GetBackward(6), "Alias")
+
+    def testAliasDeletion(self):
+        self.bidict.Add("Name", 5)
+        self.bidict.Add("Alias", 5)
+        del self.bidict["Name"]
+        self.assertEqual(self.bidict.GetBackward(5), "Alias")
+        self.bidict.Add("Name", 5)
+        del self.bidict["Name"]
+        self.assertEqual(self.bidict.GetBackward(5), "Alias")
+        self.assertEqual(self.bidict.GetForward("Alias"), 5)
+
+    def testBackwardDeletionRemovesAliases(self):
+        self.bidict.Add("Name", 5)
+        self.bidict.Add("Alias", 5)
+        self.bidict.Add("Other", 6)
+        del self.bidict[5]
+        self.assertEqual(self.bidict.forward, {"Other": 6})
+        self.assertEqual(self.bidict.backward, {6: "Other"})
