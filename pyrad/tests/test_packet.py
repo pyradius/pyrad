@@ -4,6 +4,7 @@ import os
 import signal
 import struct
 import unittest
+import unittest.mock
 
 from . import home
 
@@ -660,6 +661,37 @@ class AuthPacketChapTests(unittest.TestCase):
         self.assertEqual(pkt['CHAP-Challenge'][0], chap_challenge)
         self.assertEqual(pkt['CHAP-Password'][0], chap_password)
         self.assertEqual(pkt.VerifyChapPasswd('test_password'), True)
+
+    def testVerifyChapPasswdWithoutChapPassword(self):
+        pkt = self.client.CreateAuthPacket(authenticator=16 * b'A',
+                                           User_Name='test_name')
+        self.assertFalse(pkt.VerifyChapPasswd('test_password'))
+
+    def testVerifyChapPasswdWrongPassword(self):
+        chap_id = b'9'
+        chap_password = chap_id + hashlib.md5(
+                chap_id + b'test_password' + 16 * b'A').digest()
+        pkt = self.client.CreateAuthPacket(authenticator=16 * b'A',
+                                           CHAP_Password=chap_password)
+        self.assertTrue(pkt.VerifyChapPasswd(b'test_password'))
+        self.assertFalse(pkt.VerifyChapPasswd(b'other_password'))
+
+    def testVerifyChapPasswdUsesConstantTimeComparison(self):
+        chap_id = b'9'
+        chap_password = chap_id + hashlib.md5(
+                chap_id + b'test_password' + 16 * b'A').digest()
+        pkt = self.client.CreateAuthPacket(authenticator=16 * b'A',
+                                           CHAP_Password=chap_password)
+        calls = []
+        compare_digest = hmac.compare_digest
+
+        def spy(a, b):
+            calls.append((a, b))
+            return compare_digest(a, b)
+
+        with unittest.mock.patch('pyrad.packet.hmac.compare_digest', spy):
+            self.assertTrue(pkt.VerifyChapPasswd('test_password'))
+        self.assertEqual(len(calls), 1)
 
 
 class AcctPacketConstructionTests(PacketConstructionTests):

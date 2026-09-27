@@ -948,7 +948,8 @@ class AuthPacket(Packet):
 
         :param userpwd: plaintext password
         :type userpwd:  str or bytes
-        :return:        True if the password matches else False
+        :return:        True if the password matches else False, also if
+                        there is no CHAP-Password attribute
         :rtype:         bool
         """
 
@@ -958,7 +959,10 @@ class AuthPacket(Packet):
         if isinstance(userpwd, str):
             userpwd = userpwd.strip().encode('utf-8')
 
-        chap_password = tools.DecodeOctets(self.get(3)[0])
+        chap_passwords = self.get(3)
+        if not chap_passwords:
+            return False
+        chap_password = tools.DecodeOctets(chap_passwords[0])
         if len(chap_password) != 17:
             return False
 
@@ -968,7 +972,8 @@ class AuthPacket(Packet):
         challenge = self.authenticator
         if 'CHAP-Challenge' in self:
             challenge = self['CHAP-Challenge'][0]
-        return password == hashlib.md5(chapid + userpwd + challenge).digest()
+        return hmac.compare_digest(
+            password, hashlib.md5(chapid + userpwd + challenge).digest())
 
     def VerifyAuthRequest(self):
         """Verify request authenticator.
