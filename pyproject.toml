@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "RADIUS tools"
 readme = "README.rst"
 license = { text = "BSD-3-Clause" }
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
   { name = "Christian Giese", email = "gic@gicnet.de" },
   { name = "Istvan Ruzman", email = "istvan@ruzman.eu" },
@@ -19,8 +19,6 @@ classifiers = [
   "Development Status :: 6 - Mature",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.8",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",

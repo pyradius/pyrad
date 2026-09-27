@@ -80,7 +80,7 @@ pyrad implements the countermeasures against the BlastRADIUS attack
 Requirements & Installation
 ===========================
 
-pyrad requires Python 3.8 or later
+pyrad requires Python 3.10 or later
 
 pyrad is available on PyPI and can be installed with pip::
 

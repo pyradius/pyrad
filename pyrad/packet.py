@@ -8,14 +8,10 @@ from collections import OrderedDict
 from pyrad import tools
 import hashlib
 import hmac
+import secrets
 import struct
 
-try:
-    import secrets
-    random_generator = secrets.SystemRandom()
-except ImportError:
-    import random
-    random_generator = random.SystemRandom()
+random_generator = secrets.SystemRandom()
 
 
 # Packet codes
