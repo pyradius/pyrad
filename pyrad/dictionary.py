@@ -42,6 +42,23 @@ The attribute flags are a comma separated list of:
   encrypt=2
   salt encryption (RFC 2868 section 3.5), applied automatically
 
+The FreeRADIUS flags secret and virtual are accepted and ignored.
+
+FreeRADIUS dictionaries also define attributes that pyrad cannot encode or
+decode. These are skipped with a warning, so that the FreeRADIUS dictionary
+files can be read as they are:
+
+- attributes of the types listed in UNSUPPORTED_DATATYPES, such as the
+  RFC 6929 extended attributes, and their sub-attributes
+- attributes with the array flag
+- TLVs nested more than one level deep
+- vendor attributes in a BEGIN-VENDOR block with a format= option, which
+  are extended vendor-specific attributes (RFC 6929)
+
+VALUE definitions for skipped attributes are ignored, and VALUE definitions
+for unknown attributes are ignored with a warning. Received attributes
+that were skipped are decoded as undefined attributes.
+
 The datatypes currently supported are:
 
 +---------------+----------------------------------------------+
@@ -85,6 +102,8 @@ These datatypes are parsed but not supported:
 |               | where 'h' is hex digits, upper or lowercase. |
 +---------------+----------------------------------------------+
 """
+import logging
+
 from pyrad import bidict
 from pyrad import tools
 from pyrad import dictfile
@@ -92,10 +111,23 @@ from copy import copy
 
 __docformat__ = 'epytext en'
 
+logger = logging.getLogger('pyrad')
+
 
 DATATYPES = frozenset(['string', 'ipaddr', 'integer', 'date', 'octets',
                        'abinary', 'ipv6addr', 'ipv6prefix', 'short', 'byte',
                        'signed', 'ifid', 'ether', 'tlv', 'integer64'])
+
+# FreeRADIUS data types which pyrad does not support. Attributes of these
+# types are skipped with a warning instead of failing the parse.
+UNSUPPORTED_DATATYPES = frozenset(['vsa', 'extended', 'long-extended', 'evs',
+                                   'ipv4prefix', 'combo-ip', 'bool', 'uint16',
+                                   'uint32'])
+
+# Attribute flags; a fifth ATTRIBUTE column that contains one of them is a
+# list of flags instead of a vendor name.
+ATTRIBUTE_FLAGS = frozenset(['has_tag', 'encrypt', 'secret', 'array',
+                             'virtual', 'concat'])
 
 
 class ParseError(Exception):
@@ -161,6 +193,9 @@ class Dictionary:
     :type attrindex:  bidict
     :ivar attributes: mapping of attribute name to attribute class
     :type attributes: dict
+    :ivar skipped_attributes: names of the attributes that were skipped
+                              because pyrad does not support them
+    :type skipped_attributes: set
     """
 
     def __init__(self, dict=None, *dicts):
@@ -175,6 +210,7 @@ class Dictionary:
         self.attrindex = bidict.BiDict()
         self.attributes = {}
         self.defer_parse = []
+        self.skipped_attributes = set()
 
         if dict:
             self.ReadDictionary(dict)
@@ -193,6 +229,12 @@ class Dictionary:
 
     has_key = __contains__
 
+    def __SkipAttribute(self, state, name, reason):
+        self.skipped_attributes.add(name)
+        state['skipped'].append(reason)
+        logger.debug('%s(%d): skipping attribute %s: %s',
+                     state['file'], state['line'], name, reason)
+
     def __ParseAttribute(self, state, tokens):
         if len(tokens) not in [4, 5]:
             raise ParseError(
@@ -203,6 +245,7 @@ class Dictionary:
         vendor = state['vendor']
         has_tag = False
         encrypt = 0
+        array = False
         if len(tokens) >= 5:
             def keyval(o):
                 kv = o.split('=')
@@ -211,7 +254,16 @@ class Dictionary:
                 else:
                     return (kv[0], None)
             options = [keyval(o) for o in tokens[4].split(',')]
-            for (key, val) in options:
+            is_flags = any(key in ATTRIBUTE_FLAGS for (key, val) in options)
+            if self.vendors.HasForward(tokens[4]) and \
+                    not any(key in ('has_tag', 'encrypt')
+                            for (key, val) in options):
+                vendor = tokens[4]
+            elif not is_flags:
+                raise ParseError('Unknown vendor ' + tokens[4],
+                                 file=state['file'],
+                                 line=state['line'])
+            for (key, val) in options if is_flags else []:
                 if key == 'has_tag':
                     has_tag = True
                 elif key == 'encrypt':
@@ -221,17 +273,11 @@ class Dictionary:
                                 file=state['file'],
                                 line=state['line'])
                     encrypt = int(val)
-
-            if (not has_tag) and encrypt == 0:
-                vendor = tokens[4]
-                if not self.vendors.HasForward(vendor):
-                    if vendor == "concat":
-                        # ignore attributes with concat (freeradius compat.)
-                        return None
-                    else:
-                        raise ParseError('Unknown vendor ' + vendor,
-                                         file=state['file'],
-                                         line=state['line'])
+                elif key == 'array':
+                    array = True
+                elif key == 'concat':
+                    # ignore attributes with concat (freeradius compat.)
+                    return None
 
         (attribute, code, datatype) = tokens[1:4]
 
@@ -248,27 +294,49 @@ class Dictionary:
                 tmp.append(int(c, 10))
         codes = tmp
 
+        datatype = datatype.split("[")[0]
+
+        if datatype not in DATATYPES and datatype not in UNSUPPORTED_DATATYPES:
+            raise ParseError('Illegal type: ' + datatype,
+                             file=state['file'],
+                             line=state['line'])
+
+        vendor_code = self.vendors.GetForward(vendor)
+        if (vendor_code, codes[0]) in state['skipped_codes']:
+            return self.__SkipAttribute(
+                state, attribute, 'sub-attribute of unsupported attribute')
+        if state['vendor_format']:
+            return self.__SkipAttribute(
+                state, attribute, 'extended vendor-specific attribute')
+        if datatype in UNSUPPORTED_DATATYPES:
+            if len(codes) == 1:
+                state['skipped_codes'].add((vendor_code, codes[0]))
+            return self.__SkipAttribute(state, attribute,
+                                        'data type ' + datatype)
+        if array:
+            return self.__SkipAttribute(state, attribute, 'array flag')
+        if len(codes) > 2:
+            return self.__SkipAttribute(state, attribute, 'nested TLV')
+
         is_sub_attribute = (len(codes) > 1)
         if len(codes) == 2:
             code = int(codes[1])
             parent_code = int(codes[0])
-        elif len(codes) == 1:
+            if parent_code not in state['tlvs']:
+                raise ParseError(
+                    'Sub-attribute %s of unknown TLV %d' % (attribute,
+                                                            parent_code),
+                    file=state['file'],
+                    line=state['line'])
+        else:
             code = int(codes[0])
             parent_code = None
-        else:
-            raise ParseError('nested tlvs are not supported')
 
-        datatype = datatype.split("[")[0]
-
-        if datatype not in DATATYPES:
-            raise ParseError('Illegal type: ' + datatype,
-                             file=state['file'],
-                             line=state['line'])
         if vendor:
             if is_sub_attribute:
-                key = (self.vendors.GetForward(vendor), parent_code, code)
+                key = (vendor_code, parent_code, code)
             else:
-                key = (self.vendors.GetForward(vendor), code)
+                key = (vendor_code, code)
         else:
             if is_sub_attribute:
                 key = (parent_code, code)
@@ -293,15 +361,20 @@ class Dictionary:
 
         (attr, key, value) = tokens[1:]
 
+        if attr in self.skipped_attributes and attr not in self.attributes:
+            return
+
         try:
             adef = self.attributes[attr]
         except KeyError:
             if defer:
                 self.defer_parse.append((copy(state), copy(tokens)))
                 return
-            raise ParseError('Value defined for unknown attribute ' + attr,
-                             file=state['file'],
-                             line=state['line'])
+            # FreeRADIUS dictionaries contain a few of these, so warn
+            # instead of failing the parse
+            logger.warning('%s(%d): ignoring value defined for unknown '
+                           'attribute %s', state['file'], state['line'], attr)
+            return
 
         if adef.type in ['integer', 'signed', 'short', 'byte', 'integer64']:
             value = int(value, 0)
@@ -325,7 +398,12 @@ class Dictionary:
                         file=state['file'],
                         line=state['line'])
             try:
-                (token, length) = tuple(int(a) for a in fmt[1].split(','))
+                fmtargs = fmt[1].split(',')
+                # the WiMAX continuation flag ",c" is accepted and ignored,
+                # like the rest of the format specification
+                if len(fmtargs) == 3 and fmtargs[2] == 'c':
+                    fmtargs = fmtargs[:2]
+                (token, length) = tuple(int(a) for a in fmtargs)
                 if token not in [1, 2, 4] or length not in [0, 1, 2]:
                     raise ParseError(
                         'Unknown vendor format specification %s' % (fmt[1]),
@@ -341,11 +419,24 @@ class Dictionary:
         self.vendors.Add(vendorname, int(vendor, 0))
 
     def __ParseBeginVendor(self, state, tokens):
-        if len(tokens) != 2:
+        if len(tokens) not in [2, 3]:
             raise ParseError(
                     'Incorrect number of tokens for begin-vendor statement',
                     file=state['file'],
                     line=state['line'])
+
+        # BEGIN-VENDOR <vendor> format=<Extended-Vendor-Specific attribute>
+        # defines extended vendor-specific attributes (RFC 6929), which are
+        # skipped
+        vendor_format = None
+        if len(tokens) == 3:
+            if not tokens[2].startswith('format='):
+                raise ParseError(
+                        "Unknown option '%s' for begin-vendor statement" %
+                        tokens[2],
+                        file=state['file'],
+                        line=state['line'])
+            vendor_format = tokens[2][len('format='):]
 
         vendor = tokens[1]
 
@@ -356,6 +447,7 @@ class Dictionary:
                     line=state['line'])
 
         state['vendor'] = vendor
+        state['vendor_format'] = vendor_format
 
     def __ParseEndVendor(self, state, tokens):
         if len(tokens) != 2:
@@ -372,6 +464,7 @@ class Dictionary:
                     file=state['file'],
                     line=state['line'])
         state['vendor'] = ''
+        state['vendor_format'] = None
 
     def ReadDictionary(self, file):
         """Parse a dictionary file.
@@ -386,7 +479,10 @@ class Dictionary:
 
         state = {}
         state['vendor'] = ''
+        state['vendor_format'] = None
         state['tlvs'] = {}
+        state['skipped'] = []
+        state['skipped_codes'] = set()
         self.defer_parse = []
         for line in fil:
             state['file'] = fil.File()
@@ -414,3 +510,8 @@ class Dictionary:
             if key == 'VALUE':
                 self.__ParseValue(state, tokens, False)
         self.defer_parse = []
+
+        if state['skipped']:
+            reasons = sorted(set(state['skipped']))
+            logger.warning('Skipped %d unsupported dictionary attributes (%s)',
+                           len(state['skipped']), ', '.join(reasons))

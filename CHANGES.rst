@@ -20,6 +20,16 @@ Unreleased
   * With enforce_ma, clients require a Message-Authenticator in replies to
     Access-Request and Status-Server packets.
 
+* The FreeRADIUS dictionary files can be read as they are (#173).
+  Attributes that pyrad does not support, such as the RFC 6929 extended
+  attributes, attributes of the types vsa, ipv4prefix, combo-ip, bool,
+  uint16 and uint32, arrays and nested TLVs, are skipped with a warning
+  and listed in Dictionary.skipped_attributes. The flags secret and
+  virtual, the vendor format continuation flag ",c" and BEGIN-VENDOR with
+  a format= option are accepted. A VALUE for an unknown attribute is
+  ignored with a warning instead of raising a ParseError, and a
+  sub-attribute of an unknown TLV raises a ParseError instead of a
+  KeyError.
 * Fix an infinite loop when decoding a vendor-specific or TLV sub-attribute
   with a length of 0, which let a single unauthenticated packet hang a
   server (#234). Truncated TLVs raise a PacketError instead of struct.error.

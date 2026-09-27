@@ -148,10 +148,78 @@ class DictionaryParsingTests(unittest.TestCase):
         self.dict.ReadDictionary(StringIO('ATTRIBUTE Test-Concat 99 octets concat'))
         self.assertFalse('Test-Concat' in self.dict)
 
-    def testNestedTlvError(self):
-        with self.assertRaises(ParseError) as cm:
+    def testNestedTlvIsSkipped(self):
+        with self.assertLogs('pyrad', 'WARNING') as cm:
             self.dict.ReadDictionary(StringIO('ATTRIBUTE Test-Nested 1.2.3 string'))
-        self.assertIn('nested tlvs', str(cm.exception))
+        self.assertFalse('Test-Nested' in self.dict)
+        self.assertIn('Test-Nested', self.dict.skipped_attributes)
+        self.assertIn('nested TLV', cm.output[0])
+
+    def testSubAttributeOfUnknownTlvError(self):
+        with self.assertRaises(ParseError) as cm:
+            self.dict.ReadDictionary(StringIO('ATTRIBUTE Test-Sub 99.1 string'))
+        self.assertIn('unknown TLV 99', str(cm.exception))
+
+    def testAttributeFreeRadiusFlags(self):
+        self.dict.ReadDictionary(StringIO(
+            'ATTRIBUTE Test-Secret 90 octets secret\n'
+            'ATTRIBUTE Test-Virtual 1000 integer virtual\n'
+            'ATTRIBUTE Test-Password 91 string encrypt=1,secret'))
+        self.assertEqual(self.dict['Test-Secret'].type, 'octets')
+        self.assertEqual(self.dict['Test-Secret'].vendor, '')
+        self.assertEqual(self.dict.attrindex['Test-Virtual'], 1000)
+        self.assertEqual(self.dict['Test-Password'].encrypt, 1)
+
+    def testAttributeArrayIsSkipped(self):
+        with self.assertLogs('pyrad', 'WARNING') as cm:
+            self.dict.ReadDictionary(StringIO(
+                'ATTRIBUTE Test-Array 90 ipaddr array'))
+        self.assertFalse('Test-Array' in self.dict)
+        self.assertIn('array flag', cm.output[0])
+
+    def testAttributeVendorNamedLikeFlag(self):
+        self.dict.ReadDictionary(StringIO(
+            'VENDOR secret 42\n'
+            'ATTRIBUTE Test-Type 1 integer secret'))
+        self.assertEqual(self.dict['Test-Type'].vendor, 'secret')
+        self.assertEqual(self.dict.attrindex['Test-Type'], (42, 1))
+
+    def testUnsupportedDataTypeIsSkipped(self):
+        with self.assertLogs('pyrad', 'WARNING') as cm:
+            self.dict.ReadDictionary(StringIO(
+                'ATTRIBUTE Test-Extended 241 extended\n'
+                'ATTRIBUTE Test-Evs 241.26 evs\n'
+                'ATTRIBUTE Test-Ext-String 241.5 string\n'
+                'VALUE Test-Ext-String Any any\n'
+                'ATTRIBUTE Test-Ext-Vsa 241.26.42.1 string\n'
+                'ATTRIBUTE Test-After 90 string'))
+        for attr in ('Test-Extended', 'Test-Evs', 'Test-Ext-String',
+                     'Test-Ext-Vsa'):
+            self.assertFalse(attr in self.dict)
+            self.assertIn(attr, self.dict.skipped_attributes)
+        self.assertEqual(self.dict.attrindex['Test-After'], 90)
+        self.assertEqual(len(cm.output), 1)
+        self.assertIn('Skipped 4 unsupported dictionary attributes',
+                      cm.output[0])
+        self.assertIn('data type extended', cm.output[0])
+
+    def testParseFreeRadiusDictionary(self):
+        with self.assertLogs('pyrad', 'WARNING'):
+            dict = Dictionary(os.path.join(self.path, 'freeradius'))
+        self.assertEqual(dict['User-Password'].encrypt, 1)
+        self.assertEqual(dict['CHAP-Password'].type, 'octets')
+        self.assertEqual(dict['Tunnel-Password'].has_tag, True)
+        self.assertEqual(dict['Tunnel-Password'].encrypt, 2)
+        self.assertEqual(dict.attrindex['Proxy-To-Realm'], 1031)
+        self.assertEqual(dict.attrindex['FreeRADIUS-Proxied-To'], (11344, 1))
+        self.assertEqual(dict.attrindex['WiMAX-Release'], (24757, 1, 1))
+        self.assertEqual(dict.skipped_attributes, set([
+            'Vendor-Specific', 'Mobile-Node-Home-Address-IPv4',
+            'Extended-Attribute-1', 'Extended-Attribute-5',
+            'Extended-Vendor-Specific-1', 'Extended-Vendor-Specific-5',
+            'Allowed-Called-Station-Id', 'FreeRADIUS-Attr',
+            'FreeRADIUS-EAP-FAST-PAC-Key', 'WiMAX-DNS-Server',
+            'DHCP-Router-Address']))
 
     def testAttributeOptions(self):
         self.dict.ReadDictionary(StringIO(
@@ -176,14 +244,12 @@ class DictionaryParsingTests(unittest.TestCase):
         else:
             self.fail()
 
-    def testValueForUnknownAttributeError(self):
-        try:
+    def testValueForUnknownAttributeIsIgnored(self):
+        with self.assertLogs('pyrad', 'WARNING') as cm:
             self.dict.ReadDictionary(StringIO(
                 'VALUE Test-Attribute Test-Text 1'))
-        except ParseError as e:
-            self.assertEqual('unknown attribute' in str(e), True)
-        else:
-            self.fail()
+        self.assertFalse('Test-Attribute' in self.dict)
+        self.assertIn('unknown attribute Test-Attribute', cm.output[0])
 
     def testIntegerValueParsing(self):
         self.assertEqual(len(self.dict['Test-Integer'].values), 0)
@@ -287,6 +353,10 @@ class DictionaryParsingTests(unittest.TestCase):
         else:
             self.fail()
 
+    def testVendorFormatContinuation(self):
+        self.dict.ReadDictionary(StringIO('VENDOR WiMAX 24757 format=1,1,c'))
+        self.assertEqual(self.dict.vendors['WiMAX'], 24757)
+
     def testVendorFormatSyntaxError(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,
                           StringIO('ATTRIBUTE Test-Type 1 integer Simplon'))
@@ -313,6 +383,27 @@ class DictionaryParsingTests(unittest.TestCase):
             self.assertEqual('Simplon' in str(e), True)
         else:
             self.fail()
+
+    def testBeginVendorOptionError(self):
+        with self.assertRaises(ParseError) as cm:
+            self.dict.ReadDictionary(StringIO(
+                            'VENDOR Simplon 42\n'
+                            'BEGIN-VENDOR Simplon parent=Oops'))
+        self.assertIn('parent=Oops', str(cm.exception))
+
+    def testBeginVendorFormatIsSkipped(self):
+        with self.assertLogs('pyrad', 'WARNING') as cm:
+            self.dict.ReadDictionary(StringIO(
+                            'VENDOR Simplon 42\n'
+                            'BEGIN-VENDOR Simplon format=Extended-Vendor-Specific-5\n'
+                            'ATTRIBUTE Test-Evs 1 integer\n'
+                            'END-VENDOR Simplon\n'
+                            'BEGIN-VENDOR Simplon\n'
+                            'ATTRIBUTE Test-Type 1 integer\n'
+                            'END-VENDOR Simplon'))
+        self.assertFalse('Test-Evs' in self.dict)
+        self.assertEqual(self.dict.attrindex['Test-Type'], (42, 1))
+        self.assertIn('extended vendor-specific attribute', cm.output[0])
 
     def testBeginVendorParsing(self):
         self.dict.ReadDictionary(StringIO(
