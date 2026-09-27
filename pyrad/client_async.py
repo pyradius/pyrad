@@ -215,7 +215,8 @@ class ClientAsync:
     validate its replies. Call initialize_transports before creating
     and sending packets.
 
-    :ivar retries: number of times to retry sending a RADIUS request
+    :ivar retries: number of times to retry sending a RADIUS request (it
+                   is sent at most retries + 1 times)
     :type retries: integer
     :ivar timeout: number of seconds to wait for an answer
     :type timeout: float
@@ -242,7 +243,8 @@ class ClientAsync:
         :type       dict: pyrad.dictionary.Dictionary
         :param      loop: Python loop handler
         :type       loop:  asyncio event loop
-        :param   retries: number of times to send a request
+        :param   retries: number of times to retry sending a request, a
+                          request is sent at most retries + 1 times
         :type    retries: integer
         :param   timeout: number of seconds to wait for a reply
         :type    timeout: float
