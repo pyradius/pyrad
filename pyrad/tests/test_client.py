@@ -388,3 +388,26 @@ class LoopbackTests(unittest.TestCase):
         self.assertEqual(reply.code, AccountingResponse)
         self.assertEqual(reply.request_authenticator, first[4:20])
         self.assertEqual(reply['Salted'], ['salt'])
+
+    def testAuthWithoutDictionary(self):
+        # an Access-Request (with the default Message-Authenticator) can be
+        # sent without a dictionary
+        self.assertIsNone(self.client.dict)
+
+        def serve():
+            (data, source) = self.server.recvfrom(4096)
+            request = AuthPacket(secret=b'secret', dict=None, packet=data)
+            reply = request.CreateReply()
+            reply.code = AccessAccept
+            self.server.sendto(reply.ReplyPacket(), source)
+
+        thread = threading.Thread(target=serve)
+        thread.start()
+        try:
+            pkt = self.client.CreateAuthPacket()
+            pkt[1] = [b'alice']
+            reply = self.client.SendPacket(pkt)
+        finally:
+            thread.join()
+        self.assertEqual(reply.code, AccessAccept)
+        self.assertIn(80, reply)

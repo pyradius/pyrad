@@ -641,6 +641,8 @@ class Packet(OrderedDict):
             tlv.setdefault(atype, []).append(value)
 
     def _PktIsTlvAttribute(self, code):
+        if getattr(self, 'dict', None) is None:
+            return False
         attr = self.dict.attributes.get(self._DecodeKey(code))
         return (attr is not None and attr.type == 'tlv')
 
