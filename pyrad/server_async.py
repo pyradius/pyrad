@@ -177,10 +177,9 @@ class ServerAsync(metaclass=ABCMeta):
         :type  enforce_ma: bool
         """
 
-        if not loop:
-            self.loop = asyncio.get_event_loop()
-        else:
-            self.loop = loop
+        # resolved when used, asyncio.get_event_loop() fails outside of a
+        # running loop since Python 3.14
+        self.loop = loop
         self.logger = logging.getLogger(logger_name)
 
         if hosts is None:
@@ -255,6 +254,21 @@ class ServerAsync(metaclass=ABCMeta):
         """
         reply = pkt.CreateReply(**attributes)
         return reply
+
+    @property
+    def loop(self):
+        """The event loop, the running one if none was passed."""
+        if self._loop is not None:
+            return self._loop
+        try:
+            return asyncio.get_running_loop()
+        except RuntimeError:
+            # outside of a running loop, as before
+            return asyncio.get_event_loop()
+
+    @loop.setter
+    def loop(self, loop):
+        self._loop = loop
 
     async def initialize_transports(self, enable_acct=False,
                                     enable_auth=False, enable_coa=False,

@@ -231,6 +231,18 @@ class AsyncClientTests(unittest.TestCase):
             return client.loop is asyncio.get_running_loop()
         self.assertTrue(asyncio.run(test()))
 
+    def testLoopResolvedWhenUsed(self):
+        # created outside of a running loop (asyncio.get_event_loop() raises
+        # there since Python 3.14), and used with more than one loop
+        client = ClientAsync(server=LOCALHOST, secret=SECRET, dict=self.dict)
+
+        async def test():
+            return client.loop is asyncio.get_running_loop()
+        self.assertTrue(asyncio.run(test()))
+        self.assertTrue(asyncio.run(test()))
+        client.loop = self.loop
+        self.assertIs(client.loop, self.loop)
+
     def testDuplicatePacketId(self):
         async def test():
             await self.client.initialize_transports(enable_auth=True)
@@ -453,6 +465,14 @@ class AsyncServerTests(unittest.TestCase):
         for server.debug in (False, True):
             server.__request_handler__(protocol, None, None)
         loop.close()
+
+    def testLoopResolvedWhenUsed(self):
+        server = RadiusServer()
+
+        async def test():
+            return server.loop is asyncio.get_running_loop()
+        self.assertTrue(asyncio.run(test()))
+        self.assertTrue(asyncio.run(test()))
 
     def testDefaultLoopAndAddress(self):
         ports = dict(zip(('auth_port', 'acct_port', 'coa_port'), free_ports(3)))

@@ -123,13 +123,10 @@ class DatagramProtocolClient(asyncio.Protocol):
                          socket.getsockname()[0],
                          socket.getsockname()[1])
 
-        pre_loop = asyncio.get_event_loop()
-        asyncio.set_event_loop(loop=self.client.loop)
         # Start asynchronous timer handler
-        self.timeout_future = asyncio.ensure_future(
+        self.timeout_future = self.client.loop.create_task(
             self.__timeout_handler__()
         )
-        asyncio.set_event_loop(loop=pre_loop)
 
     def error_received(self, exc):
         self.logger.error('[%s:%d] Error received: %s', self.server, self.port, exc)
@@ -241,10 +238,9 @@ class ClientAsync:
                            verified)
         :type  enforce_ma: boolean
         """
-        if not loop:
-            self.loop = asyncio.get_event_loop()
-        else:
-            self.loop = loop
+        # resolved when used, asyncio.get_event_loop() fails outside of a
+        # running loop since Python 3.14
+        self.loop = loop
         self.logger = logging.getLogger(logger_name)
 
         self.server = server
@@ -262,6 +258,21 @@ class ClientAsync:
         self.protocol_coa = None
         self.coa_port = coa_port
         self.enforce_ma = enforce_ma
+
+    @property
+    def loop(self):
+        """The event loop, the running one if none was passed."""
+        if self._loop is not None:
+            return self._loop
+        try:
+            return asyncio.get_running_loop()
+        except RuntimeError:
+            # outside of a running loop, as before
+            return asyncio.get_event_loop()
+
+    @loop.setter
+    def loop(self, loop):
+        self._loop = loop
 
     async def initialize_transports(self, enable_acct=False,
                                     enable_auth=False, enable_coa=False,

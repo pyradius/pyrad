@@ -59,6 +59,9 @@ Unreleased
   pending and killed the timeout handler when it expired. Requests that
   are still pending when the transport is closed fail with
   ConnectionAbortedError instead of waiting forever.
+* ClientAsync and ServerAsync created without a loop use the running
+  event loop instead of calling asyncio.get_event_loop() in the
+  constructor, which fails outside of a running loop on Python 3.14.
 * Fix an infinite loop when decoding a vendor-specific or TLV sub-attribute
   with a length of 0, which let a single unauthenticated packet hang a
   server (#234). Truncated TLVs raise a PacketError instead of struct.error.
