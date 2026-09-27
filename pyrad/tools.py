@@ -163,13 +163,17 @@ def EncodeIPv6Prefix(value, default_prefixlen=128):
 def EncodeAscendBinary(orig_str):
     """
     Ascend binary format encoder.
+
+    The value is a whitespace separated list of key=value terms. The
+    src and dst addresses have to match the family (ipv4 by default,
+    or family=ipv6), otherwise a ValueError is raised.
     """
     terms = {
         "family":    b"\x01",
         "action":    b"\x00",
         "direction": b"\x01",
-        "src":       b"\x00\x00\x00\x00",
-        "dst":       b"\x00\x00\x00\x00",
+        "src":       None,
+        "dst":       None,
         "srcl":      b"\x00",
         "dstl":      b"\x00",
         "proto":     b"\x00",
@@ -182,14 +186,10 @@ def EncodeAscendBinary(orig_str):
     if orig_str.strip() == "delete":
         return 8 * b"\x00"
 
-    for t in orig_str.split(" "):
+    for t in orig_str.split():
         key, value = t.split("=")
         if key == "family" and value == "ipv6":
             terms[key] = b"\x03"
-            if terms["src"] == b"\x00\x00\x00\x00":
-                terms["src"] = 16 * b"\x00"
-            if terms["dst"] == b"\x00\x00\x00\x00":
-                terms["dst"] = 16 * b"\x00"
         elif key == "action" and value == "accept":
             terms[key] = b"\x01"
         elif key == "action" and value == "redirect":
@@ -204,6 +204,15 @@ def EncodeAscendBinary(orig_str):
             terms[key] = struct.pack("!H", int(value))
         elif key in ("sportq", "dportq", "proto"):
             terms[key] = struct.pack("B", int(value))
+
+    # the addresses have to match the family, which may be given after them
+    addrlen = 16 if terms["family"] == b"\x03" else 4
+    for key in ("src", "dst"):
+        if terms[key] is None:
+            terms[key] = addrlen * b"\x00"
+        elif len(terms[key]) != addrlen:
+            raise ValueError("%s address does not match the filter family %s"
+                             % (key, "ipv6" if addrlen == 16 else "ipv4"))
 
     trailer = 8 * b"\x00"
     return b"".join((

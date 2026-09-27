@@ -292,6 +292,27 @@ class AscendBinaryTests(unittest.TestCase):
         self.assertEqual(value[20:36], b'\x20\x01\x0d\xb8' + 12 * b'\x00')
         self.assertEqual(value[36:38], b'\x00\x20')
 
+    def testFilterLength(self):
+        self.assertEqual(len(tools.EncodeAscendBinary('dst=10.0.0.0/8')), 32)
+        self.assertEqual(len(tools.EncodeAscendBinary('family=ipv6')), 56)
+        # the family may follow the addresses
+        self.assertEqual(
+            len(tools.EncodeAscendBinary('src=2001:db8::/32 family=ipv6')), 56)
+
+    def testFamilyMismatch(self):
+        for value in ('src=2001:db8::/32',
+                      'family=ipv4 dst=2001:db8::/32',
+                      'src=10.0.0.0/8 family=ipv6',
+                      'family=ipv6 dst=10.0.0.0/8'):
+            with self.subTest(value=value):
+                self.assertRaises(ValueError, tools.EncodeAscendBinary, value)
+
+    def testWhitespace(self):
+        expected = tools.EncodeAscendBinary('family=ipv4 action=accept dst=10.0.0.0/8')
+        self.assertEqual(
+            tools.EncodeAscendBinary(' family=ipv4  action=accept\tdst=10.0.0.0/8 '),
+            expected)
+
     def testDecode(self):
         self.assertEqual(tools.DecodeAscendBinary(b'\x01\x02'), b'\x01\x02')
 
