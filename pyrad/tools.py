@@ -14,6 +14,7 @@ def EncodeString(value):
     """
     Encode a RADIUS 'string' value to bytes (UTF-8).
     Accepts: str -> bytes, bytes -> bytes
+    The encoded value must not be longer than 253 octets.
     """
     if value is None:
         return b""
@@ -22,9 +23,12 @@ def EncodeString(value):
             raise ValueError("Can only encode strings of <= 253 characters")
         return value
     if isinstance(value, str):
-        if len(value) > 253:
+        # the limit applies to the encoded value: a non-ASCII character
+        # takes more than one octet in UTF-8
+        encoded = value.encode("utf-8")
+        if len(encoded) > 253:
             raise ValueError("Can only encode strings of <= 253 characters")
-        return value.encode("utf-8")
+        return encoded
     raise TypeError("Can only encode str/bytes as string")
 
 

@@ -210,6 +210,13 @@ class StringEncodingTests(unittest.TestCase):
         self.assertEqual(tools.EncodeString(b'abc'), b'abc')
         self.assertRaises(ValueError, tools.EncodeString, b'x' * 254)
 
+    def testLengthInOctets(self):
+        # the limit applies to the UTF-8 encoded value, not to characters
+        self.assertEqual(tools.EncodeString('\xe9' * 126), b'\xc3\xa9' * 126)
+        self.assertEqual(tools.EncodeString('x' + '\xe9' * 126), b'x' + b'\xc3\xa9' * 126)
+        self.assertRaisesRegex(ValueError, '<= 253', tools.EncodeString, '\xe9' * 127)
+        self.assertRaises(ValueError, tools.EncodeString, '\xe9' * 253)
+
 
 class IPv6EncodingTests(unittest.TestCase):
     ADDRESS = b'\x20\x01\x0d\xb8' + 11 * b'\x00' + b'\x01'
