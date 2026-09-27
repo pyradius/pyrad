@@ -647,7 +647,21 @@ class AuthPacketTests(unittest.TestCase):
         self.assertTrue(self.packet.id is not None)
 
     def testPwCryptEmptyPassword(self):
-        self.assertEqual(self.packet.PwCrypt(''), b'')
+        # RFC 2865 section 5.2: padded with nulls to 16 octets
+        encrypted = self.packet.PwCrypt('')
+        self.assertEqual(len(encrypted), 16)
+        self.assertEqual(encrypted, self.packet.PwCrypt(16 * b'\x00'))
+        self.assertEqual(self.packet.PwDecrypt(encrypted), '')
+
+    def testPwCryptMaximumLength(self):
+        encrypted = self.packet.PwCrypt(128 * 'x')
+        self.assertEqual(len(encrypted), 128)
+        self.assertEqual(self.packet.PwDecrypt(encrypted), 128 * 'x')
+
+    def testPwCryptTooLong(self):
+        # RFC 2865 section 5.2: the password is at most 128 octets
+        self.assertRaises(ValueError, self.packet.PwCrypt, 129 * 'x')
+        self.assertRaises(ValueError, self.packet.PwCrypt, 65 * '\xe9')
 
     def testPwCryptPassword(self):
         self.assertEqual(self.packet.PwCrypt('Simplon'),

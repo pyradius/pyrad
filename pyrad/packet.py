@@ -934,6 +934,7 @@ class AuthPacket(Packet):
         :type password:  str or bytes
         :return:         obfuscated version of the password
         :rtype:          bytes
+        :raise ValueError: if the password is longer than 128 octets
         """
         if self.authenticator is None:
             self.authenticator = self.CreateAuthenticator()
@@ -941,9 +942,15 @@ class AuthPacket(Packet):
         if isinstance(password, str):
             password = password.encode('utf-8')
 
+        # RFC 2865 section 5.2: the password is padded at the end with
+        # nulls to a multiple of 16 octets, the encrypted value is 16 to
+        # 128 octets long
+        if len(password) > 128:
+            raise ValueError('Password is longer than 128 octets (%d)'
+                             % len(password))
         buf = password
-        if len(password) % 16 != 0:
-            buf += b'\x00' * (16 - (len(password) % 16))
+        if not buf or len(buf) % 16 != 0:
+            buf += b'\x00' * (16 - (len(buf) % 16))
 
         result = b''
 
