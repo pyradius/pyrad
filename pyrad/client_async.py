@@ -299,78 +299,55 @@ class ClientAsync:
         :type   local_coa_port: integer
         """
 
-        task_list = []
-
         if not enable_acct and not enable_auth and not enable_coa:
             raise Exception('No transports selected')
 
-        if enable_acct and not self.protocol_acct:
-            self.protocol_acct = DatagramProtocolClient(
+        # a protocol is registered right away, so that a concurrent call
+        # doesn't open it twice, and unregistered again if its socket can't
+        # be opened, so that a later call can retry
+        connects = []
+        for enabled, name, port, local_port in (
+                (enable_acct, 'protocol_acct', self.acct_port, local_acct_port),
+                (enable_auth, 'protocol_auth', self.auth_port, local_auth_port),
+                (enable_coa, 'protocol_coa', self.coa_port, local_coa_port)):
+            if not enabled or getattr(self, name):
+                continue
+            protocol = DatagramProtocolClient(
                 self.server,
-                self.acct_port,
+                port,
                 self.logger, self,
                 retries=self.retries,
                 timeout=self.timeout
             )
+            setattr(self, name, protocol)
+
             bind_addr = None
-            if local_addr and local_acct_port:
-                bind_addr = (local_addr, local_acct_port)
+            if local_addr and local_port:
+                bind_addr = (local_addr, local_port)
 
-            acct_connect = self.loop.create_datagram_endpoint(
-                self.protocol_acct,
+            connects.append((name, protocol, self.loop.create_datagram_endpoint(
+                protocol,
                 reuse_port=True,
-                remote_addr=(self.server, self.acct_port),
+                remote_addr=(self.server, port),
                 local_addr=bind_addr
-            )
-            task_list.append(acct_connect)
+            )))
 
-        if enable_auth and not self.protocol_auth:
-            self.protocol_auth = DatagramProtocolClient(
-                self.server,
-                self.auth_port,
-                self.logger, self,
-                retries=self.retries,
-                timeout=self.timeout
+        try:
+            # wait for all, also if one fails
+            results = await asyncio.gather(
+                *(connect for _, _, connect in connects),
+                return_exceptions=True,
             )
-            bind_addr = None
-            if local_addr and local_auth_port:
-                bind_addr = (local_addr, local_auth_port)
+        finally:
+            for name, protocol, _ in connects:
+                # connection_made sets the transport before
+                # create_datagram_endpoint returns
+                if protocol.transport is None and getattr(self, name) is protocol:
+                    setattr(self, name, None)
 
-            auth_connect = self.loop.create_datagram_endpoint(
-                self.protocol_auth,
-                reuse_port=True,
-                remote_addr=(self.server, self.auth_port),
-                local_addr=bind_addr
-            )
-            task_list.append(auth_connect)
-
-        if enable_coa and not self.protocol_coa:
-            self.protocol_coa = DatagramProtocolClient(
-                self.server,
-                self.coa_port,
-                self.logger, self,
-                retries=self.retries,
-                timeout=self.timeout
-            )
-            bind_addr = None
-            if local_addr and local_coa_port:
-                bind_addr = (local_addr, local_coa_port)
-
-            coa_connect = self.loop.create_datagram_endpoint(
-                self.protocol_coa,
-                reuse_port=True,
-                remote_addr=(self.server, self.coa_port),
-                local_addr=bind_addr
-            )
-            task_list.append(coa_connect)
-
-        await asyncio.ensure_future(
-            asyncio.gather(
-                *task_list,
-                return_exceptions=False,
-            ),
-            loop=self.loop
-        )
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
 
     # noinspection SpellCheckingInspection
     async def deinitialize_transports(self, deinit_coa=True,

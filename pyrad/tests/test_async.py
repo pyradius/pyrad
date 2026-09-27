@@ -271,6 +271,33 @@ class AsyncClientTests(unittest.TestCase):
                           (LOCALHOST, ports['local_acct_port']),
                           (LOCALHOST, ports['local_coa_port'])])
 
+    def testInitializeFailureCanBeRetried(self):
+        # a transport which couldn't be opened used to stay registered, so a
+        # retry was skipped and SendPacket failed with AttributeError
+        async def test():
+            loop = asyncio.get_running_loop()
+            connect = loop.create_datagram_endpoint
+
+            async def fail_auth(protocol, **kwargs):
+                if protocol.port == 1812:
+                    raise OSError('bind failed')
+                return await connect(protocol, **kwargs)
+            with mock.patch.object(loop, 'create_datagram_endpoint', fail_auth):
+                with self.assertRaises(OSError):
+                    await self.client.initialize_transports(enable_auth=True,
+                                                            enable_acct=True)
+            self.assertIsNone(self.client.protocol_auth)
+            self.assertRaises(Exception, self.client.CreateAuthPacket)
+            # the transport opened successfully is kept
+            self.assertIsNotNone(self.client.protocol_acct.transport)
+            await self.client.initialize_transports(enable_auth=True, enable_acct=True)
+            self.assertIsNotNone(self.client.protocol_auth.transport)
+            future = self.client.SendPacket(self.client.CreateAuthPacket(User_Name='alice'))
+            await self.client.deinitialize_transports()
+            with self.assertRaises(ConnectionAbortedError):
+                await future
+        self.loop.run_until_complete(test())
+
     def testRetryTimeout(self):
         timeout = 0.3
 
@@ -486,5 +513,32 @@ class AsyncServerTests(unittest.TestCase):
             # already bound transports are not bound again
             await server.initialize_transports(enable_acct=True, enable_coa=True)
             self.assertEqual(server.acct_protocols + server.coa_protocols, protocols)
+            await server.deinitialize_transports()
+        asyncio.run(test())
+
+    def testInitializeFailureCanBeRetried(self):
+        # a transport which couldn't be bound used to stay registered, so a
+        # retry was a no-op and nothing listened
+        ports = dict(zip(('auth_port', 'acct_port', 'coa_port'), free_ports(3)))
+
+        async def test():
+            loop = asyncio.get_running_loop()
+            server = RadiusServer(loop=loop, **ports)
+            connect = loop.create_datagram_endpoint
+
+            async def fail_auth(protocol, **kwargs):
+                if protocol.server_type == ServerType.Auth:
+                    raise OSError('bind failed')
+                return await connect(protocol, **kwargs)
+            with mock.patch.object(loop, 'create_datagram_endpoint', fail_auth):
+                with self.assertRaises(OSError):
+                    await server.initialize_transports(enable_auth=True, enable_acct=True)
+            self.assertEqual(server.auth_protocols, [])
+            # the transport bound successfully is kept
+            self.assertEqual(len(server.acct_protocols), 1)
+            await server.initialize_transports(enable_auth=True, enable_acct=True)
+            self.assertEqual(len(server.acct_protocols), 1)
+            self.assertEqual(len(server.auth_protocols), 1)
+            self.assertIsNotNone(server.auth_protocols[0].transport)
             await server.deinitialize_transports()
         asyncio.run(test())

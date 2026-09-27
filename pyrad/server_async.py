@@ -286,80 +286,54 @@ class ServerAsync(metaclass=ABCMeta):
         :type    addresses: sequence of strings
         """
 
-        task_list = []
-
         if not enable_acct and not enable_auth and not enable_coa:
             raise Exception('No transports selected')
         if not addresses or len(addresses) == 0:
             addresses = ['127.0.0.1']
 
+        # a protocol is registered right away, so that a concurrent call
+        # doesn't open it twice, and unregistered again if its socket can't
+        # be opened, so that a later call can retry
+        connects = []
         # noinspection SpellCheckingInspection
         for addr in addresses:
-
-            if enable_acct and not self.__is_present_proto__(addr, self.acct_port):
-                protocol_acct = DatagramProtocolServer(
+            for enabled, port, server_type, protocols in (
+                    (enable_acct, self.acct_port, ServerType.Acct, self.acct_protocols),
+                    (enable_auth, self.auth_port, ServerType.Auth, self.auth_protocols),
+                    (enable_coa, self.coa_port, ServerType.Coa, self.coa_protocols)):
+                if not enabled or self.__is_present_proto__(addr, port):
+                    continue
+                protocol = DatagramProtocolServer(
                     addr,
-                    self.acct_port,
+                    port,
                     self.logger, self,
-                    ServerType.Acct,
+                    server_type,
                     self.hosts,
                     self.__request_handler__
                 )
-
-                bind_addr = (addr, self.acct_port)
-                acct_connect = self.loop.create_datagram_endpoint(
-                    protocol_acct,
+                protocols.append(protocol)
+                connects.append((protocols, protocol, self.loop.create_datagram_endpoint(
+                    protocol,
                     reuse_port=True,
-                    local_addr=bind_addr
-                )
-                self.acct_protocols.append(protocol_acct)
-                task_list.append(acct_connect)
+                    local_addr=(addr, port)
+                )))
 
-            if enable_auth and not self.__is_present_proto__(addr, self.auth_port):
-                protocol_auth = DatagramProtocolServer(
-                    addr,
-                    self.auth_port,
-                    self.logger, self,
-                    ServerType.Auth,
-                    self.hosts,
-                    self.__request_handler__
-                )
-                bind_addr = (addr, self.auth_port)
+        try:
+            # wait for all, also if one fails
+            results = await asyncio.gather(
+                *(connect for _, _, connect in connects),
+                return_exceptions=True,
+            )
+        finally:
+            for protocols, protocol, _ in connects:
+                # connection_made sets the transport before
+                # create_datagram_endpoint returns
+                if protocol.transport is None and protocol in protocols:
+                    protocols.remove(protocol)
 
-                auth_connect = self.loop.create_datagram_endpoint(
-                    protocol_auth,
-                    reuse_port=True,
-                    local_addr=bind_addr
-                )
-                self.auth_protocols.append(protocol_auth)
-                task_list.append(auth_connect)
-
-            if enable_coa and not self.__is_present_proto__(addr, self.coa_port):
-                protocol_coa = DatagramProtocolServer(
-                    addr,
-                    self.coa_port,
-                    self.logger, self,
-                    ServerType.Coa,
-                    self.hosts,
-                    self.__request_handler__
-                )
-                bind_addr = (addr, self.coa_port)
-
-                coa_connect = self.loop.create_datagram_endpoint(
-                    protocol_coa,
-                    reuse_port=True,
-                    local_addr=bind_addr
-                )
-                self.coa_protocols.append(protocol_coa)
-                task_list.append(coa_connect)
-
-        await asyncio.ensure_future(
-            asyncio.gather(
-                *task_list,
-                return_exceptions=False,
-            ),
-            loop=self.loop
-        )
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
 
     # noinspection SpellCheckingInspection
     async def deinitialize_transports(self, deinit_coa=True, deinit_auth=True, deinit_acct=True):
