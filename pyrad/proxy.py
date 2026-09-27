@@ -11,6 +11,12 @@ from pyrad import packet
 import select
 import socket
 
+# codes of the RADIUS replies accepted on the proxy socket
+_REPLY_CODES = (packet.AccessAccept, packet.AccessReject,
+                packet.AccountingResponse, packet.AccessChallenge,
+                packet.DisconnectACK, packet.DisconnectNAK,
+                packet.CoAACK, packet.CoANAK)
+
 
 class Proxy(Server):
     """Base class for RADIUS proxies.
@@ -42,8 +48,7 @@ class Proxy(Server):
             raise ServerPacketError('Received packet from unknown host')
         pkt.secret = remote_host.secret
 
-        if pkt.code not in [packet.AccessAccept, packet.AccessReject,
-                            packet.AccountingResponse]:
+        if pkt.code not in _REPLY_CODES:
             raise ServerPacketError('Received non-response on proxy socket')
 
     def _ProcessInput(self, fd):

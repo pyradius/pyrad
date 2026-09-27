@@ -7,6 +7,7 @@ from .mock import MockSocket
 from .mock import MockClassMethod
 from .mock import UnmockClassMethods
 from pyrad.proxy import Proxy
+from pyrad import packet
 from pyrad.packet import AccessAccept
 from pyrad.packet import AccessRequest
 from pyrad.server import ServerPacketError
@@ -74,6 +75,26 @@ class ProxyPacketHandlingTests(unittest.TestCase):
             self.assertTrue('non-response' in str(e))
         else:
             self.fail()
+
+    def testHandleProxyPacketRejectsRequests(self):
+        for code in (packet.AccessRequest, packet.AccountingRequest,
+                     packet.StatusServer, packet.StatusClient,
+                     packet.CoARequest, packet.DisconnectRequest):
+            with self.subTest(code=code):
+                self.packet.code = code
+                self.assertRaises(ServerPacketError,
+                                  self.proxy._HandleProxyPacket, self.packet)
+
+    def testHandleProxyPacketAcceptsAllReplies(self):
+        # Access-Challenge (RFC 2865 section 4.4) and the CoA and Disconnect
+        # replies (RFC 5176) are forwarded like the other replies
+        for code in (packet.AccessAccept, packet.AccessReject,
+                     packet.AccountingResponse, packet.AccessChallenge,
+                     packet.CoAACK, packet.CoANAK,
+                     packet.DisconnectACK, packet.DisconnectNAK):
+            with self.subTest(code=code):
+                self.packet.code = code
+                self.proxy._HandleProxyPacket(self.packet)
 
 
 class OtherTests(unittest.TestCase):
