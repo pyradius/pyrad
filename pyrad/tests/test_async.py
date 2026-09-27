@@ -23,6 +23,7 @@ ATTRIBUTE User-Password         2  string
 ATTRIBUTE Reply-Message         18 string
 ATTRIBUTE Acct-Status-Type      40 integer
 ATTRIBUTE Acct-Session-Id       44 string
+ATTRIBUTE Tunnel-Password       69 string has_tag,encrypt=2
 ATTRIBUTE Message-Authenticator 80 octets
 VALUE     Acct-Status-Type      Start 1
 '''
@@ -49,6 +50,7 @@ class RadiusServer(ServerAsync):
         reply = self.CreateReplyPacket(pkt, Reply_Message='hello')
         if pkt.PwDecrypt(pkt[2][0]) == PASSWORD:
             reply.code = packet.AccessAccept
+            reply['Tunnel-Password:1'] = 'a-tunnel-password-longer-than-16'
         else:
             reply.code = packet.AccessReject
         protocol.send_response(reply, addr)
@@ -110,6 +112,8 @@ class AsyncRoundTripTests(unittest.TestCase):
         reply = self.run_with(test)
         self.assertEqual(reply.code, packet.AccessAccept)
         self.assertEqual(reply['Reply-Message'], ['hello'])
+        # salt encrypted with the request authenticator
+        self.assertEqual(reply['Tunnel-Password:1'], ['a-tunnel-password-longer-than-16'])
 
     def testAccessReject(self):
         async def test(client, server):

@@ -125,6 +125,8 @@ class DatagramProtocolClient(asyncio.Protocol):
 
                 reply.dict = packet.dict
                 reply.secret = packet.secret
+                # needed to decrypt salt encrypted attributes of the reply
+                reply.request_authenticator = packet.authenticator
 
                 if packet.VerifyReply(reply, data, enforce_ma=self.client.enforce_ma):
                     req['future'].set_result(reply)
