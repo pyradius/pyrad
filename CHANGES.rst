@@ -33,6 +33,12 @@ Unreleased
   ignored with a warning instead of raising a ParseError, and a
   sub-attribute of an unknown TLV raises a ParseError instead of a
   KeyError.
+* Fix salt decryption (encrypt=2, e.g. Tunnel-Password) of received
+  Accounting-, CoA- and Disconnect-Requests, which used the Request
+  Authenticator instead of zeros, and salt encryption of these requests
+  after RequestPacket() was called. An Access-Request with salt encrypted
+  attributes got an all-zero Request Authenticator, so the User-Password
+  encryption was the same in every request; it gets a random one now.
 * Fix an infinite loop when decoding a vendor-specific or TLV sub-attribute
   with a length of 0, which let a single unauthenticated packet hang a
   server (#234). Truncated TLVs raise a PacketError instead of struct.error.

@@ -689,12 +689,28 @@ class Packet(OrderedDict):
 
             packet = packet[attrlen:]
 
+    def _salt_vector(self):
+        """Return the authenticator used for salt encryption."""
+        if self.request_authenticator is not None:
+            # reply: the Request Authenticator of the request
+            return self.request_authenticator
+        if self.code in (AccountingRequest, CoARequest, DisconnectRequest):
+            # the Request Authenticator of these requests is calculated over
+            # the encrypted attributes, so they are encrypted with zeros,
+            # like FreeRADIUS does
+            return 16 * b'\x00'
+        if self.authenticator is None:
+            if self.code in (AccessRequest, StatusServer):
+                # RFC 2865 section 3: the Request Authenticator must be
+                # unpredictable and unique
+                self.authenticator = self.CreateAuthenticator()
+            else:
+                self.authenticator = 16 * b'\x00'
+        return self.authenticator
+
     def _salt_en_decrypt(self, data, salt, encrypt=True):
         result = b''
-        if self.request_authenticator is not None:
-            last = self.request_authenticator + salt
-        else:
-            last = self.authenticator + salt
+        last = self._salt_vector() + salt
         while data:
             hash = hashlib.md5(self.secret + last).digest()
             block = b''
@@ -721,10 +737,6 @@ class Packet(OrderedDict):
 
         if isinstance(value, str):
             value = value.encode('utf-8')
-
-        if self.authenticator is None:
-            # self.authenticator = self.CreateAuthenticator()
-            self.authenticator = 16 * b'\x00'
 
         # create salt
         random_value = 32768 + random_generator.randrange(0, 32767)

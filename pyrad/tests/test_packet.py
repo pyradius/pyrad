@@ -952,6 +952,49 @@ class PacketEdgeCaseTests(unittest.TestCase):
         self.assertEqual(pkt.authenticator, 16 * b'\x00')
         self.assertEqual(pkt.SaltDecrypt(encrypted), b'password')
 
+    def testSaltCryptRequestUsesZeroVector(self):
+        for (klass, code) in ((packet.AcctPacket, packet.AccountingRequest),
+                              (packet.CoAPacket, packet.CoARequest),
+                              (packet.CoAPacket, packet.DisconnectRequest)):
+            pkt = klass(code=code, secret=b'secret', dict=self.dict)
+            encrypted = pkt.SaltCrypt('password')
+            key = hashlib.md5(b'secret' + 16 * b'\x00' + encrypted[:2]).digest()
+            plain = bytes(a ^ b for (a, b) in zip(key, encrypted[2:18]))
+            self.assertEqual(plain[:9], b'\x08password')
+
+    def testSaltCryptRequestRoundTrip(self):
+        for (klass, code, verify) in (
+                (packet.AcctPacket, packet.AccountingRequest, 'VerifyAcctRequest'),
+                (packet.CoAPacket, packet.CoARequest, 'VerifyCoARequest'),
+                (packet.CoAPacket, packet.DisconnectRequest, 'VerifyCoARequest')):
+            pkt = klass(code=code, secret=b'secret', dict=self.dict)
+            pkt['Test-Encrypted-String'] = 'first'
+            pkt.RequestPacket()
+            # added after the Request Authenticator was calculated
+            pkt['Test-Encrypted-Octets'] = b'second'
+            received = klass(secret=b'secret', dict=self.dict,
+                             packet=pkt.RequestPacket())
+            self.assertTrue(getattr(received, verify)())
+            self.assertEqual(received['Test-Encrypted-String'], ['first'])
+            self.assertEqual(received['Test-Encrypted-Octets'], [b'second'])
+
+    def testSaltCryptAccessRequestAuthenticator(self):
+        authenticators = set()
+        passwords = set()
+        for _ in range(2):
+            pkt = packet.AuthPacket(secret=b'secret', dict=self.dict)
+            pkt['Test-Encrypted-String'] = 'dummy'
+            pkt['Test-String'] = pkt.PwCrypt('password')
+            raw = pkt.RequestPacket()
+            self.assertNotEqual(pkt.authenticator, 16 * b'\x00')
+            authenticators.add(pkt.authenticator)
+            passwords.add(pkt['Test-String'][0])
+            received = packet.AuthPacket(secret=b'secret', dict=self.dict,
+                                         packet=raw)
+            self.assertEqual(received['Test-Encrypted-String'], ['dummy'])
+        self.assertEqual(len(authenticators), 2)
+        self.assertEqual(len(passwords), 2)
+
     def testVerifyAuthRequest(self):
         attr = b'\x01\x07alice'
         header = struct.pack('!BBH', packet.AccessRequest, 1, 20 + len(attr))
