@@ -143,10 +143,11 @@ class DictionaryParsingTests(unittest.TestCase):
         else:
             self.fail()
 
-    def testAttributeConcatIsIgnored(self):
-        # FreeRADIUS compatibility
+    def testAttributeConcatFlag(self):
+        # FreeRADIUS compatibility, the values are not concatenated
         self.dict.ReadDictionary(StringIO('ATTRIBUTE Test-Concat 99 octets concat'))
-        self.assertFalse('Test-Concat' in self.dict)
+        self.assertEqual(self.dict['Test-Concat'].type, 'octets')
+        self.assertEqual(self.dict.attrindex['Test-Concat'], 99)
 
     def testNestedTlvIsSkipped(self):
         with self.assertLogs('pyrad', 'WARNING') as cm:
@@ -154,6 +155,25 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertFalse('Test-Nested' in self.dict)
         self.assertIn('Test-Nested', self.dict.skipped_attributes)
         self.assertIn('nested TLV', cm.output[0])
+
+    def testSubTlvIsSkipped(self):
+        with self.assertLogs('pyrad', 'WARNING') as cm:
+            self.dict.ReadDictionary(StringIO(
+                'ATTRIBUTE Test-Top 90 tlv\n'
+                'ATTRIBUTE Test-Inner 90.3 tlv\n'
+                'ATTRIBUTE Test-Inner-Str 90.3.1 string\n'
+                'ATTRIBUTE Test-Top-Str 90.1 string'))
+        self.assertFalse('Test-Inner' in self.dict)
+        self.assertFalse('Test-Inner-Str' in self.dict)
+        self.assertEqual(self.dict['Test-Top'].sub_attributes, {1: 'Test-Top-Str'})
+        self.assertIn('nested TLV', cm.output[0])
+
+    def testSkippedCodeKeepsTopLevelAttribute(self):
+        with self.assertLogs('pyrad', 'WARNING'):
+            self.dict.ReadDictionary(StringIO(
+                'ATTRIBUTE Test-Bool 200 bool\n'
+                'ATTRIBUTE Test-Integer-200 200 integer'))
+        self.assertEqual(self.dict.attrindex['Test-Integer-200'], 200)
 
     def testSubAttributeOfUnknownTlvError(self):
         with self.assertRaises(ParseError) as cm:
@@ -212,14 +232,15 @@ class DictionaryParsingTests(unittest.TestCase):
         self.assertEqual(dict['Tunnel-Password'].encrypt, 2)
         self.assertEqual(dict.attrindex['Proxy-To-Realm'], 1031)
         self.assertEqual(dict.attrindex['FreeRADIUS-Proxied-To'], (11344, 1))
-        self.assertEqual(dict.attrindex['WiMAX-Release'], (24757, 1, 1))
+        self.assertEqual(dict['EAP-Message'].type, 'octets')
         self.assertEqual(dict.skipped_attributes, set([
             'Vendor-Specific', 'Mobile-Node-Home-Address-IPv4',
             'Extended-Attribute-1', 'Extended-Attribute-5',
             'Extended-Vendor-Specific-1', 'Extended-Vendor-Specific-5',
             'Allowed-Called-Station-Id', 'FreeRADIUS-Attr',
-            'FreeRADIUS-EAP-FAST-PAC-Key', 'WiMAX-DNS-Server',
-            'DHCP-Router-Address']))
+            'FreeRADIUS-EAP-FAST-PAC', 'FreeRADIUS-EAP-FAST-PAC-Key',
+            'WiMAX-Capability', 'WiMAX-Release', 'WiMAX-DNS-Server',
+            'Lucent-Max-Shared-Users', 'DHCP-Router-Address']))
 
     def testAttributeOptions(self):
         self.dict.ReadDictionary(StringIO(
@@ -353,9 +374,31 @@ class DictionaryParsingTests(unittest.TestCase):
         else:
             self.fail()
 
-    def testVendorFormatContinuation(self):
-        self.dict.ReadDictionary(StringIO('VENDOR WiMAX 24757 format=1,1,c'))
+    def testVendorFormatIsSkipped(self):
+        with self.assertLogs('pyrad', 'WARNING') as cm:
+            self.dict.ReadDictionary(StringIO(
+                'VENDOR WiMAX 24757 format=1,1,c\n'
+                'VENDOR Lucent 4846 format=2,1\n'
+                'VENDOR USR 429 format=4,0\n'
+                'VENDOR Simplon 42 format=1,1\n'
+                'ATTRIBUTE WiMAX-Release 1 string WiMAX\n'
+                'BEGIN-VENDOR Lucent\n'
+                'ATTRIBUTE Lucent-Max-Shared-Users 2 integer\n'
+                'END-VENDOR Lucent\n'
+                'BEGIN-VENDOR USR\n'
+                'ATTRIBUTE USR-Last-Number-Dialed-Out 102 string\n'
+                'END-VENDOR USR\n'
+                'BEGIN-VENDOR Simplon\n'
+                'ATTRIBUTE Test-Type 1 integer\n'
+                'END-VENDOR Simplon'))
         self.assertEqual(self.dict.vendors['WiMAX'], 24757)
+        for attr in ('WiMAX-Release', 'Lucent-Max-Shared-Users',
+                     'USR-Last-Number-Dialed-Out'):
+            self.assertFalse(attr in self.dict)
+            self.assertIn(attr, self.dict.skipped_attributes)
+        self.assertEqual(self.dict.attrindex['Test-Type'], (42, 1))
+        self.assertIn('Skipped 3 unsupported dictionary attributes (vendor format)',
+                      cm.output[0])
 
     def testVendorFormatSyntaxError(self):
         self.assertRaises(ParseError, self.dict.ReadDictionary,

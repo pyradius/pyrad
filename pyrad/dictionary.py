@@ -42,7 +42,7 @@ The attribute flags are a comma separated list of:
   encrypt=2
   salt encryption (RFC 2868 section 3.5), applied automatically
 
-The FreeRADIUS flags secret and virtual are accepted and ignored.
+The FreeRADIUS flags secret, virtual and concat are accepted and ignored.
 
 FreeRADIUS dictionaries also define attributes that pyrad cannot encode or
 decode. These are skipped with a warning, so that the FreeRADIUS dictionary
@@ -52,6 +52,7 @@ files can be read as they are:
   RFC 6929 extended attributes, and their sub-attributes
 - attributes with the array flag
 - TLVs nested more than one level deep
+- attributes of vendors with a format other than format=1,1 (VENDOR)
 - vendor attributes in a BEGIN-VENDOR block with a format= option, which
   are extended vendor-specific attributes (RFC 6929)
 
@@ -211,6 +212,8 @@ class Dictionary:
         self.attributes = {}
         self.defer_parse = []
         self.skipped_attributes = set()
+        # vendors whose attribute format is not the RFC 2865 one
+        self._unsupported_vendors = set()
 
         if dict:
             self.ReadDictionary(dict)
@@ -275,9 +278,6 @@ class Dictionary:
                     encrypt = int(val)
                 elif key == 'array':
                     array = True
-                elif key == 'concat':
-                    # ignore attributes with concat (freeradius compat.)
-                    return None
 
         (attribute, code, datatype) = tokens[1:4]
 
@@ -302,12 +302,14 @@ class Dictionary:
                              line=state['line'])
 
         vendor_code = self.vendors.GetForward(vendor)
-        if (vendor_code, codes[0]) in state['skipped_codes']:
+        if len(codes) > 1 and (vendor_code, codes[0]) in state['skipped_codes']:
             return self.__SkipAttribute(
                 state, attribute, 'sub-attribute of unsupported attribute')
         if state['vendor_format']:
             return self.__SkipAttribute(
                 state, attribute, 'extended vendor-specific attribute')
+        if vendor in self._unsupported_vendors:
+            return self.__SkipAttribute(state, attribute, 'vendor format')
         if datatype in UNSUPPORTED_DATATYPES:
             if len(codes) == 1:
                 state['skipped_codes'].add((vendor_code, codes[0]))
@@ -315,7 +317,7 @@ class Dictionary:
                                         'data type ' + datatype)
         if array:
             return self.__SkipAttribute(state, attribute, 'array flag')
-        if len(codes) > 2:
+        if len(codes) > 2 or (len(codes) == 2 and datatype == 'tlv'):
             return self.__SkipAttribute(state, attribute, 'nested TLV')
 
         is_sub_attribute = (len(codes) > 1)
@@ -388,8 +390,11 @@ class Dictionary:
                     file=state['file'],
                     line=state['line'])
 
-        # Parse format specification, but do
-        # nothing about it for now
+        (vendorname, vendor) = tokens[1:3]
+
+        # pyrad only encodes the RFC 2865 vendor attribute format (1 octet
+        # type, 1 octet length), attributes of vendors with another format
+        # are skipped
         if len(tokens) == 4:
             fmt = tokens[3].split('=')
             if fmt[0] != 'format':
@@ -399,23 +404,26 @@ class Dictionary:
                         line=state['line'])
             try:
                 fmtargs = fmt[1].split(',')
-                # the WiMAX continuation flag ",c" is accepted and ignored,
-                # like the rest of the format specification
-                if len(fmtargs) == 3 and fmtargs[2] == 'c':
+                # ",c": WiMAX continuation octet
+                continuation = len(fmtargs) == 3 and fmtargs[2] == 'c'
+                if continuation:
                     fmtargs = fmtargs[:2]
                 (token, length) = tuple(int(a) for a in fmtargs)
-                if token not in [1, 2, 4] or length not in [0, 1, 2]:
-                    raise ParseError(
-                        'Unknown vendor format specification %s' % (fmt[1]),
-                        file=state['file'],
-                        line=state['line'])
             except ValueError:
                 raise ParseError(
                         'Syntax error in vendor specification',
                         file=state['file'],
                         line=state['line'])
+            if token not in [1, 2, 4] or length not in [0, 1, 2]:
+                raise ParseError(
+                    'Unknown vendor format specification %s' % (fmt[1]),
+                    file=state['file'],
+                    line=state['line'])
+            if (token, length, continuation) != (1, 1, False):
+                self._unsupported_vendors.add(vendorname)
+            else:
+                self._unsupported_vendors.discard(vendorname)
 
-        (vendorname, vendor) = tokens[1:3]
         self.vendors.Add(vendorname, int(vendor, 0))
 
     def __ParseBeginVendor(self, state, tokens):

@@ -7,6 +7,9 @@ ATTRIBUTE	User-Password				2	string encrypt=1
 ATTRIBUTE	CHAP-Password				3	octets secret
 ATTRIBUTE	Vendor-Specific				26	vsa
 
+# dictionary.rfc2869
+ATTRIBUTE	EAP-Message				79	octets concat
+
 # dictionary.rfc2868
 ATTRIBUTE	Tunnel-Password				69	string has_tag,encrypt=2
 
@@ -48,6 +51,12 @@ ATTRIBUTE	WiMAX-Capability			1	tlv
 ATTRIBUTE	WiMAX-Release				1.1	string
 ATTRIBUTE	WiMAX-DNS-Server			52	combo-ip
 END-VENDOR	WiMAX
+
+# dictionary.lucent
+VENDOR		Lucent				4846	format=2,1
+BEGIN-VENDOR	Lucent
+ATTRIBUTE	Lucent-Max-Shared-Users			2	integer
+END-VENDOR	Lucent
 
 # dictionary.freedhcp
 ATTRIBUTE	DHCP-Router-Address			3	ipaddr array

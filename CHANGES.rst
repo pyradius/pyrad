@@ -23,10 +23,13 @@ Unreleased
 * The FreeRADIUS dictionary files can be read as they are (#173).
   Attributes that pyrad does not support, such as the RFC 6929 extended
   attributes, attributes of the types vsa, ipv4prefix, combo-ip, bool,
-  uint16 and uint32, arrays and nested TLVs, are skipped with a warning
-  and listed in Dictionary.skipped_attributes. The flags secret and
-  virtual, the vendor format continuation flag ",c" and BEGIN-VENDOR with
-  a format= option are accepted. A VALUE for an unknown attribute is
+  uint16 and uint32, arrays, nested TLVs and attributes of vendors with a
+  format other than format=1,1 (e.g. USR, Lucent, Starent, WiMAX), which
+  pyrad encoded as format=1,1 before, are skipped with a warning and listed
+  in Dictionary.skipped_attributes. The flags secret and virtual and
+  BEGIN-VENDOR with a format= option are accepted. Attributes with the
+  concat flag, such as EAP-Message, are loaded as normal attributes instead
+  of being dropped. A VALUE for an unknown attribute is
   ignored with a warning instead of raising a ParseError, and a
   sub-attribute of an unknown TLV raises a ParseError instead of a
   KeyError.
