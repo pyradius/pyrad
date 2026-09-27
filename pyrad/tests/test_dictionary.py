@@ -321,6 +321,43 @@ class DictionaryParsingTests(unittest.TestCase):
                            self.dict['Test-Integer'].values['Value-Six']),
                 5)
 
+    def testDateValueParsing(self):
+        self.dict.ReadDictionary(StringIO('VALUE Test-Date Epoch-Plus-One 1'))
+        self.assertEqual(self.dict['Test-Date'].values['Epoch-Plus-One'],
+                         b'\x00\x00\x00\x01')
+
+    def testIllegalValueError(self):
+        self.dict.ReadDictionary(StringIO(
+            'ATTRIBUTE Test-Byte 20 byte\n'
+            'ATTRIBUTE Test-Ether 21 ether'))
+        for (attr, value) in [('Test-Integer', '010'),
+                              ('Test-Integer', 'abc'),
+                              ('Test-Date', 'tomorrow'),
+                              ('Test-Byte', '256'),
+                              ('Test-Ether', 'not-a-mac'),
+                              ('Test-Ip-Address', '1.2.3.400')]:
+            with self.subTest(attr=attr, value=value):
+                with self.assertRaises(ParseError) as cm:
+                    self.dict.ReadDictionary(StringIO(
+                        '\nVALUE %s Test-Value %s' % (attr, value)))
+                self.assertEqual(cm.exception.line, 2)
+                self.assertIn(attr, str(cm.exception))
+
+    def testIllegalAttributeCodeError(self):
+        for code in ['0X1A', 'abc', '9.x']:
+            with self.subTest(code=code):
+                with self.assertRaises(ParseError) as cm:
+                    self.dict.ReadDictionary(StringIO(
+                        '\nATTRIBUTE Test-Code %s string' % code))
+                self.assertEqual(cm.exception.line, 2)
+                self.assertIn(code, str(cm.exception))
+
+    def testIllegalVendorCodeError(self):
+        with self.assertRaises(ParseError) as cm:
+            self.dict.ReadDictionary(StringIO('\nVENDOR Simplon abc'))
+        self.assertEqual(cm.exception.line, 2)
+        self.assertIn('abc', str(cm.exception))
+
     def testInteger64ValueParsing(self):
         self.assertEqual(len(self.dict['Test-Integer64'].values), 0)
         self.dict.ReadDictionary(StringIO('VALUE Test-Integer64 Value-Six 5'))

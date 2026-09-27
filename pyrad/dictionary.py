@@ -99,6 +99,7 @@ The datatypes currently supported are:
 +---------------+----------------------------------------------+
 """
 import logging
+import struct
 
 from pyrad import bidict
 from pyrad import tools
@@ -286,13 +287,18 @@ class Dictionary:
 
         # Codes can be sent as hex, or octal or decimal string representations.
         tmp = []
-        for c in codes:
-            if c.startswith('0x'):
-                tmp.append(int(c, 16))
-            elif c.startswith('0o'):
-                tmp.append(int(c, 8))
-            else:
-                tmp.append(int(c, 10))
+        try:
+            for c in codes:
+                if c.startswith('0x'):
+                    tmp.append(int(c, 16))
+                elif c.startswith('0o'):
+                    tmp.append(int(c, 8))
+                else:
+                    tmp.append(int(c, 10))
+        except ValueError:
+            raise ParseError('Illegal attribute code: ' + code,
+                             file=state['file'],
+                             line=state['line'])
         codes = tmp
 
         datatype = datatype.split("[")[0]
@@ -386,9 +392,16 @@ class Dictionary:
                            'attribute %s', state['file'], state['line'], attr)
             return
 
-        if adef.type in ['integer', 'signed', 'short', 'byte', 'integer64']:
-            value = int(value, 0)
-        value = tools.EncodeAttr(adef.type, value)
+        try:
+            if adef.type in ['integer', 'signed', 'short', 'byte',
+                             'integer64', 'date']:
+                value = int(value, 0)
+            value = tools.EncodeAttr(adef.type, value)
+        except (ValueError, TypeError, struct.error) as e:
+            raise ParseError('Illegal value %s for attribute %s: %s'
+                             % (tokens[3], attr, e),
+                             file=state['file'],
+                             line=state['line'])
         self.attributes[attr].values.Add(key, value)
 
     def __ParseVendor(self, state, tokens):
@@ -432,7 +445,13 @@ class Dictionary:
             else:
                 self._unsupported_vendors.discard(vendorname)
 
-        self.vendors.Add(vendorname, int(vendor, 0))
+        try:
+            vendor_code = int(vendor, 0)
+        except ValueError:
+            raise ParseError('Illegal vendor code: ' + vendor,
+                             file=state['file'],
+                             line=state['line'])
+        self.vendors.Add(vendorname, vendor_code)
 
     def __ParseBeginVendor(self, state, tokens):
         if len(tokens) not in [2, 3]:
