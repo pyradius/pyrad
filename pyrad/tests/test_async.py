@@ -121,13 +121,13 @@ class AsyncRoundTripTests(unittest.TestCase):
             req = client.CreateAcctPacket(User_Name='alice', Acct_Status_Type='Start',
                                           Acct_Session_Id='1')
             return await client.SendPacket(req)
-        reply = self.run_with(test, enable_pkt_verify=True)
+        reply = self.run_with(test)
         self.assertEqual(reply.code, packet.AccountingResponse)
 
     def testCoA(self):
         async def test(client, server):
             return await client.SendPacket(client.CreateCoAPacket(User_Name='alice'))
-        self.assertEqual(self.run_with(test, enable_pkt_verify=True).code, packet.CoAACK)
+        self.assertEqual(self.run_with(test).code, packet.CoAACK)
 
     def testDisconnect(self):
         async def test(client, server):
@@ -136,14 +136,24 @@ class AsyncRoundTripTests(unittest.TestCase):
         self.assertEqual(self.run_with(test).code, packet.DisconnectACK)
 
     def testPacketVerificationFailure(self):
-        # the server drops requests with an invalid request authenticator
+        # by default the server drops requests with an invalid request
+        # authenticator
         async def test(client, server):
-            req = client.CreateAcctPacket(User_Name='alice')
             with self.assertRaises(TimeoutError):
-                await client.SendPacket(req)
+                await client.SendPacket(client.CreateAcctPacket(User_Name='alice'))
+            with self.assertRaises(TimeoutError):
+                await client.SendPacket(client.CreateCoAPacket(User_Name='alice'))
             return server.received
-        self.assertEqual(
-            self.run_with(test, client_secret=b'wrong', enable_pkt_verify=True), [])
+        self.assertEqual(self.run_with(test, client_secret=b'wrong'), [])
+
+    def testPacketVerificationDisabled(self):
+        async def test(client, server):
+            # the client drops the reply, which is signed with another secret
+            with self.assertRaises(TimeoutError):
+                await client.SendPacket(client.CreateAcctPacket(User_Name='alice'))
+            return server.received
+        received = self.run_with(test, client_secret=b'wrong', enable_pkt_verify=False)
+        self.assertNotEqual(received, [])
 
     def testUnknownHost(self):
         async def test(client, server):

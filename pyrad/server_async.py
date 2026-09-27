@@ -135,7 +135,7 @@ class ServerAsync(metaclass=ABCMeta):
     def __init__(self, auth_port=1812, acct_port=1813,
                  coa_port=3799, hosts=None, dictionary=None,
                  loop=None, logger_name='pyrad',
-                 enable_pkt_verify=False,
+                 enable_pkt_verify=True,
                  debug=False, enforce_ma=False):
 
         if not loop:

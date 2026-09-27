@@ -886,7 +886,7 @@ class AuthPacket(Packet):
         assert (self.raw_packet)
         hash = hashlib.md5(self.raw_packet[0:4] + 16 * b'\x00' +
                            self.raw_packet[20:] + self.secret).digest()
-        return hash == self.authenticator
+        return hmac.compare_digest(hash, self.authenticator)
 
 
 class AcctPacket(Packet):
@@ -932,7 +932,7 @@ class AcctPacket(Packet):
         hash = hashlib.md5(self.raw_packet[0:4] + 16 * b'\x00' +
                            self.raw_packet[20:] + self.secret).digest()
 
-        return hash == self.authenticator
+        return hmac.compare_digest(hash, self.authenticator)
 
     def RequestPacket(self):
         """Create a ready-to-transmit accounting request packet.
@@ -1000,7 +1000,7 @@ class CoAPacket(Packet):
         assert (self.raw_packet)
         hash = hashlib.md5(self.raw_packet[0:4] + 16 * b'\x00' +
                            self.raw_packet[20:] + self.secret).digest()
-        return hash == self.authenticator
+        return hmac.compare_digest(hash, self.authenticator)
 
     def RequestPacket(self):
         """Create a ready-to-transmit CoA request packet.

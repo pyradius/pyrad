@@ -21,6 +21,11 @@ Unreleased
 * Copy Proxy-State attributes into replies (RFC 2865 section 5.33).
 * Fix the length of CoA and Disconnect requests with Message-Authenticator.
 * Fix ClientAsync retrying and timing out requests before the timeout passed.
+* Verify the request authenticator of Accounting, CoA and Disconnect requests
+  by default. The blocking ``Server`` never verified them and ``ServerAsync``
+  only with ``enable_pkt_verify=True``; both now default to verification and
+  can opt out with ``enable_pkt_verify=False``. ``Server`` no longer accepts
+  Accounting-Response packets on the accounting port.
 * Drop support for Python 3.8 and 3.9, which are end of life; pyrad requires
   Python 3.10 or later.
 

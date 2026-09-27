@@ -13,6 +13,9 @@ from pyrad.server import Server
 from pyrad.server import ServerPacketError
 from pyrad.packet import AccessRequest
 from pyrad.packet import AccountingRequest
+from pyrad.packet import AccountingResponse
+from pyrad.packet import AcctPacket
+from pyrad.packet import CoAPacket
 from pyrad.packet import CoARequest
 from pyrad.packet import DisconnectRequest
 
@@ -215,7 +218,7 @@ class AuthPacketHandlingTests(unittest.TestCase):
 
 class AcctPacketHandlingTests(unittest.TestCase):
     def setUp(self):
-        self.server = Server()
+        self.server = Server(enable_pkt_verify=False)
         self.server.hosts['host'] = TrivialObject()
         self.server.hosts['host'].secret = 'supersecret'
         self.packet = TrivialObject()
@@ -254,7 +257,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
 
 class CoaPacketHandlingTests(unittest.TestCase):
     def setUp(self):
-        self.server = Server()
+        self.server = Server(enable_pkt_verify=False)
         self.server.hosts['0.0.0.0'] = TrivialObject()
         self.server.hosts['0.0.0.0'].secret = 'supersecret'
         self.packet = TrivialObject()
@@ -279,6 +282,59 @@ class CoaPacketHandlingTests(unittest.TestCase):
         self.packet.code = AccessRequest
         self.assertRaises(ServerPacketError, self.server._HandleCoaPacket, self.packet)
         self.assertEqual(self.handled, [])
+
+
+class PacketVerificationTests(unittest.TestCase):
+    """Accounting, CoA and Disconnect requests must be signed with the
+    shared secret (RFC 2866 section 3, RFC 5176 section 3.5)."""
+
+    def setUp(self):
+        self.server = Server(hosts={'127.0.0.1': RemoteHost('127.0.0.1', b'secret', 'localhost')})
+        self.handled = []
+        self.server.HandleAcctPacket = self.handled.append
+        self.server.HandleCoaPacket = self.handled.append
+        self.server.HandleDisconnectPacket = self.handled.append
+
+    def receive(self, handler, create, req):
+        pkt = create(packet=req.RequestPacket())
+        pkt.source = ('127.0.0.1', 1813)
+        handler(pkt)
+
+    def acct(self, req):
+        self.receive(self.server._HandleAcctPacket, self.server.CreateAcctPacket, req)
+
+    def coa(self, req):
+        self.receive(self.server._HandleCoaPacket, self.server.CreateCoAPacket, req)
+
+    def testValidRequests(self):
+        self.acct(AcctPacket(secret=b'secret'))
+        self.coa(CoAPacket(secret=b'secret'))
+        self.coa(CoAPacket(code=DisconnectRequest, secret=b'secret'))
+        self.assertEqual(len(self.handled), 3)
+
+    def testInvalidAcctRequest(self):
+        self.assertRaises(PacketError, self.acct, AcctPacket(secret=b'wrong'))
+        self.assertEqual(self.handled, [])
+
+    def testInvalidCoARequest(self):
+        self.assertRaises(PacketError, self.coa, CoAPacket(secret=b'wrong'))
+        self.assertRaises(PacketError, self.coa,
+                          CoAPacket(code=DisconnectRequest, secret=b'wrong'))
+        self.assertEqual(self.handled, [])
+
+    def testAccountingResponseOnAcctPort(self):
+        reply = AcctPacket(code=AccountingResponse, secret=b'secret',
+                           authenticator=16 * b'\x00')
+        pkt = self.server.CreateAcctPacket(packet=reply.ReplyPacket())
+        pkt.source = ('127.0.0.1', 1813)
+        self.assertRaises(ServerPacketError, self.server._HandleAcctPacket, pkt)
+        self.assertEqual(self.handled, [])
+
+    def testVerificationDisabled(self):
+        self.server.enable_pkt_verify = False
+        self.acct(AcctPacket(secret=b'wrong'))
+        self.coa(CoAPacket(secret=b'wrong'))
+        self.assertEqual(len(self.handled), 2)
 
 
 class OtherTests(unittest.TestCase):

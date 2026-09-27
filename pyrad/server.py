@@ -85,7 +85,7 @@ class Server(host.Host):
 
     def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=3799,
                  hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False,
-                 enforce_ma=False):
+                 enforce_ma=False, enable_pkt_verify=True):
         """Constructor.
 
         :param     addresses: IP addresses to listen on
@@ -110,6 +110,10 @@ class Server(host.Host):
                               (default False, an invalid Message-Authenticator
                               is always dropped)
         :type     enforce_ma: bool
+        :param enable_pkt_verify: drop accounting, CoA and Disconnect requests
+                                  with an invalid request authenticator
+                                  (default True)
+        :type  enable_pkt_verify: bool
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
         if hosts is None:
@@ -124,6 +128,7 @@ class Server(host.Host):
         self.coa_enabled = coa_enabled
         self.coafds = []
         self.enforce_ma = enforce_ma
+        self.enable_pkt_verify = enable_pkt_verify
 
         for addr in addresses:
             self.BindToAddress(addr)
@@ -255,10 +260,11 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
         self._AddSecret(pkt)
-        if pkt.code not in [packet.AccountingRequest,
-                            packet.AccountingResponse]:
+        if pkt.code != packet.AccountingRequest:
             raise ServerPacketError(
                     'Received non-accounting packet on accounting port')
+        if self.enable_pkt_verify and not pkt.VerifyAcctRequest():
+            raise packet.PacketError('Packet verification failed')
         self.HandleAcctPacket(pkt)
 
     def _HandleCoaPacket(self, pkt):
@@ -271,12 +277,14 @@ class Server(host.Host):
         :type  pkt: Packet class instance
         """
         self._AddSecret(pkt)
+        if pkt.code not in (packet.CoARequest, packet.DisconnectRequest):
+            raise ServerPacketError('Received non-coa packet on coa port')
+        if self.enable_pkt_verify and not pkt.VerifyCoARequest():
+            raise packet.PacketError('Packet verification failed')
         if pkt.code == packet.CoARequest:
             self.HandleCoaPacket(pkt)
-        elif pkt.code == packet.DisconnectRequest:
-            self.HandleDisconnectPacket(pkt)
         else:
-            raise ServerPacketError('Received non-coa packet on coa port')
+            self.HandleDisconnectPacket(pkt)
 
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.
