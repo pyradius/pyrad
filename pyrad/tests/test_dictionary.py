@@ -1,6 +1,7 @@
 import unittest
 import operator
 import os
+import tempfile
 from io import StringIO
 
 from . import home
@@ -114,6 +115,17 @@ class DictionaryParsingTests(unittest.TestCase):
             self.assertEqual('attribute' in str(e), True)
         else:
             self.fail()
+
+    def testAttributeTooFewColumnsErrorHasFile(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, 'dictionary.broken')
+            with open(path, 'w') as fd:
+                fd.write('\nATTRIBUTE Oops-Too-Few-Columns\n')
+            with self.assertRaises(ParseError) as cm:
+                self.dict.ReadDictionary(path)
+        self.assertEqual(cm.exception.file, 'dictionary.broken')
+        self.assertEqual(cm.exception.line, 2)
+        self.assertTrue(str(cm.exception).startswith('dictionary.broken(2): '))
 
     def testAttributeUnknownTypeError(self):
         try:

@@ -197,7 +197,7 @@ class Dictionary:
         if len(tokens) not in [4, 5]:
             raise ParseError(
                 'Incorrect number of tokens for attribute definition',
-                name=state['file'],
+                file=state['file'],
                 line=state['line'])
 
         vendor = state['vendor']
