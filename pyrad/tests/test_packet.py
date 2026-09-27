@@ -848,3 +848,51 @@ class PacketEdgeCaseTests(unittest.TestCase):
             pkt.id = None
             pkt.RequestPacket()
             self.assertIsNotNone(pkt.id)
+
+    def testZeroMessageAuthenticator(self):
+        zero = packet.Packet._zero_message_authenticator
+        ma = b'\x50\x12' + b'M' * 16
+        self.assertEqual(zero(b'\x01\x05abc' + ma + b'\x01\x03d'),
+                         b'\x01\x05abc\x50\x12' + 16 * b'\x00' + b'\x01\x03d')
+        # without a (parseable) Message-Authenticator attr is unchanged
+        self.assertEqual(zero(b'\x01\x05abc'), b'\x01\x05abc')
+        self.assertEqual(zero(b'\x01\x00' + ma), b'\x01\x00' + ma)
+
+    def testVendorAttributeWithMultipleSubAttributes(self):
+        pkt = packet.Packet(dict=self.dict)
+        vsa = b'\x00\x00\x00\x10\x01\x06\x00\x00\x00\x02\x02\x07value'
+        pkt.DecodePacket(struct.pack('!BBH', 1, 2, 22 + len(vsa)) + 16 * b'\x00' +
+                         b'\x1a' + struct.pack('B', 2 + len(vsa)) + vsa)
+        self.assertEqual(pkt['Simplon-Number'], ['Two'])
+        self.assertEqual(pkt['Simplon-String'], ['value'])
+
+    def testVendorAttributeWithoutDictionary(self):
+        pkt = packet.Packet()
+        vsa = b'\x00\x00\x00\x10\x01\x06\x00\x00\x00\x02'
+        pkt.DecodePacket(struct.pack('!BBH', 1, 2, 22 + len(vsa)) + 16 * b'\x00' +
+                         b'\x1a' + struct.pack('B', 2 + len(vsa)) + vsa)
+        self.assertEqual(pkt[26], [vsa])
+
+    def testSaltCryptWithoutAuthenticator(self):
+        pkt = packet.Packet(secret=b'secret')
+        encrypted = pkt.SaltCrypt('password')
+        self.assertEqual(pkt.authenticator, 16 * b'\x00')
+        self.assertEqual(pkt.SaltDecrypt(encrypted), b'password')
+
+    def testVerifyAuthRequest(self):
+        attr = b'\x01\x07alice'
+        header = struct.pack('!BBH', packet.AccessRequest, 1, 20 + len(attr))
+        authenticator = hashlib.md5(header + 16 * b'\x00' + attr + b'secret').digest()
+        pkt = packet.AuthPacket(secret=b'secret', dict=self.dict,
+                                packet=header + authenticator + attr)
+        self.assertTrue(pkt.VerifyAuthRequest())
+        pkt.secret = b'different'
+        self.assertFalse(pkt.VerifyAuthRequest())
+
+    def testAcctRequestPacketWithMessageAuthenticator(self):
+        pkt = packet.AcctPacket(secret=b'secret', dict=self.dict)
+        pkt.add_message_authenticator()
+        received = packet.AcctPacket(packet=pkt.RequestPacket(), secret=b'secret',
+                                     dict=self.dict)
+        self.assertTrue(received.VerifyAcctRequest())
+        self.assertTrue(received.verify_message_authenticator())

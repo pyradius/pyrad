@@ -56,6 +56,9 @@ class EncodingTests(unittest.TestCase):
                 '1234567890')
         self.assertEqual(tools.DecodeString('é'.encode('utf-8')), 'é')
 
+    def testStringDecodingOfStr(self):
+        self.assertEqual(tools.DecodeString('1234567890'), '1234567890')
+
     def testStringDecodingInvalidUtf8ReturnsBytes(self):
         # e.g. an encrypted User-Password, which must not be modified
         self.assertEqual(tools.DecodeString(b'\xd3U;\xb2'), b'\xd3U;\xb2')

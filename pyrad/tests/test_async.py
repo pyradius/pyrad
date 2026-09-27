@@ -5,9 +5,10 @@ import logging
 import socket
 import unittest
 from io import StringIO
+from unittest import mock
 
 from pyrad import packet
-from pyrad.client_async import ClientAsync
+from pyrad.client_async import ClientAsync, DatagramProtocolClient
 from pyrad.dictionary import Dictionary
 from pyrad.server import RemoteHost
 from pyrad.server_async import DatagramProtocolServer, ServerAsync, ServerType
@@ -210,6 +211,50 @@ class AsyncClientTests(unittest.TestCase):
             await self.client.deinitialize_transports()
         self.loop.run_until_complete(test())
 
+    def testDefaultLoop(self):
+        async def test():
+            client = ClientAsync(server=LOCALHOST, secret=SECRET, dict=self.dict)
+            return client.loop is asyncio.get_running_loop()
+        self.assertTrue(asyncio.run(test()))
+
+    def testDuplicatePacketId(self):
+        async def test():
+            await self.client.initialize_transports(enable_auth=True)
+            req = self.client.CreateAuthPacket(User_Name='alice')
+            self.client.SendPacket(req)
+            with self.assertRaises(Exception):
+                self.client.protocol_auth.send_packet(req, self.loop.create_future())
+            await self.client.deinitialize_transports()
+        self.loop.run_until_complete(test())
+
+    def testLocalAddress(self):
+        ports = dict(zip(('local_auth_port', 'local_acct_port', 'local_coa_port'),
+                         free_ports(3)))
+
+        async def test():
+            await self.client.initialize_transports(enable_auth=True, enable_acct=True,
+                                                    enable_coa=True, local_addr=LOCALHOST,
+                                                    **ports)
+            bound = [protocol.transport.get_extra_info('sockname')
+                     for protocol in (self.client.protocol_auth, self.client.protocol_acct,
+                                      self.client.protocol_coa)]
+            await self.client.deinitialize_transports()
+            return bound
+        self.assertEqual(self.loop.run_until_complete(test()),
+                         [(LOCALHOST, ports['local_auth_port']),
+                          (LOCALHOST, ports['local_acct_port']),
+                          (LOCALHOST, ports['local_coa_port'])])
+
+    def testProtocol(self):
+        logger = mock.Mock()
+        protocol = DatagramProtocolClient(LOCALHOST, 1812, logger, self.client)
+        protocol.error_received(OSError('error'))
+        logger.error.assert_called_once()
+        protocol.connection_lost(OSError('lost'))
+        logger.warning.assert_called_once()
+        protocol.connection_lost(None)
+        logger.info.assert_called_once()
+
 
 class AsyncServerProtocolTests(unittest.TestCase):
     """Packets dropped by DatagramProtocolServer."""
@@ -290,3 +335,18 @@ class AsyncServerTests(unittest.TestCase):
         for server.debug in (False, True):
             server.__request_handler__(protocol, None, None)
         loop.close()
+
+    def testDefaultLoopAndAddress(self):
+        ports = dict(zip(('auth_port', 'acct_port', 'coa_port'), free_ports(3)))
+
+        async def test():
+            server = RadiusServer(**ports)
+            self.assertIs(server.loop, asyncio.get_running_loop())
+            await server.initialize_transports(enable_acct=True, enable_coa=True)
+            protocols = server.acct_protocols + server.coa_protocols
+            self.assertEqual([proto.ip for proto in protocols], [LOCALHOST, LOCALHOST])
+            # already bound transports are not bound again
+            await server.initialize_transports(enable_acct=True, enable_coa=True)
+            self.assertEqual(server.acct_protocols + server.coa_protocols, protocols)
+            await server.deinitialize_transports()
+        asyncio.run(test())

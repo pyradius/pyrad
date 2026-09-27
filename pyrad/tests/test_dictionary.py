@@ -131,6 +131,16 @@ class DictionaryParsingTests(unittest.TestCase):
         else:
             self.fail()
 
+    def testAttributeConcatIsIgnored(self):
+        # FreeRADIUS compatibility
+        self.dict.ReadDictionary(StringIO('ATTRIBUTE Test-Concat 99 octets concat'))
+        self.assertFalse('Test-Concat' in self.dict)
+
+    def testNestedTlvError(self):
+        with self.assertRaises(ParseError) as cm:
+            self.dict.ReadDictionary(StringIO('ATTRIBUTE Test-Nested 1.2.3 string'))
+        self.assertIn('nested tlvs', str(cm.exception))
+
     def testAttributeOptions(self):
         self.dict.ReadDictionary(StringIO(
             'ATTRIBUTE Option-Type 1 string has_tag,encrypt=1'))
