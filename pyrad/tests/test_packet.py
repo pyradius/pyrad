@@ -1113,6 +1113,14 @@ class PacketEdgeCaseTests(unittest.TestCase):
             self.assertRaises(packet.PacketError, pkt.PwDecrypt, length * b'x')
         self.assertEqual(pkt.PwDecrypt(pkt.PwCrypt('x' * 17)), 'x' * 17)
 
+    def testCreateReplyWithoutDictionary(self):
+        raw = packet.AuthPacket(secret=b'secret').RequestPacket()
+        request = packet.AuthPacket(secret=b'secret', packet=raw)
+        self.assertIsNone(request.dict)
+        reply = request.CreateReply()
+        self.assertEqual(reply.id, request.id)
+        self.assertTrue(request.VerifyReply(reply, reply.ReplyPacket()))
+
     def testVendorAttributeWithoutDictionary(self):
         pkt = packet.Packet()
         vsa = b'\x00\x00\x00\x10\x01\x06\x00\x00\x00\x02'

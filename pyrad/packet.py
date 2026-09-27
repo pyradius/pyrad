@@ -97,8 +97,7 @@ class Packet(OrderedDict):
         self.message_authenticator = None
         self.raw_packet = None
 
-        if 'dict' in attributes:
-            self.dict = attributes['dict']
+        self.dict = attributes.get('dict')
 
         if 'packet' in attributes:
             self.raw_packet = attributes['packet']
