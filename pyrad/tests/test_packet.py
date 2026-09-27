@@ -415,6 +415,30 @@ class PacketTests(unittest.TestCase):
         self.assertEqual(pkt[1], [b'value'])
         self.assertEqual(pkt.raw_packet, raw)
 
+    def testVerifyReplyDecodedWithoutRawReply(self):
+        request = packet.AuthPacket(id=0, secret=b'secret',
+                                    authenticator=b'0123456789ABCDEF',
+                                    dict=self.dict)
+        request.add_message_authenticator()
+        request.RequestPacket()
+        raw = request.CreateReply(**{'Test-String': 'test'}).ReplyPacket()
+        received = request.CreateReply(packet=raw)
+        ma = received[80][0]
+        # the reply is verified with the bytes it was decoded from and not
+        # modified
+        self.assertTrue(request.VerifyReply(received))
+        self.assertEqual(received[80][0], ma)
+        self.assertEqual(received.authenticator, raw[4:20])
+        self.assertEqual(received.raw_packet, raw)
+
+    def testVerifyReplyDecodedWithoutRawReplyTampered(self):
+        request = packet.AuthPacket(id=0, secret=b'secret',
+                                    authenticator=b'0123456789ABCDEF',
+                                    dict=self.dict)
+        raw = request.CreateReply(**{'Test-String': 'test'}).ReplyPacket()
+        received = request.CreateReply(packet=raw[:-1] + b'X')
+        self.assertFalse(request.VerifyReply(received))
+
     def testVerifyReplyWithPadding(self):
         reply = self.packet.CreateReply(**{'Test-String': 'test'})
         raw = reply.ReplyPacket() + 4 * b'\x00'

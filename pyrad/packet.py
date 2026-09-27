@@ -489,7 +489,8 @@ class Packet(OrderedDict):
 
         :param reply:      reply packet
         :type reply:       pyrad.packet.Packet
-        :param rawreply:   reply as received from the network
+        :param rawreply:   reply as received from the network, defaults
+                           to the raw packet the reply was decoded from
         :type rawreply:    bytes
         :param enforce_ma: require a Message-Authenticator in replies to
                            Access-Request and Status-Server packets
@@ -501,7 +502,14 @@ class Packet(OrderedDict):
             return False
 
         if rawreply is None:
-            rawreply = reply.ReplyPacket()
+            if reply.raw_packet is not None:
+                # a received reply: verify the bytes it was decoded from.
+                # ReplyPacket would sign it again with its own (response)
+                # authenticator and modify its Message-Authenticator.
+                rawreply = reply.raw_packet
+            else:
+                # a locally built reply: verify it as it would be sent
+                rawreply = reply.ReplyPacket()
         elif len(rawreply) >= 4:
             # ignore padding after the Length field (RFC 2865 section 3)
             rawreply = rawreply[:struct.unpack('!H', rawreply[2:4])[0]]
