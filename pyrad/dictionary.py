@@ -209,6 +209,12 @@ class Dictionary:
         self.skipped_attributes = set()
         # vendors whose attribute format is not the RFC 2865 one
         self._unsupported_vendors = set()
+        # TLVs by (vendor code, attribute code), kept across ReadDictionary
+        # calls so that sub-attributes can be defined in another file
+        self._tlvs = {}
+        # (vendor code, attribute code) of skipped top-level attributes,
+        # whose sub-attributes are skipped as well
+        self._skipped_codes = set()
 
         if dict:
             self.ReadDictionary(dict)
@@ -297,7 +303,7 @@ class Dictionary:
                              line=state['line'])
 
         vendor_code = self.vendors.GetForward(vendor)
-        if len(codes) > 1 and (vendor_code, codes[0]) in state['skipped_codes']:
+        if len(codes) > 1 and (vendor_code, codes[0]) in self._skipped_codes:
             return self.__SkipAttribute(
                 state, attribute, 'sub-attribute of unsupported attribute')
         if state['vendor_format']:
@@ -307,7 +313,8 @@ class Dictionary:
             return self.__SkipAttribute(state, attribute, 'vendor format')
         if datatype in UNSUPPORTED_DATATYPES:
             if len(codes) == 1:
-                state['skipped_codes'].add((vendor_code, codes[0]))
+                self._skipped_codes.add((vendor_code, codes[0]))
+                self._tlvs.pop((vendor_code, codes[0]), None)
             return self.__SkipAttribute(state, attribute,
                                         'data type ' + datatype)
         if array:
@@ -319,7 +326,8 @@ class Dictionary:
         if len(codes) == 2:
             code = int(codes[1])
             parent_code = int(codes[0])
-            if parent_code not in state['tlvs']:
+            parent = self._tlvs.get((vendor_code, parent_code))
+            if parent is None:
                 raise ParseError(
                     'Sub-attribute %s of unknown TLV %d' % (attribute,
                                                             parent_code),
@@ -342,13 +350,18 @@ class Dictionary:
 
         self.attrindex.Add(attribute, key)
         self.attributes[attribute] = Attribute(attribute, code, datatype, is_sub_attribute, vendor, encrypt=encrypt, has_tag=has_tag)
-        if datatype == 'tlv':
-            # save attribute in tlvs
-            state['tlvs'][code] = self.attributes[attribute]
         if is_sub_attribute:
             # save sub attribute in parent tlv and update their parent field
-            state['tlvs'][parent_code].sub_attributes[code] = attribute
-            self.attributes[attribute].parent = state['tlvs'][parent_code]
+            parent.sub_attributes[code] = attribute
+            self.attributes[attribute].parent = parent
+        else:
+            # a (re)defined top-level attribute replaces a skipped attribute
+            # or TLV with the same code
+            self._skipped_codes.discard((vendor_code, code))
+            if datatype == 'tlv':
+                self._tlvs[(vendor_code, code)] = self.attributes[attribute]
+            else:
+                self._tlvs.pop((vendor_code, code), None)
 
     def __ParseValue(self, state, tokens, defer):
         if len(tokens) != 4:
@@ -483,9 +496,7 @@ class Dictionary:
         state = {}
         state['vendor'] = ''
         state['vendor_format'] = None
-        state['tlvs'] = {}
         state['skipped'] = []
-        state['skipped_codes'] = set()
         self.defer_parse = []
         for line in fil:
             state['file'] = fil.File()

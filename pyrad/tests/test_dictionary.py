@@ -180,6 +180,46 @@ class DictionaryParsingTests(unittest.TestCase):
             self.dict.ReadDictionary(StringIO('ATTRIBUTE Test-Sub 99.1 string'))
         self.assertIn('unknown TLV 99', str(cm.exception))
 
+    def testSubAttributeOfTlvOfOtherVendor(self):
+        self.dict.ReadDictionary(StringIO(
+            'VENDOR Test-Vendor 42\n'
+            'ATTRIBUTE Test-Vendor-Tlv 9 tlv Test-Vendor\n'
+            'ATTRIBUTE Test-Std-Sub 9.3 string'))
+        # 9 is Test-Tlv of the standard space in the simple dictionary
+        self.assertIs(self.dict['Test-Std-Sub'].parent, self.dict['Test-Tlv'])
+        self.assertEqual(self.dict['Test-Tlv'].sub_attributes[3],
+                         'Test-Std-Sub')
+        self.assertNotIn(3, self.dict['Test-Vendor-Tlv'].sub_attributes)
+        with self.assertRaises(ParseError) as cm:
+            self.dict.ReadDictionary(StringIO(
+                'BEGIN-VENDOR Test-Vendor\n'
+                'ATTRIBUTE Test-Vendor-Sub 90.1 string\n'
+                'END-VENDOR Test-Vendor'))
+        self.assertIn('unknown TLV 90', str(cm.exception))
+        self.assertEqual(cm.exception.line, 2)
+
+    def testSubAttributeOfTlvInOtherFile(self):
+        dict = Dictionary(
+            StringIO('ATTRIBUTE Test-Tlv 9 tlv'),
+            StringIO('ATTRIBUTE Test-Tlv-Str 9.1 string'))
+        self.assertIs(dict['Test-Tlv-Str'].parent, dict['Test-Tlv'])
+        self.assertEqual(dict['Test-Tlv'].sub_attributes, {1: 'Test-Tlv-Str'})
+
+    def testSubAttributeOfSkippedAttributeInOtherFile(self):
+        with self.assertLogs('pyrad', 'WARNING'):
+            dict = Dictionary(
+                StringIO('ATTRIBUTE Test-Extended 241 extended'),
+                StringIO('ATTRIBUTE Test-Ext-String 241.5 string'))
+        self.assertIn('Test-Ext-String', dict.skipped_attributes)
+
+    def testRedefinedSkippedAttributeAsTlv(self):
+        with self.assertLogs('pyrad', 'WARNING'):
+            dict = Dictionary(StringIO('ATTRIBUTE Test-Bool 200 bool'))
+        dict.ReadDictionary(StringIO(
+            'ATTRIBUTE Test-Tlv 200 tlv\n'
+            'ATTRIBUTE Test-Tlv-Str 200.1 string'))
+        self.assertEqual(dict['Test-Tlv'].sub_attributes, {1: 'Test-Tlv-Str'})
+
     def testAttributeFreeRadiusFlags(self):
         self.dict.ReadDictionary(StringIO(
             'ATTRIBUTE Test-Secret 90 octets secret\n'
