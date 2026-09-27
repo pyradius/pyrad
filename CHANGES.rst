@@ -17,7 +17,19 @@ Unreleased
   * Message-Authenticator is added as first attribute and verification
     uses the correct authenticator for received replies, including
     CoA/Disconnect ACK/NAK and replies to Status-Server.
+  * With enforce_ma, clients require a Message-Authenticator in replies to
+    Access-Request and Status-Server packets.
 
+* Fix an infinite loop when decoding a vendor-specific or TLV sub-attribute
+  with a length of 0, which let a single unauthenticated packet hang a
+  server (#234). Truncated TLVs raise a PacketError instead of struct.error.
+* Fix salt decryption of values longer than 16 bytes, such as
+  MS-MPPE-Send-Key, MS-MPPE-Recv-Key and long Tunnel-Passwords.
+* Fix PwDecrypt of the decoded User-Password attribute, which failed since
+  2.5 because invalid UTF-8 was decoded with replacement characters
+  (#232, #192).
+* Fix ServerAsync dropping all Access-Requests with enable_pkt_verify=True
+  (#178).
 * Copy Proxy-State attributes into replies (RFC 2865 section 5.33).
 * Fix the length of CoA and Disconnect requests with Message-Authenticator.
 * Fix ClientAsync retrying and timing out requests before the timeout passed.
@@ -28,6 +40,9 @@ Unreleased
   Accounting-Response packets on the accounting port.
 * Drop support for Python 3.8 and 3.9, which are end of life; pyrad requires
   Python 3.10 or later.
+* Replace deprecated datetime.utcnow() and Logger.warn calls in the asyncio
+  client and server.
+* Fix the examples in the README, the docs and the package docstring.
 
 2.5.4 - Feb 5, 2026
 -------------------
