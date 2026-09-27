@@ -80,7 +80,10 @@ class FakeServer(ServerAsync):
 if __name__ == '__main__':
 
     # create server and read dictionary
-    loop = asyncio.get_event_loop()
+    # asyncio.get_event_loop() fails without a running loop since
+    # Python 3.14
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     server = FakeServer(loop=loop, dictionary=Dictionary('dictionary'))
 
     # add clients (address, secret, name)
