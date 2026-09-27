@@ -146,8 +146,10 @@ def EncodeIPv6Prefix(value, default_prefixlen=128):
 
     # 3) netaddr fallback (duck typing)
     elif hasattr(value, "ip") and hasattr(value, "prefixlen"):
-        # netaddr.IPNetwork uses .ip and .prefixlen
-        return struct.pack("2B", 0, int(value.prefixlen)) + value.ip.packed
+        # netaddr.IPNetwork uses .ip and .prefixlen; convert it so that the
+        # IP version is checked and the host bits are cleared like for str
+        net = ipaddress.ip_network(
+            "%s/%d" % (value.ip, int(value.prefixlen)), strict=False)
 
     else:
         raise TypeError("IPv6 Prefix has to be a string, IPv6Network, IPv6Address, or netaddr IPNetwork")

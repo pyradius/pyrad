@@ -243,6 +243,17 @@ class IPv6EncodingTests(unittest.TestCase):
         self.assertEqual(
             tools.EncodeIPv6Prefix(netaddr.IPNetwork('2001:db8::/64')), prefix)
 
+    def testNetaddrPrefix(self):
+        prefix = b'\x00\x40\x20\x01\x0d\xb8' + 12 * b'\x00'
+        # host bits are cleared, as for str values (RFC 8044 section 3.10)
+        self.assertEqual(
+            tools.EncodeIPv6Prefix(netaddr.IPNetwork('2001:db8::1/64')), prefix)
+        self.assertEqual(
+            tools.EncodeIPv6Prefix(netaddr.IPNetwork('2001:db8::1/128')),
+            b'\x00\x80' + self.ADDRESS)
+        self.assertRaises(
+            ValueError, tools.EncodeIPv6Prefix, netaddr.IPNetwork('10.1.2.3/8'))
+
     def testPrefixWithoutLength(self):
         self.assertEqual(tools.EncodeIPv6Prefix('2001:db8::1'), b'\x00\x80' + self.ADDRESS)
         self.assertEqual(
