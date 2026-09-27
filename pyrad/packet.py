@@ -356,6 +356,10 @@ class Packet(OrderedDict):
         :param value: value or list of values
         :type value:  depends on type of attribute
         """
+        if not isinstance(key, str):
+            raise TypeError('Attribute key must be an attribute name, not %s; '
+                            'use pkt[code] = [value] for raw values'
+                            % type(key).__name__)
         attr = self.dict.attributes[key.partition(':')[0]]
 
         (key, value) = self._EncodeKeyValues(key, value)

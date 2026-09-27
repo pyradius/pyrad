@@ -42,6 +42,9 @@ Unreleased
   ipv6addr or ipv6prefix attribute with a value of the wrong length raises
   a ValueError instead of struct.error or returning a wrong value, such as
   an IPv6 address for a 16 byte ipaddr value (#13).
+* AddAttribute raises a TypeError with a clear message when the key is not
+  an attribute name, e.g. when the key and value arguments are swapped
+  (#17).
 * Fix the length of CoA and Disconnect requests with Message-Authenticator.
 * Fix ClientAsync retrying and timing out requests before the timeout passed.
 * Verify the request authenticator of Accounting, CoA and Disconnect requests

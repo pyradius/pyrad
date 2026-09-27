@@ -488,6 +488,11 @@ class PacketTests(unittest.TestCase):
         self.packet.AddAttribute('Test-String', ['2', '3'])
         self.assertEqual(self.packet['Test-String'], ['1', '1', '2', '3'])
 
+    def testAddAttributeWithNonStringKey(self):
+        # e.g. swapped arguments: AddAttribute(pkt['Test-String'], 'Test-String') (#17)
+        self.assertRaises(TypeError, self.packet.AddAttribute, ['1'], 'Test-String')
+        self.assertRaises(TypeError, self.packet.AddAttribute, 1, '1')
+
 
 
 class DecodeTimeout(BaseException):
