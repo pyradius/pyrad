@@ -586,7 +586,8 @@ class Packet(OrderedDict):
             if (len(sub_attr_encoding) + len(curr_avp)) < 245:
                 curr_avp += sub_attr_encoding
             else:
-                avps.append(curr_avp)
+                if curr_avp:
+                    avps.append(curr_avp)
                 curr_avp = sub_attr_encoding
         avps.append(curr_avp)
         tlv_avps = []

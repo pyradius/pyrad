@@ -1187,7 +1187,7 @@ class PacketEdgeCaseTests(unittest.TestCase):
         pkt = packet.Packet(dict=self.dict, secret=b'secret',
                             authenticator=16 * b'\x00')
         pkt.AddAttribute('Test-Tlv-Str', 251 * 'x')
-        pkt.ReplyPacket()
+        self.assertEqual(pkt.ReplyPacket()[20:], b'\x04\xff\x01\xfd' + 251 * b'x')
         pkt = packet.Packet(dict=self.dict, secret=b'secret',
                             authenticator=16 * b'\x00')
         pkt.AddAttribute('Test-Tlv-Str', 252 * 'x')
@@ -1198,7 +1198,8 @@ class PacketEdgeCaseTests(unittest.TestCase):
         pkt = packet.Packet(dict=self.dict, secret=b'secret',
                             authenticator=16 * b'\x00')
         pkt.AddAttribute('Simplon-Tlv-Str', 245 * 'x')
-        pkt.ReplyPacket()
+        self.assertEqual(pkt.ReplyPacket()[20:],
+                         b'\x1a\xff\x00\x00\x00\x10\x03\xf9\x01\xf7' + 245 * b'x')
         pkt = packet.Packet(dict=self.dict, secret=b'secret',
                             authenticator=16 * b'\x00')
         pkt.AddAttribute('Simplon-Tlv-Str', 246 * 'x')
