@@ -42,7 +42,7 @@ class DictFile:
     """Dictionary file class
 
     An iterable file type that handles $INCLUDE
-    directives internally.
+    directives internally. $INCLUDE- includes a file only if it exists.
     """
     __slots__ = ('stack')
 
@@ -54,13 +54,15 @@ class DictFile:
         self.stack = []
         self.__ReadNode(fil)
 
-    def __ReadNode(self, fil):
+    def __ReadNode(self, fil, optional=False):
         parentdir = self.__CurDir()
         if isinstance(fil, str):
             if os.path.isabs(fil):
                 fname = fil
             else:
                 fname = os.path.join(parentdir, fil)
+            if optional and not os.path.exists(fname):
+                return
             path = os.path.realpath(fname)
             if any(node.path == path for node in self.stack):
                 # imported here, pyrad.dictionary imports this module
@@ -80,12 +82,15 @@ class DictFile:
             return os.path.realpath(os.curdir)
 
     def __GetInclude(self, line):
+        """Returns (file name, optional) of an include directive, or
+        (None, False)
+        """
         line = line.split("#", 1)[0].strip()
         tokens = line.split()
-        if tokens and tokens[0].upper() == '$INCLUDE':
-            return " ".join(tokens[1:])
+        if tokens and tokens[0].upper() in ('$INCLUDE', '$INCLUDE-'):
+            return (" ".join(tokens[1:]), tokens[0].endswith('-'))
         else:
-            return None
+            return (None, False)
 
     def Line(self):
         """Returns line number of current file
@@ -112,9 +117,9 @@ class DictFile:
             if line is None:
                 self.stack.pop()
             else:
-                inc = self.__GetInclude(line)
+                (inc, optional) = self.__GetInclude(line)
                 if inc:
-                    self.__ReadNode(inc)
+                    self.__ReadNode(inc, optional)
                 else:
                     return line
         raise StopIteration

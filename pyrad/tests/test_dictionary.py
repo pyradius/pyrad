@@ -627,6 +627,15 @@ class DictFileIncludeTests(unittest.TestCase):
         self.assertEqual(list(DictFile(path)),
                          ['ATTRIBUTE Test-A 1 string\n'] * 2)
 
+    def testOptionalInclude(self):
+        path = self.write('dictionary', '$INCLUDE- dictionary.a\n'
+                                        '$INCLUDE- dictionary.missing\n'
+                                        'ATTRIBUTE Test-B 2 string\n')
+        self.write('dictionary.a', 'ATTRIBUTE Test-A 1 string\n')
+        dict = Dictionary(path)
+        self.assertEqual(dict.attrindex['Test-A'], 1)
+        self.assertEqual(dict.attrindex['Test-B'], 2)
+
     def testIncludeMissingFile(self):
         path = self.write('dictionary', '$INCLUDE dictionary.missing\n')
         self.assertRaises(IOError, Dictionary, path)
