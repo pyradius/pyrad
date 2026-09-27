@@ -1,6 +1,7 @@
 """Tests of the asyncio client and server, running against each other on
 the loopback interface."""
 import asyncio
+import datetime
 import logging
 import socket
 import unittest
@@ -374,6 +375,41 @@ class AsyncClientTests(unittest.TestCase):
                                           retries=retries, timeout=timeout)
         protocol.transport = mock.Mock()
         return protocol
+
+    def run_with_clock_step(self, step, timeout):
+        """Send a request, step the wall clock and run the timeout handler
+        for a moment. Return the future of the request."""
+        class SteppedDatetime(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return datetime.datetime.now(tz) + step
+
+        async def test():
+            loop = asyncio.get_running_loop()
+            protocol = self.mock_protocol(timeout=timeout)
+            future = loop.create_future()
+            protocol.send_packet(packet.AuthPacket(id=1, secret=SECRET, dict=self.dict),
+                                 future)
+            # the client used to measure timeouts with the wall clock
+            with mock.patch('pyrad.client_async.datetime', SteppedDatetime, create=True):
+                handler = asyncio.ensure_future(protocol.__timeout_handler__())
+                await asyncio.wait([future], timeout=1)
+            handler.cancel()
+            await handler
+            return future
+        return self.loop.run_until_complete(test())
+
+    def testClockStepBackwards(self):
+        # the request used to time out only after the clock caught up
+        future = self.run_with_clock_step(-datetime.timedelta(hours=1), timeout=0.2)
+        self.assertTrue(future.done())
+        self.assertIsInstance(future.exception(), TimeoutError)
+
+    def testClockStepForwards(self):
+        # the request used to time out right away
+        future = self.run_with_clock_step(datetime.timedelta(hours=1), timeout=30)
+        self.assertFalse(future.done())
+        future.cancel()
 
     def testCancelledRequest(self):
         # a request cancelled by the caller (e.g. with asyncio.wait_for) used

@@ -4,10 +4,10 @@
 
 __docformat__ = "epytext en"
 
-from datetime import datetime
 import asyncio
 import logging
 import random
+import time
 
 from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket
 
@@ -40,7 +40,8 @@ class DatagramProtocolClient(asyncio.Protocol):
             while True:
 
                 req2delete = []
-                now = datetime.now()
+                # monotonic, not affected by steps of the system clock
+                now = time.monotonic()
                 next_wake_up = self.timeout
                 # noinspection PyShadowingBuiltins
                 for id, req in self.pending_requests.items():
@@ -50,7 +51,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                         req2delete.append(id)
                         continue
 
-                    secs = (now - req['send_date']).total_seconds()
+                    secs = now - req['send_date']
                     if secs >= self.timeout:
                         if req['retries'] == self.retries:
                             self.logger.debug('[%s:%d] For request %d execute all retries', self.server, self.port, id)
@@ -93,14 +94,16 @@ class DatagramProtocolClient(asyncio.Protocol):
         # in the pending requests
         raw = packet.RequestPacket()
 
-        # Store packet on pending requests map
+        # Store packet on pending requests map, the dates are
+        # time.monotonic() values
+        now = time.monotonic()
         self.pending_requests[packet.id] = {
             'packet': packet,
             'raw': raw,
-            'creation_date': datetime.now(),
+            'creation_date': now,
             'retries': 0,
             'future': future,
-            'send_date': datetime.now()
+            'send_date': now
         }
         future.add_done_callback(
             lambda fut, id=packet.id: self.__forget_request__(id, fut))
