@@ -81,7 +81,7 @@ Author, Copyright, Availability
 ===============================
 
 pyrad was written by Wichert Akkerman <wichert@wiggy.net> and is maintained by
-Christian Giese (GIC-de), Istvan Ruzman (Istvan91) and Stefan Lieberth (slieberth).
+Christian Giese (GIC-de), Alan DeKok (alandekok) and Arran Cudbard-Bell (arr2036).
 
 We’re looking for contributors to support the pyrad team! If you’re interested in
 helping with development, testing, documentation, or other areas, please contact
