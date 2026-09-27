@@ -93,6 +93,7 @@ class Packet(OrderedDict):
             raise TypeError('authenticator must be a binary string')
         self.authenticator = authenticator
         self.request_authenticator = None      # used for storing request authenticator in reply packets
+        self._request_code = None              # code of the request in reply packets
         self.message_authenticator = None
         self.raw_packet = None
 
@@ -176,7 +177,8 @@ class Packet(OrderedDict):
                              (20 + len(attr)))
 
         hmac_constructor.update(header[0:4])
-        hmac_constructor.update(self._message_authenticator_vector())
+        hmac_constructor.update(self._message_authenticator_vector(
+            original_code=getattr(self, '_request_code', None)))
         hmac_constructor.update(attr)
         self._set_message_authenticator(hmac_constructor.digest())
 
@@ -247,7 +249,12 @@ class Packet(OrderedDict):
         """Copy Proxy-State attributes unmodified and in order into a new
         reply (RFC 2865 section 5.33). Nothing is changed if the reply is
         decoded from a received packet.
+
+        The code of this request is kept in the reply, the
+        Message-Authenticator of an Accounting-Response to a Status-Server
+        is calculated with the Request Authenticator (RFC 5997 section 3).
         """
+        reply._request_code = self.code
         if 'packet' not in attributes and OrderedDict.__contains__(self, 33) \
                 and not OrderedDict.__contains__(reply, 33):
             OrderedDict.__setitem__(reply, 33, list(OrderedDict.__getitem__(self, 33)))
@@ -1075,18 +1082,31 @@ class AcctPacket(Packet):
         makes sure the authenticator and secret are copied over
         to the new instance.
         """
-        return self._PrepareReply(
-            AcctPacket(AccountingResponse, self.id,
-                       self.secret, self.authenticator, dict=self.dict,
-                       **attributes), attributes)
+        reply = AcctPacket(AccountingResponse, self.id,
+                           self.secret, self.authenticator, dict=self.dict,
+                           **attributes)
+        if 'packet' not in attributes and 'message_authenticator' not in attributes \
+                and self.code == StatusServer:
+            # sign responses to Status-Server (RFC 5997 section 3), like
+            # AuthPacket.CreateReply does
+            reply.message_authenticator = True
+        return self._PrepareReply(reply, attributes)
 
     def VerifyAcctRequest(self):
         """Verify request authenticator.
+
+        The Request Authenticator of a Status-Server packet is random
+        (RFC 5997 section 3), for these packets the Message-Authenticator
+        is verified instead, and a packet without one fails verification.
 
         :return: True if verification passed else False
         :rtype: boolean
         """
         assert (self.raw_packet)
+
+        if self.code == StatusServer:
+            return bool(self.message_authenticator) and \
+                self.verify_message_authenticator()
 
         hash = hashlib.md5(self.raw_packet[0:4] + 16 * b'\x00' +
                            self.raw_packet[20:] + self.secret).digest()
@@ -1098,12 +1118,19 @@ class AcctPacket(Packet):
         Return a RADIUS packet which can be directly transmitted
         to a RADIUS server.
 
+        A Status-Server packet (RFC 5997 section 3) gets a random Request
+        Authenticator, like an Access-Request, and a Message-Authenticator
+        unless message_authenticator is set to False.
+
         :return: raw packet
         :rtype:  bytes
         """
 
         if self.id is None:
             self.id = self.CreateID()
+
+        if self.code == StatusServer:
+            return self._StatusServerPacket()
 
         if self.message_authenticator:
             self._refresh_message_authenticator()
@@ -1116,6 +1143,24 @@ class AcctPacket(Packet):
         ans = header + self.authenticator + attr
 
         return ans
+
+    def _StatusServerPacket(self):
+        # RFC 5997 section 3: the Request Authenticator of Status-Server is
+        # generated like the one of Access-Request (random) and
+        # Status-Server packets must include a Message-Authenticator
+        if self.authenticator is None:
+            self.authenticator = self.CreateAuthenticator()
+
+        if self.message_authenticator is None:
+            self.message_authenticator = True
+
+        if self.message_authenticator:
+            self._refresh_message_authenticator()
+
+        attr = self._PktEncodeAttributes()
+        header = struct.pack('!BBH16s', self.code, self.id,
+                             (20 + len(attr)), self.authenticator)
+        return header + attr
 
 
 class CoAPacket(Packet):

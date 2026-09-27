@@ -174,6 +174,66 @@ class ClientVerifyReplyTests(BlastRadiusTestCase):
         self.assertTrue(req.VerifyReply(decoded, raw, enforce_ma=True))
 
 
+class AcctStatusServerTests(BlastRadiusTestCase):
+    """Status-Server sent to the accounting port (RFC 5997 section 3)."""
+
+    def status_server(self, **attrs):
+        return self.client.CreateAcctPacket(code=packet.StatusServer, **attrs)
+
+    def testRequestHasValidMessageAuthenticator(self):
+        req = self.status_server()
+        raw = req.RequestPacket()
+        self.assertEqual(attributes(raw)[0][0], 80)
+        received = packet.AcctPacket(packet=raw, secret=SECRET, dict=self.dict)
+        self.assertTrue(received.verify_message_authenticator())
+        self.assertTrue(received.VerifyAcctRequest())
+
+    def testRequestHasRandomAuthenticator(self):
+        first = self.status_server().RequestPacket()
+        second = self.status_server().RequestPacket()
+        self.assertNotEqual(first[4:20], second[4:20])
+        accounting_style = hashlib.md5(first[:4] + 16 * b'\x00' + first[20:] + SECRET).digest()
+        self.assertNotEqual(first[4:20], accounting_style)
+
+    def testRequestKeepsAuthenticator(self):
+        req = self.status_server()
+        raw = req.RequestPacket()
+        self.assertEqual(raw[4:20], req.authenticator)
+        self.assertEqual(req.RequestPacket()[4:20], raw[4:20])
+
+    def testRequestMessageAuthenticatorOptOut(self):
+        raw = self.status_server(message_authenticator=False).RequestPacket()
+        self.assertNotIn(80, [key for (key, _) in attributes(raw)])
+
+    def testTamperedRequest(self):
+        raw = self.status_server(User_Name='alice').RequestPacket()
+        received = packet.AcctPacket(packet=raw[:-1] + b'X', secret=SECRET, dict=self.dict)
+        self.assertFalse(received.verify_message_authenticator())
+        self.assertFalse(received.VerifyAcctRequest())
+
+    def testRequestWithoutMessageAuthenticatorFailsVerification(self):
+        raw = self.status_server(message_authenticator=False).RequestPacket()
+        received = packet.AcctPacket(packet=raw, secret=SECRET, dict=self.dict)
+        self.assertFalse(received.VerifyAcctRequest())
+
+    def testReply(self):
+        req = self.status_server()
+        received = packet.AcctPacket(packet=req.RequestPacket(), secret=SECRET, dict=self.dict)
+        raw = received.CreateReply(Reply_Message='hello').ReplyPacket()
+        self.assertEqual(attributes(raw)[0][0], 80)
+        self.assertTrue(self.verify(req, raw, enforce_ma=True))
+        decoded = req.CreateReply(packet=raw)
+        self.assertTrue(decoded.verify_message_authenticator(
+            original_authenticator=req.authenticator, original_code=req.code))
+
+    def testForgedReply(self):
+        req = self.status_server()
+        received = packet.AcctPacket(packet=req.RequestPacket(), secret=SECRET, dict=self.dict)
+        raw = received.CreateReply(Reply_Message='hello').ReplyPacket()
+        forged = forge_response_authenticator(raw.replace(b'hello', b'world'), req.authenticator)
+        self.assertFalse(self.verify(req, forged))
+
+
 class ServerRequestTests(BlastRadiusTestCase):
     def setUp(self):
         super().setUp()
