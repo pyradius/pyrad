@@ -15,7 +15,7 @@ from pyrad import packet
 from pyrad.client import Client, Timeout
 from pyrad.dictionary import Dictionary
 
-DICTIONARY = Path(__file__).resolve().parents[2] / "example" / "dictionary"
+DICTIONARY = Path(__file__).resolve().parent / "dictionary"
 
 SERVER = os.environ.get("RADIUS_SERVER", "127.0.0.1")
 SECRET = os.environ.get("RADIUS_SECRET", "testing123").encode()

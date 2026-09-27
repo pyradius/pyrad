@@ -1,0 +1,28 @@
+# Dictionary of the pyrad integration tests: the example dictionary plus
+# the tagged tunnel attributes (RFC 2868) and the vendor-specific
+# attributes the tests exchange with FreeRADIUS.
+$INCLUDE ../../example/dictionary
+
+ATTRIBUTE	Tunnel-Type		64	integer	has_tag
+ATTRIBUTE	Tunnel-Medium-Type	65	integer	has_tag
+ATTRIBUTE	Tunnel-Server-Endpoint	67	string	has_tag
+ATTRIBUTE	Tunnel-Password		69	string	has_tag,encrypt=2
+ATTRIBUTE	Tunnel-Private-Group-Id	81	string	has_tag
+
+VALUE	Tunnel-Type		L2TP			3
+VALUE	Tunnel-Type		VLAN			13
+VALUE	Tunnel-Medium-Type	IPv4			1
+VALUE	Tunnel-Medium-Type	IEEE-802		6
+
+VENDOR		Cisco				9
+
+BEGIN-VENDOR	Cisco
+ATTRIBUTE	Cisco-AVPair		1	string
+END-VENDOR	Cisco
+
+VENDOR		Microsoft			311
+
+BEGIN-VENDOR	Microsoft
+ATTRIBUTE	MS-MPPE-Send-Key	16	octets	encrypt=2
+ATTRIBUTE	MS-MPPE-Recv-Key	17	octets	encrypt=2
+END-VENDOR	Microsoft

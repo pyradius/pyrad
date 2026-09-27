@@ -5,3 +5,36 @@ alice	Cleartext-Password := "alice-password"
 
 bob	Cleartext-Password := "a-very-long-password-exceeding-sixteen-octets"
 	Reply-Message := "Hello, %{User-Name}"
+
+# Tagged tunnel attributes (RFC 2868): two tunnels, e.g. a VLAN assignment
+# and an L2TP tunnel with a salt encrypted password longer than 16 octets.
+tunnel	Cleartext-Password := "tunnel-password"
+	Tunnel-Type:1 += VLAN,
+	Tunnel-Medium-Type:1 += IEEE-802,
+	Tunnel-Private-Group-Id:1 += "100",
+	Tunnel-Type:2 += 3,
+	Tunnel-Medium-Type:2 += 1,
+	Tunnel-Server-Endpoint:2 += "192.0.2.1",
+	Tunnel-Password:2 += "a-tunnel-password-longer-than-16-octets"
+
+# Vendor-specific attributes, including the salt encrypted MS-MPPE keys.
+vendor	Cleartext-Password := "vendor-password"
+	Cisco-AVPair += "shell:priv-lvl=15",
+	Cisco-AVPair += "ip:addr-pool=pyrad",
+	MS-MPPE-Send-Key := 0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f,
+	MS-MPPE-Recv-Key := 0x202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+
+# Reply attributes of different data types.
+types	Cleartext-Password := "types-password"
+	Service-Type := Framed-User,
+	Framed-Protocol := PPP,
+	Framed-IP-Netmask := 255.255.255.0,
+	Session-Timeout := 3600,
+	Idle-Timeout := 600,
+	Class := 0x0102030405,
+	Framed-IPv6-Prefix := 2001:db8:1::/64,
+	Delegated-IPv6-Prefix := 2001:db8:2::/56
+
+# Echo request attributes of different data types, as decoded by FreeRADIUS.
+echo	Cleartext-Password := "echo-password"
+	Reply-Message := "%{NAS-IP-Address} %{NAS-IPv6-Address} %{NAS-Port} %{Service-Type} %{Framed-IPv6-Prefix} %{integer:Event-Timestamp} %{Tunnel-Type:1} %{Tunnel-Private-Group-Id:1} %{Tunnel-Private-Group-Id:2} %{Cisco-AVPair}"
