@@ -278,6 +278,14 @@ class Client(host.Host):
                 ]
                 # Copy over Challenge-State
                 pkt[24] = reply[24]
+                # RFC 2865 section 4.4: the Access-Request answering an
+                # Access-Challenge has a new Identifier, and section 3: its
+                # Request Authenticator is unique. The Message-Authenticator
+                # is calculated with it when the packet is encoded.
+                previous_id = pkt.id
+                while pkt.id == previous_id:
+                    pkt.id = pkt.CreateID()
+                pkt.authenticator = pkt.CreateAuthenticator()
                 reply = self._SendPacket(pkt, self.authport)
             return reply
         elif isinstance(pkt, packet.CoAPacket):

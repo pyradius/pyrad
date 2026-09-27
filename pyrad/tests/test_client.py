@@ -33,6 +33,13 @@ ATTRIBUTE Salted                200 string encrypt=2
 VALUE     Acct-Status-Type      Start 1
 '''
 
+EAP_DICTIONARY = '''
+ATTRIBUTE User-Name             1  string
+ATTRIBUTE State                 24 octets
+ATTRIBUTE EAP-Message           79 octets
+ATTRIBUTE Message-Authenticator 80 octets
+'''
+
 
 class ConstructionTests(unittest.TestCase):
     def setUp(self):
@@ -274,6 +281,30 @@ class EapMd5Tests(unittest.TestCase):
         eap = self.sent[1][1]
         digest = hashlib.md5(b'\x07' + b'password' + self.challenge).digest()
         self.assertEqual(eap, struct.pack('!BBHBB', 2, 7, 22, 4, 16) + digest)
+
+    def testChallengeNewIdAndAuthenticator(self):
+        # RFC 2865 section 4.4: the answer to an Access-Challenge is a new
+        # Access-Request with a new Identifier and Request Authenticator
+        self.client.dict = Dictionary(StringIO(EAP_DICTIONARY))
+        eap_request = struct.pack('!BBHBB', 1, 7, 22, 4, 16) + self.challenge
+        self.replies = [self.reply(AccessChallenge, {79: [eap_request], 24: [b'state']}),
+                        self.reply(AccessAccept)]
+        requests = []
+
+        def fakeSendPacket(pkt, port):
+            requests.append(pkt.RequestPacket())
+            return self.replies.pop(0)
+
+        pkt = self.client.CreateAuthPacket(auth_type='eap-md5', User_Name='alice')
+        self.client._SendPacket = fakeSendPacket
+        self.client.SendPacket(pkt)
+        (first, second) = requests
+        self.assertNotEqual(first[1], second[1])
+        self.assertNotEqual(first[4:20], second[4:20])
+        self.assertEqual(second[1], pkt.id)
+        self.assertEqual(second[4:20], pkt.authenticator)
+        decoded = AuthPacket(secret=b'secret', dict=self.client.dict, packet=second)
+        self.assertTrue(decoded.verify_message_authenticator())
 
     def testChallengeIgnoredForPap(self):
         challenge = self.reply(AccessChallenge)
