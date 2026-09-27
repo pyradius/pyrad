@@ -181,8 +181,12 @@ class DatagramProtocolClient(asyncio.Protocol):
             self.timeout_future = None
 
     def create_id(self):
-        self.packet_id = (self.packet_id + 1) % 256
-        return self.packet_id
+        # the next id which isn't used by a pending request
+        for _ in range(256):
+            self.packet_id = (self.packet_id + 1) % 256
+            if self.packet_id not in self.pending_requests:
+                return self.packet_id
+        raise Exception('No free packet id, 256 requests are pending')
 
     def __str__(self):
         return 'DatagramProtocolClient(server=%s, port=%d)' % (self.server, self.port)
@@ -438,7 +442,7 @@ class ClientAsync:
     # noinspection PyPep8Naming
     # noinspection PyShadowingBuiltins
     def CreatePacket(self, id, **args):
-        if not id:
+        if id is None:
             raise Exception('Missing mandatory packet id')
 
         return Packet(id=id, dict=self.dict,

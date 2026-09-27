@@ -204,6 +204,48 @@ class AsyncClientTests(unittest.TestCase):
         self.assertRaises(Exception, self.client.CreatePacket, None)
         pkt = self.client.CreatePacket(id=10, User_Name='alice')
         self.assertEqual((pkt.id, pkt['User-Name']), (10, ['alice']))
+        # 0 is a valid id
+        self.assertEqual(self.client.CreatePacket(id=0).id, 0)
+
+    def testPacketIdOfPendingRequestIsSkipped(self):
+        # ids wrapped around to the id of a still pending request, and
+        # sending the request failed with 'Packet with id N already present'
+        async def test():
+            loop = asyncio.get_running_loop()
+            protocol = self.mock_protocol()
+            pending = packet.AuthPacket(id=protocol.create_id(), secret=SECRET,
+                                        dict=self.dict)
+            protocol.send_packet(pending, loop.create_future())
+            # 255 requests which are answered (here: cancelled)
+            for _ in range(255):
+                future = loop.create_future()
+                protocol.send_packet(packet.AuthPacket(id=protocol.create_id(),
+                                                       secret=SECRET, dict=self.dict),
+                                     future)
+                future.cancel()
+                await asyncio.sleep(0)
+            self.assertEqual(list(protocol.pending_requests), [pending.id])
+            req = packet.AuthPacket(id=protocol.create_id(), secret=SECRET, dict=self.dict)
+            self.assertNotEqual(req.id, pending.id)
+            protocol.send_packet(req, loop.create_future())
+        self.loop.run_until_complete(test())
+
+    def testAllPacketIdsPending(self):
+        async def test():
+            loop = asyncio.get_running_loop()
+            protocol = self.mock_protocol()
+            for _ in range(256):
+                protocol.send_packet(packet.AuthPacket(id=protocol.create_id(),
+                                                       secret=SECRET, dict=self.dict),
+                                     loop.create_future())
+            self.assertEqual(sorted(protocol.pending_requests), list(range(256)))
+            with self.assertRaisesRegex(Exception, 'No free packet id'):
+                protocol.create_id()
+            # an id becomes free again
+            protocol.pending_requests[42]['future'].cancel()
+            await asyncio.sleep(0)
+            self.assertEqual(protocol.create_id(), 42)
+        self.loop.run_until_complete(test())
 
     def testInvalidReplies(self):
         async def test():
