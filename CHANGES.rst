@@ -160,6 +160,11 @@ Unreleased
   * A redefined attribute or value name is no longer decoded to its old
     name (stale BiDict reverse entries).
 
+* The package metadata declares the license as the SPDX expression
+  BSD-3-Clause (PEP 639); building requires setuptools 77 or later.
+* The FreeRADIUS dictionary of the examples is an attributed excerpt of
+  the current FreeRADIUS dictionary (CC-BY 4.0), and names attribute 182
+  FreeRADIUS-Queue-PPS-Out instead of FreeRADIUS-Queue-PPS-In.
 * Fix an infinite loop when decoding a vendor-specific or TLV sub-attribute
   with a length of 0, which let a single unauthenticated packet hang a
   server (#234). Truncated TLVs raise a PacketError instead of struct.error.

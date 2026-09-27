@@ -104,7 +104,7 @@ We’re looking for contributors to support the pyrad team! If you’re interest
 helping with development, testing, documentation, or other areas, please contact
 us directly.
 
-This project is licensed under a BSD license.
+This project is licensed under the BSD 3-Clause license.
 
 Copyright and license information can be found in the LICENSE.txt file.
 
