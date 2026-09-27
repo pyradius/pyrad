@@ -1,6 +1,7 @@
 """Tests of the asyncio client and server, running against each other on
 the loopback interface."""
 import asyncio
+import contextlib
 import datetime
 import logging
 import socket
@@ -39,6 +40,19 @@ def free_ports(count):
     finally:
         for sock in sockets:
             sock.close()
+
+
+@contextlib.contextmanager
+def without_reuse_port():
+    """Simulate a platform without SO_REUSEPORT, e.g. Windows."""
+    reuse_port = getattr(socket, 'SO_REUSEPORT', None)
+    if reuse_port is not None:
+        del socket.SO_REUSEPORT
+    try:
+        yield
+    finally:
+        if reuse_port is not None:
+            socket.SO_REUSEPORT = reuse_port
 
 
 class RadiusServer(ServerAsync):
@@ -313,6 +327,31 @@ class AsyncClientTests(unittest.TestCase):
                          [(LOCALHOST, ports['local_auth_port']),
                           (LOCALHOST, ports['local_acct_port']),
                           (LOCALHOST, ports['local_coa_port'])])
+
+    def testLocalAddressWithoutPort(self):
+        # local_addr used to be ignored without a local port
+        async def test():
+            loop = asyncio.get_running_loop()
+            with mock.patch.object(loop, 'create_datagram_endpoint',
+                                   wraps=loop.create_datagram_endpoint) as connect:
+                await self.client.initialize_transports(enable_auth=True, enable_acct=True,
+                                                        local_addr=LOCALHOST,
+                                                        local_acct_port=free_ports(1)[0])
+            await self.client.deinitialize_transports()
+            return connect.call_args_list
+        calls = self.loop.run_until_complete(test())
+        self.assertEqual(calls[1].kwargs['local_addr'], (LOCALHOST, 0))
+        self.assertEqual(calls[0].kwargs['local_addr'][0], LOCALHOST)
+        self.assertNotEqual(calls[0].kwargs['local_addr'][1], 0)
+
+    def testWithoutReusePort(self):
+        # reuse_port=True raised ValueError without SO_REUSEPORT
+        async def test():
+            with without_reuse_port():
+                await self.client.initialize_transports(enable_auth=True)
+            self.assertIsNotNone(self.client.protocol_auth.transport)
+            await self.client.deinitialize_transports()
+        self.loop.run_until_complete(test())
 
     def testInitializeFailureCanBeRetried(self):
         # a transport which couldn't be opened used to stay registered, so a
@@ -591,6 +630,18 @@ class AsyncServerTests(unittest.TestCase):
             # already bound transports are not bound again
             await server.initialize_transports(enable_acct=True, enable_coa=True)
             self.assertEqual(server.acct_protocols + server.coa_protocols, protocols)
+            await server.deinitialize_transports()
+        asyncio.run(test())
+
+    def testWithoutReusePort(self):
+        # reuse_port=True raised ValueError without SO_REUSEPORT
+        ports = dict(zip(('auth_port', 'acct_port', 'coa_port'), free_ports(3)))
+
+        async def test():
+            server = RadiusServer(**ports)
+            with without_reuse_port():
+                await server.initialize_transports(enable_auth=True)
+            self.assertIsNotNone(server.auth_protocols[0].transport)
             await server.deinitialize_transports()
         asyncio.run(test())
 

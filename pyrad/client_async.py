@@ -7,9 +7,18 @@ __docformat__ = "epytext en"
 import asyncio
 import logging
 import random
+import socket
 import time
 
 from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket
+
+
+def _endpoint_options():
+    # reuse_port raises ValueError on platforms without SO_REUSEPORT,
+    # e.g. Windows
+    if hasattr(socket, 'SO_REUSEPORT'):
+        return {'reuse_port': True}
+    return {}
 
 
 class DatagramProtocolClient(asyncio.Protocol):
@@ -120,11 +129,11 @@ class DatagramProtocolClient(asyncio.Protocol):
 
     def connection_made(self, transport):
         self.transport = transport
-        socket = transport.get_extra_info('socket')
+        sock = transport.get_extra_info('socket')
         self.logger.info('[%s:%d] Transport created with binding in %s:%d',
                          self.server, self.port,
-                         socket.getsockname()[0],
-                         socket.getsockname()[1])
+                         sock.getsockname()[0],
+                         sock.getsockname()[1])
 
         # Start asynchronous timer handler
         self.timeout_future = self.client.loop.create_task(
@@ -295,8 +304,8 @@ class ClientAsync:
         :type      enable_auth: bool
         :param      enable_coa: open the CoA transport
         :type       enable_coa: bool
-        :param      local_addr: local address to bind to (used together
-                                with the local ports)
+        :param      local_addr: local address to bind to, with the local
+                                port of a transport or any free port
         :type       local_addr: string
         :param local_auth_port: local port of the authentication transport
         :type  local_auth_port: integer
@@ -329,14 +338,15 @@ class ClientAsync:
             setattr(self, name, protocol)
 
             bind_addr = None
-            if local_addr and local_port:
-                bind_addr = (local_addr, local_port)
+            if local_addr:
+                # any free port without a local port
+                bind_addr = (local_addr, local_port or 0)
 
             connects.append((name, protocol, self.loop.create_datagram_endpoint(
                 protocol,
-                reuse_port=True,
                 remote_addr=(self.server, port),
-                local_addr=bind_addr
+                local_addr=bind_addr,
+                **_endpoint_options()
             )))
 
         try:

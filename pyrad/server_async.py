@@ -4,6 +4,7 @@
 
 import asyncio
 import logging
+import socket
 
 from abc import abstractmethod, ABCMeta
 from enum import Enum
@@ -15,6 +16,14 @@ from pyrad.packet import Packet, AccessAccept, AccessReject, \
     PacketError
 
 from pyrad.server import ServerPacketError, CheckMessageAuthenticator
+
+
+def _endpoint_options():
+    # reuse_port raises ValueError on platforms without SO_REUSEPORT,
+    # e.g. Windows
+    if hasattr(socket, 'SO_REUSEPORT'):
+        return {'reuse_port': True}
+    return {}
 
 
 class ServerType(Enum):
@@ -314,8 +323,8 @@ class ServerAsync(metaclass=ABCMeta):
                 protocols.append(protocol)
                 connects.append((protocols, protocol, self.loop.create_datagram_endpoint(
                     protocol,
-                    reuse_port=True,
-                    local_addr=(addr, port)
+                    local_addr=(addr, port),
+                    **_endpoint_options()
                 )))
 
         try:
