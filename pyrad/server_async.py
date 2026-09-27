@@ -15,7 +15,7 @@ from pyrad.packet import Packet, AccessAccept, AccessReject, \
     CoAACK, CoANAK, AccessRequest, AuthPacket, AcctPacket, CoAPacket, \
     PacketError
 
-from pyrad.server import ServerPacketError, CheckMessageAuthenticator
+from pyrad.server import ServerPacketError, CheckMessageAuthenticator, _LookupHost
 
 
 def _endpoint_options():
@@ -70,11 +70,10 @@ class DatagramProtocolServer(asyncio.Protocol):
 
         receive_date = datetime.now(timezone.utc)
 
-        if addr[0] in self.hosts:
-            remote_host = self.hosts[addr[0]]
-        elif '0.0.0.0' in self.hosts:
+        remote_host = _LookupHost(self.hosts, addr[0])
+        if remote_host is None and '0.0.0.0' in self.hosts:
             remote_host = self.hosts['0.0.0.0']
-        else:
+        if remote_host is None:
             self.logger.warning('[%s:%d] Drop packet from unknown source %s', self.ip, self.port, addr)
             return
 

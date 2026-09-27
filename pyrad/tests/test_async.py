@@ -543,18 +543,27 @@ class AsyncServerProtocolTests(unittest.TestCase):
         self.server.enforce_ma = False
         self.hosts = {'0.0.0.0': RemoteHost('0.0.0.0', SECRET, 'any')}
 
-    def receive(self, server_type, pkt):
+    def receive(self, server_type, pkt, source=(LOCALHOST, 1812)):
         protocol = DatagramProtocolServer(
             LOCALHOST, 1812, logging.getLogger('pyrad-test'), self.server, server_type,
             self.hosts, lambda protocol, req, addr: self.handled.append(req))
         data = pkt if isinstance(pkt, bytes) else pkt.RequestPacket()
-        protocol.datagram_received(data, (LOCALHOST, 1812))
+        protocol.datagram_received(data, source)
         return protocol
 
     def testDefaultHost(self):
         self.receive(ServerType.Auth, packet.AuthPacket(secret=SECRET, dict=self.dict,
                                                         User_Name='alice'))
         self.assertEqual(len(self.handled), 1)
+
+    def testMappedAddress(self):
+        # IPv4 client of a dual stack server bound to '::'
+        self.hosts = {LOCALHOST: RemoteHost(LOCALHOST, SECRET, 'local')}
+        self.receive(ServerType.Auth, packet.AuthPacket(secret=SECRET, dict=self.dict,
+                                                        User_Name='alice'),
+                     source=('::ffff:' + LOCALHOST, 1812, 0, 0))
+        self.assertEqual(len(self.handled), 1)
+        self.assertEqual(self.handled[0].secret, SECRET)
 
     def testGarbage(self):
         self.receive(ServerType.Auth, b'garbage')
