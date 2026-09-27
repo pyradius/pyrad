@@ -263,8 +263,9 @@ class Client(host.Host):
                 eap_code, eap_id, eap_size, eap_type, eap_md5 = struct.unpack(
                     '!BBHB%ds' % (len(reply[79][0]) - 5), reply[79][0]
                 )
-                # Sending back an EAP-Type-MD5-Challenge
-                # Thank god for http://www.secdev.org/python/eapy.py
+                # Sending back an EAP-Type-MD5-Challenge response: the MD5
+                # hash of the EAP Identifier, the password and the challenge
+                # (RFC 3748 section 5.4, RFC 1994 section 4.1)
                 client_pw = pkt[2][0] if 2 in pkt else pkt[1][0]
                 # RFC 3748 section 5.4: Type-Data is Value-Size, Value and
                 # an optional Name

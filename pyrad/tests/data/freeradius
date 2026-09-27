@@ -1,5 +1,10 @@
-# Excerpts of the FreeRADIUS 3.2 dictionaries, with the constructs pyrad
-# does not support (issue #173)
+# Copyright (C) 2019 The FreeRADIUS Server project and contributors
+# This work is licensed under CC-BY version 4.0 https://creativecommons.org/licenses/by/4.0
+#
+# Excerpts of the FreeRADIUS 3.2 dictionaries (share/dictionary.*), with
+# the constructs pyrad does not support (issue #173). Changes: only a few
+# lines of each file are included, and some definitions are modified or
+# added to cover a parser case.
 
 # dictionary.rfc2865
 ATTRIBUTE	User-Name				1	string
