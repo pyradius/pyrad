@@ -2,6 +2,7 @@ import hashlib
 import select
 import socket
 import struct
+import threading
 import time
 import types
 import unittest
@@ -13,6 +14,7 @@ from .mock import MockSocket
 from pyrad.client import Client
 from pyrad.client import Timeout
 from pyrad.packet import AuthPacket
+from pyrad.packet import AccountingResponse
 from pyrad.packet import AcctPacket
 from pyrad.packet import AccessAccept
 from pyrad.packet import AccessChallenge
@@ -27,6 +29,7 @@ ACCT_DICTIONARY = '''
 ATTRIBUTE User-Name             1  string
 ATTRIBUTE Acct-Status-Type      40 integer
 ATTRIBUTE Acct-Delay-Time       41 integer
+ATTRIBUTE Salted                200 string encrypt=2
 VALUE     Acct-Status-Type      Start 1
 '''
 
@@ -313,3 +316,33 @@ class LoopbackTests(unittest.TestCase):
         self.server.recv(4096)
         self.server.recv(4096)
         self.assertEqual(pkt.keys(), ['User-Name'])
+
+    def testLateReplyToEarlierAttempt(self):
+        # every retry changes Acct-Delay-Time and so the Request
+        # Authenticator; a late reply to an earlier attempt is accepted
+        self.client.dict = Dictionary(StringIO(ACCT_DICTIONARY))
+        self.client.retries = 2
+        self.client.timeout = 0.5
+        received = []
+
+        def serve():
+            received.append(self.server.recvfrom(4096))
+            received.append(self.server.recvfrom(4096))
+            (data, source) = received[0]
+            request = AcctPacket(secret=b'secret', dict=self.client.dict, packet=data)
+            reply = request.CreateReply()
+            reply['Salted'] = 'salt'
+            self.server.sendto(reply.ReplyPacket(), source)
+
+        thread = threading.Thread(target=serve)
+        thread.start()
+        try:
+            pkt = self.client.CreateAcctPacket(User_Name='alice', Acct_Status_Type='Start')
+            reply = self.client.SendPacket(pkt)
+        finally:
+            thread.join()
+        first = received[0][0]
+        self.assertNotEqual(first[4:20], received[1][0][4:20])
+        self.assertEqual(reply.code, AccountingResponse)
+        self.assertEqual(reply.request_authenticator, first[4:20])
+        self.assertEqual(reply['Salted'], ['salt'])

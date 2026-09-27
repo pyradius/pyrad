@@ -152,6 +152,28 @@ class Client(host.Host):
         else:
             pkt['Acct-Delay-Time'] = self.timeout
 
+    def _VerifyReply(self, pkt, reply, rawreply, authenticators):
+        """Verify a reply against the Request Authenticators of all
+        attempts of the request, newest first.
+
+        :return: whether the reply is valid, and the Request Authenticator
+                 of the attempt it replies to
+        :rtype:  (bool, bytes) tuple
+        """
+        current = getattr(pkt, 'authenticator', None)
+        for authenticator in reversed(authenticators):
+            if authenticator == current:
+                valid = pkt.VerifyReply(reply, rawreply, enforce_ma=self.enforce_ma)
+            else:
+                pkt.authenticator = authenticator
+                try:
+                    valid = pkt.VerifyReply(reply, rawreply, enforce_ma=self.enforce_ma)
+                finally:
+                    pkt.authenticator = current
+            if valid:
+                return (True, authenticator)
+        return (False, None)
+
     def _SendPacket(self, pkt, port):
         """Send a packet to a RADIUS server.
 
@@ -165,6 +187,12 @@ class Client(host.Host):
         """
         self._SocketOpen()
 
+        # Request Authenticators of all attempts of this request, oldest
+        # first. They differ if the packet changes between attempts
+        # (Acct-Delay-Time), and a late reply to an earlier attempt is still
+        # a valid reply.
+        authenticators = []
+
         for attempt in range(self.retries):
             if attempt and pkt.code == packet.AccountingRequest:
                 self._UpdateAcctDelayTime(pkt)
@@ -173,6 +201,10 @@ class Client(host.Host):
             waitto = now + self.timeout
 
             self._socket.sendto(pkt.RequestPacket(), (self.server, port))
+            authenticator = getattr(pkt, 'authenticator', None)
+            if authenticator in authenticators:
+                authenticators.remove(authenticator)
+            authenticators.append(authenticator)
 
             while now < waitto:
                 ready = self._poll.poll((waitto - now) * 1000)
@@ -185,9 +217,11 @@ class Client(host.Host):
 
                 try:
                     reply = pkt.CreateReply(packet=rawreply)
-                    if pkt.VerifyReply(reply, rawreply, enforce_ma=self.enforce_ma):
+                    (valid, authenticator) = self._VerifyReply(
+                        pkt, reply, rawreply, authenticators)
+                    if valid:
                         if hasattr(pkt, 'authenticator'):
-                            reply.request_authenticator = pkt.authenticator
+                            reply.request_authenticator = authenticator
                         return reply
                 except packet.PacketError:
                     pass
