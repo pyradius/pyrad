@@ -303,6 +303,35 @@ class IntegerEncodingTests(unittest.TestCase):
     def testIntegerFromString(self):
         self.assertEqual(tools.EncodeInteger('10'), b'\x00\x00\x00\x0a')
 
+    RANGES = [
+        ('integer', 0, 2 ** 32 - 1),
+        ('signed', -2 ** 31, 2 ** 31 - 1),
+        ('short', 0, 2 ** 16 - 1),
+        ('byte', 0, 2 ** 8 - 1),
+        ('integer64', 0, 2 ** 64 - 1),
+        ('date', 0, 2 ** 32 - 1),
+    ]
+
+    def testRangeLimits(self):
+        for (datatype, low, high) in self.RANGES:
+            with self.subTest(datatype=datatype):
+                for value in (low, high):
+                    encoded = tools.EncodeAttr(datatype, value)
+                    self.assertEqual(tools.DecodeAttr(datatype, encoded), value)
+
+    def testOutOfRangeRaisesValueError(self):
+        for (datatype, low, high) in self.RANGES:
+            for value in (low - 1, high + 1):
+                with self.subTest(datatype=datatype, value=value):
+                    self.assertRaises(ValueError, tools.EncodeAttr, datatype, value)
+
+    def testOutOfRangeDirect(self):
+        self.assertRaises(ValueError, tools.EncodeInteger, -1)
+        self.assertRaises(ValueError, tools.EncodeInteger, 256, '!B')
+        self.assertRaises(ValueError, tools.EncodeInteger, '65536', '!H')
+        self.assertRaises(ValueError, tools.EncodeInteger64, 2 ** 64)
+        self.assertRaises(ValueError, tools.EncodeDate, -1)
+
 
 class DispatchTests(unittest.TestCase):
     VALUES = [

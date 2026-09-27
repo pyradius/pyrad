@@ -214,12 +214,25 @@ def EncodeAscendBinary(orig_str):
     ))
 
 
+def _PackInteger(num, format, datatype):
+    """Pack an integer, raising a ValueError if it is out of range."""
+    bits = 8 * struct.calcsize(format)
+    if format[-1].islower():
+        low, high = -(1 << (bits - 1)), (1 << (bits - 1)) - 1
+    else:
+        low, high = 0, (1 << bits) - 1
+    if not low <= num <= high:
+        raise ValueError("%s value %d out of range (%d..%d)"
+                         % (datatype, num, low, high))
+    return struct.pack(format, num)
+
+
 def EncodeInteger(num, format="!I"):
     try:
         num = int(num)
     except Exception:
         raise TypeError("Can not encode non-integer as integer")
-    return struct.pack(format, num)
+    return _PackInteger(num, format, "integer")
 
 
 def EncodeInteger64(num, format="!Q"):
@@ -227,13 +240,13 @@ def EncodeInteger64(num, format="!Q"):
         num = int(num)
     except Exception:
         raise TypeError("Can not encode non-integer as integer64")
-    return struct.pack(format, num)
+    return _PackInteger(num, format, "integer64")
 
 
 def EncodeDate(num):
     if not isinstance(num, int):
         raise TypeError("Can not encode non-integer as date")
-    return struct.pack("!I", num)
+    return _PackInteger(num, "!I", "date")
 
 
 # -------------------------
