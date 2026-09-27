@@ -45,6 +45,10 @@ Unreleased
 * AddAttribute raises a TypeError with a clear message when the key is not
   an attribute name, e.g. when the key and value arguments are swapped
   (#17).
+* Fix encoding of binary octets values starting with b"0x", such as a
+  CHAP-Password with CHAP ID 48, which failed with "Odd-length string" or
+  "Non-hexadecimal digit found". Bytes values are only decoded as hex if
+  the rest of the value is valid hex (#49).
 * Fix the length of CoA and Disconnect requests with Message-Authenticator.
 * Fix ClientAsync retrying and timing out requests before the timeout passed.
 * Verify the request authenticator of Accounting, CoA and Disconnect requests

@@ -170,6 +170,15 @@ class OctetsEncodingTests(unittest.TestCase):
     def testHexBytes(self):
         self.assertEqual(tools.EncodeOctets(b'0x0102ff'), b'\x01\x02\xff')
 
+    def testBinaryBytesStartingWithHexPrefix(self):
+        # binary values which are not valid hex are passed through (#49),
+        # e.g. a CHAP-Password with CHAP ID 48 (b'0') and a response
+        # starting with b'x'
+        chap_password = b'0x' + bytes(range(15))
+        self.assertEqual(tools.EncodeOctets(chap_password), chap_password)
+        self.assertEqual(tools.EncodeOctets(b'0xzz'), b'0xzz')
+        self.assertEqual(tools.EncodeOctets(bytearray(b'0x0')), b'0x0')
+
     def testHexString(self):
         self.assertEqual(tools.EncodeOctets('0x0102ff'), b'\x01\x02\xff')
 

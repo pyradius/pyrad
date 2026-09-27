@@ -34,8 +34,11 @@ def EncodeOctets(value):
 
     Supported inputs:
     - bytes / bytearray:
-        * If the value starts with b"0x", it is treated as a hex string and decoded.
-        * Otherwise the byte value is passed through unchanged.
+        * If the value starts with b"0x" followed by valid hex digits, it is
+          treated as a hex string and decoded.
+        * Otherwise the byte value is passed through unchanged, so binary
+          values which happen to start with b"0x" (e.g. a CHAP-Password)
+          are not modified.
     - str:
         * "0x..."  → hexadecimal representation, decoded into bytes
         * Decimal string (e.g. "65"):
@@ -55,10 +58,12 @@ def EncodeOctets(value):
 
     if isinstance(value, (bytes, bytearray)):
         b = bytes(value)
+        out = b
         if b.startswith(b"0x"):
-            out = binascii.unhexlify(b[2:])
-        else:
-            out = b
+            try:
+                out = binascii.unhexlify(b[2:])
+            except binascii.Error:
+                pass
 
         if len(out) > 253:
             raise ValueError("Can only encode strings of <= 253 characters")
