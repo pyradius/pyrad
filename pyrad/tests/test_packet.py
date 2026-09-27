@@ -939,6 +939,53 @@ class PacketEdgeCaseTests(unittest.TestCase):
         self.assertEqual(pkt['Simplon-Number'], ['Two'])
         self.assertEqual(pkt['Simplon-String'], ['value'])
 
+    def _decode(self, attributes, code=packet.AccessRequest):
+        pkt = packet.Packet(dict=self.dict)
+        pkt.DecodePacket(struct.pack('!BBH', code, 2, 20 + len(attributes)) +
+                         16 * b'\x00' + attributes)
+        return pkt
+
+    def testVendorTlvAfterOtherSubAttribute(self):
+        number = b'\x01\x06\x00\x00\x00\x02'
+        tlv = b'\x03\x07\x01\x05abc'
+        vsa = b'\x00\x00\x00\x10' + number + tlv
+        pkt = self._decode(b'\x1a' + struct.pack('B', 2 + len(vsa)) + vsa)
+        self.assertEqual(pkt['Simplon-Number'], ['Two'])
+        self.assertEqual(pkt['Simplon-Tlv'], {'Simplon-Tlv-Str': ['abc']})
+
+    def testVendorTlvInSeveralVendorAttributes(self):
+        # used to raise AttributeError, which stopped the blocking server
+        first = b'\x00\x00\x00\x10\x03\x07\x01\x05abc'
+        second = b'\x00\x00\x00\x10\x01\x06\x00\x00\x00\x02\x03\x07\x01\x05def'
+        pkt = self._decode(b'\x1a' + struct.pack('B', 2 + len(first)) + first +
+                           b'\x1a' + struct.pack('B', 2 + len(second)) + second)
+        self.assertEqual(pkt['Simplon-Tlv'], {'Simplon-Tlv-Str': ['abc', 'def']})
+        self.assertEqual(pkt['Simplon-Number'], ['Two'])
+
+    def testEmptyTlv(self):
+        pkt = self._decode(b'\x04\x02')
+        self.assertEqual(pkt['Test-Tlv'], {})
+        self.assertEqual(pkt._PktEncodeAttributes(), b'\x04\x02')
+
+    def testTlvUndefinedSubAttribute(self):
+        pkt = self._decode(b'\x04\x0a\x01\x05abc\x09\x03A')
+        self.assertEqual(pkt['Test-Tlv'], {'Test-Tlv-Str': ['abc'], 9: [b'A']})
+
+    def testVerifyReplyWithEmptyTlv(self):
+        # a forged reply used to raise ValueError instead of failing
+        request = packet.AuthPacket(secret=b'secret', dict=self.dict)
+        request.RequestPacket()
+        raw = (struct.pack('!BBH', packet.AccessAccept, request.id, 22) +
+               16 * b'\x00' + b'\x04\x02')
+        reply = packet.Packet(secret=b'secret', dict=self.dict, packet=raw)
+        self.assertFalse(request.VerifyReply(reply, raw))
+
+    def testPwDecryptInvalidLength(self):
+        pkt = packet.AuthPacket(secret=b'secret', authenticator=b'0123456789ABCDEF')
+        for length in (5, 17, 31):
+            self.assertRaises(packet.PacketError, pkt.PwDecrypt, length * b'x')
+        self.assertEqual(pkt.PwDecrypt(pkt.PwCrypt('x' * 17)), 'x' * 17)
+
     def testVendorAttributeWithoutDictionary(self):
         pkt = packet.Packet()
         vsa = b'\x00\x00\x00\x10\x01\x06\x00\x00\x00\x02'

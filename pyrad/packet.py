@@ -389,7 +389,11 @@ class Packet(OrderedDict):
         if attr.type == 'tlv':  # return map from sub attribute code to its values
             res = {}
             for (sub_attr_key, sub_attr_val) in values.items():
-                sub_attr_name = attr.sub_attributes[sub_attr_key]
+                sub_attr_name = attr.sub_attributes.get(sub_attr_key)
+                if sub_attr_name is None:
+                    # undefined sub-attribute: raw values keyed by its code
+                    res.setdefault(sub_attr_key, []).extend(sub_attr_val)
+                    continue
                 sub_attr = self.dict.attributes[sub_attr_name]
                 for v in sub_attr_val:
                     res.setdefault(sub_attr_name, []).append(self._DecodeValue(sub_attr, v))
@@ -499,7 +503,6 @@ class Packet(OrderedDict):
         if rawreply is None:
             rawreply = reply.ReplyPacket()
 
-        _ = reply._PktEncodeAttributes()
         # The Authenticator field in an Accounting-Response packet is called
         # the Response Authenticator, and contains a one-way MD5 hash
         # calculated over a stream of octets consisting of the Accounting
@@ -546,7 +549,8 @@ class Packet(OrderedDict):
         tlv_attr = self.dict.attributes[self._DecodeKey(tlv_key)]
         curr_avp = b''
         avps = []
-        max_sub_attribute_len = max(map(lambda item: len(item[1]), tlv_value.items()))
+        max_sub_attribute_len = max(map(lambda item: len(item[1]), tlv_value.items()),
+                                    default=0)
         for i in range(max_sub_attribute_len):
             sub_attr_encoding = b''
             for (code, datalst) in tlv_value.items():
@@ -596,21 +600,18 @@ class Packet(OrderedDict):
             # Sub-attribute lengths do not add up, keep the raw attribute
             return [(26, data)]
 
-        (atype, value) = sub_attributes[0]
-        try:
-            if self._PktIsTlvAttribute((vendor, atype)):
-                self._PktDecodeTlvAttribute((vendor, atype), value)
-                tlvs = []  # tlv is added to the packet inside _PktDecodeTlvAttribute
-            else:
-                tlvs = [((vendor, atype), value)]
-        except PacketError:
-            raise
-        except Exception:
+        if getattr(self, 'dict', None) is None:
+            # without a dictionary the attribute is kept raw
             return [(26, data)]
 
-        for (atype, value) in sub_attributes[1:]:
-            tlvs.append(((vendor, atype), value))
-        return tlvs
+        attributes = []
+        for (atype, value) in sub_attributes:
+            if self._PktIsTlvAttribute((vendor, atype)):
+                # tlv is added to the packet inside _PktDecodeTlvAttribute
+                self._PktDecodeTlvAttribute((vendor, atype), value)
+            else:
+                attributes.append(((vendor, atype), value))
+        return attributes
 
     @staticmethod
     def _PktSplitSubAttributes(data, loc=0):
@@ -875,6 +876,11 @@ class AuthPacket(Packet):
             password = password.encode('utf-8')
         elif isinstance(password, bytearray):
             password = bytes(password)
+
+        # RFC 2865 section 5.2: a multiple of 16 octets
+        if len(password) % 16:
+            raise PacketError('Invalid length of encrypted password (%d)'
+                              % len(password))
 
         buf = password
         pw = b''
