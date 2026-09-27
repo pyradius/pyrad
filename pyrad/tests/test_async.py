@@ -288,6 +288,81 @@ class AsyncClientTests(unittest.TestCase):
         self.assertGreaterEqual(failed - retry, timeout * 0.9)
         self.assertLess(failed - request, 3 * timeout)
 
+    def mock_protocol(self, timeout=0.2, retries=0):
+        protocol = DatagramProtocolClient(LOCALHOST, 1812, mock.Mock(), self.client,
+                                          retries=retries, timeout=timeout)
+        protocol.transport = mock.Mock()
+        return protocol
+
+    def testCancelledRequest(self):
+        # a request cancelled by the caller (e.g. with asyncio.wait_for) used
+        # to kill the timeout handler, so later requests never timed out
+        async def test():
+            loop = asyncio.get_running_loop()
+            protocol = self.mock_protocol()
+            handler = asyncio.ensure_future(protocol.__timeout_handler__())
+            cancelled = loop.create_future()
+            protocol.send_packet(packet.AuthPacket(id=1, secret=SECRET, dict=self.dict),
+                                 cancelled)
+            cancelled.cancel()
+            await asyncio.sleep(0)
+            self.assertEqual(protocol.pending_requests, {})
+            future = loop.create_future()
+            protocol.send_packet(packet.AuthPacket(id=2, secret=SECRET, dict=self.dict),
+                                 future)
+            with self.assertRaises(TimeoutError):
+                await asyncio.wait_for(future, 2)
+            self.assertFalse(handler.done())
+            handler.cancel()
+            await handler
+        self.loop.run_until_complete(test())
+
+    def testReplyForCancelledRequest(self):
+        async def test():
+            protocol = self.mock_protocol()
+            req = packet.AuthPacket(id=1, secret=SECRET, dict=self.dict)
+            future = asyncio.get_running_loop().create_future()
+            protocol.send_packet(req, future)
+            future.cancel()
+            protocol.datagram_received(req.CreateReply().ReplyPacket(), (LOCALHOST, 1812))
+            protocol.logger.error.assert_not_called()
+            self.assertEqual(protocol.pending_requests, {})
+        self.loop.run_until_complete(test())
+
+    def testEncodeErrorIsNotPending(self):
+        async def test():
+            protocol = self.mock_protocol()
+            req = packet.AuthPacket(id=1, secret=SECRET, dict=self.dict)
+            req[1] = [300 * b'x']
+            with self.assertRaises(Exception):
+                protocol.send_packet(req, asyncio.get_running_loop().create_future())
+            self.assertEqual(protocol.pending_requests, {})
+        self.loop.run_until_complete(test())
+
+    def testRetrySendError(self):
+        async def test():
+            protocol = self.mock_protocol(retries=1)
+            handler = asyncio.ensure_future(protocol.__timeout_handler__())
+            future = asyncio.get_running_loop().create_future()
+            protocol.send_packet(packet.AuthPacket(id=1, secret=SECRET, dict=self.dict),
+                                 future)
+            protocol.transport.sendto.side_effect = OSError('send failed')
+            with self.assertRaises(OSError):
+                await asyncio.wait_for(future, 2)
+            self.assertFalse(handler.done())
+            handler.cancel()
+            await handler
+        self.loop.run_until_complete(test())
+
+    def testCloseTransportFailsPendingRequests(self):
+        async def test():
+            await self.client.initialize_transports(enable_auth=True)
+            future = self.client.SendPacket(self.client.CreateAuthPacket(User_Name='alice'))
+            await self.client.deinitialize_transports()
+            with self.assertRaises(ConnectionAbortedError):
+                await asyncio.wait_for(future, 2)
+        self.loop.run_until_complete(test())
+
     def testProtocol(self):
         logger = mock.Mock()
         protocol = DatagramProtocolClient(LOCALHOST, 1812, logger, self.client)

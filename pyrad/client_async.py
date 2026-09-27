@@ -45,6 +45,11 @@ class DatagramProtocolClient(asyncio.Protocol):
                 # noinspection PyShadowingBuiltins
                 for id, req in self.pending_requests.items():
 
+                    if req['future'].done():
+                        # cancelled by the caller
+                        req2delete.append(id)
+                        continue
+
                     secs = (now - req['send_date']).total_seconds()
                     if secs >= self.timeout:
                         if req['retries'] == self.retries:
@@ -58,7 +63,14 @@ class DatagramProtocolClient(asyncio.Protocol):
                             req['send_date'] = now
                             req['retries'] += 1
                             self.logger.debug('[%s:%d] For request %d execute retry %d', self.server, self.port, id, req['retries'])
-                            self.transport.sendto(req['packet'].RequestPacket())
+                            try:
+                                self.transport.sendto(req['raw'])
+                            except Exception as exc:
+                                # without the traceback, which references
+                                # the frame of this long-running task
+                                req['future'].set_exception(
+                                    exc.with_traceback(None))
+                                req2delete.append(id)
                     elif next_wake_up > self.timeout - secs:
                         # wake up when this request times out
                         next_wake_up = self.timeout - secs
@@ -66,7 +78,7 @@ class DatagramProtocolClient(asyncio.Protocol):
                 # noinspection PyShadowingBuiltins
                 for id in req2delete:
                     # Remove request from map
-                    del self.pending_requests[id]
+                    self.pending_requests.pop(id, None)
 
                 await asyncio.sleep(next_wake_up)
 
@@ -77,17 +89,31 @@ class DatagramProtocolClient(asyncio.Protocol):
         if packet.id in self.pending_requests:
             raise Exception('Packet with id %d already present' % packet.id)
 
+        # encode first, so that a packet which can't be encoded isn't left
+        # in the pending requests
+        raw = packet.RequestPacket()
+
         # Store packet on pending requests map
         self.pending_requests[packet.id] = {
             'packet': packet,
+            'raw': raw,
             'creation_date': datetime.now(),
             'retries': 0,
             'future': future,
             'send_date': datetime.now()
         }
+        future.add_done_callback(
+            lambda fut, id=packet.id: self.__forget_request__(id, fut))
 
         # In queue packet raw on socket buffer
-        self.transport.sendto(packet.RequestPacket())
+        self.transport.sendto(raw)
+
+    def __forget_request__(self, id, future):
+        # remove the request once its future is done, e.g. cancelled by the
+        # caller, unless the id was reused already
+        req = self.pending_requests.get(id)
+        if req is not None and req['future'] is future:
+            del self.pending_requests[id]
 
     def connection_made(self, transport):
         self.transport = transport
@@ -129,9 +155,10 @@ class DatagramProtocolClient(asyncio.Protocol):
                 reply.request_authenticator = packet.authenticator
 
                 if packet.VerifyReply(reply, data, enforce_ma=self.client.enforce_ma):
-                    req['future'].set_result(reply)
                     # Remove request from map
                     del self.pending_requests[reply.id]
+                    if not req['future'].done():
+                        req['future'].set_result(reply)
                 else:
                     self.logger.warning('[%s:%d] Ignore invalid reply for id %d: %s', self.server, self.port, reply.id, data)
             else:
@@ -141,6 +168,12 @@ class DatagramProtocolClient(asyncio.Protocol):
             self.logger.error('[%s:%d] Error on decode packet: %s', self.server, self.port, exc)
 
     async def close_transport(self):
+        # fail the requests that are still waiting for a reply
+        for req in list(self.pending_requests.values()):
+            if not req['future'].done():
+                req['future'].set_exception(
+                    ConnectionAbortedError('Transport closed'))
+        self.pending_requests.clear()
         if self.transport:
             self.logger.debug('[%s:%d] Closing transport...', self.server, self.port)
             self.transport.close()

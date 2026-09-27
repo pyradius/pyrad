@@ -52,6 +52,13 @@ Unreleased
   handler raises an exception, instead of stopping the main loop, like
   ServerAsync does. Unexpected exceptions while decoding a packet are
   treated as a broken packet.
+* ClientAsync: a request cancelled by the caller, e.g. with
+  asyncio.wait_for, or a failing retransmission killed the timeout
+  handler, so no later request on that transport was retried or timed out
+  and they waited forever. A packet that could not be encoded was left
+  pending and killed the timeout handler when it expired. Requests that
+  are still pending when the transport is closed fail with
+  ConnectionAbortedError instead of waiting forever.
 * Fix an infinite loop when decoding a vendor-specific or TLV sub-attribute
   with a length of 0, which let a single unauthenticated packet hang a
   server (#234). Truncated TLVs raise a PacketError instead of struct.error.
