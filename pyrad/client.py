@@ -161,7 +161,7 @@ class Client(host.Host):
                 else:
                     pkt["Acct-Delay-Time"] = self.timeout
 
-            now = time.time()
+            now = time.monotonic()
             waitto = now + self.timeout
 
             self._socket.sendto(pkt.RequestPacket(), (self.server, port))
@@ -172,7 +172,7 @@ class Client(host.Host):
                 if ready:
                     rawreply = self._socket.recv(4096)
                 else:
-                    now = time.time()
+                    now = time.monotonic()
                     continue
 
                 try:
@@ -184,7 +184,7 @@ class Client(host.Host):
                 except packet.PacketError:
                     pass
 
-                now = time.time()
+                now = time.monotonic()
 
         raise Timeout
 

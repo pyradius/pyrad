@@ -2,7 +2,10 @@ import hashlib
 import select
 import socket
 import struct
+import time
+import types
 import unittest
+from unittest import mock
 from .mock import MockPacket
 from .mock import MockPoll
 from .mock import MockSocket
@@ -246,3 +249,36 @@ class EapMd5Tests(unittest.TestCase):
         self.client._SendPacket = self.fakeSendPacket
         self.assertIs(self.client.SendPacket(pkt), challenge)
         self.assertEqual(len(self.sent), 1)
+
+
+class LoopbackTests(unittest.TestCase):
+    """_SendPacket against a fake server on a loopback socket."""
+
+    def setUp(self):
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.server.bind(('127.0.0.1', 0))
+        self.server.settimeout(5)
+        port = self.server.getsockname()[1]
+        self.client = Client('127.0.0.1', authport=port, acctport=port,
+                             coaport=port, secret=b'secret',
+                             retries=1, timeout=0.2)
+
+    def tearDown(self):
+        self.client._CloseSocket()
+        self.server.close()
+
+    def testClockStepBackwards(self):
+        # a step of the wall clock does not extend the timeout
+        real_time = time.time
+        calls = []
+
+        def stepping_time():
+            calls.append(None)
+            return real_time() - (3 if len(calls) > 1 else 0)
+
+        clock = types.SimpleNamespace(time=stepping_time, monotonic=time.monotonic)
+        start = time.monotonic()
+        with mock.patch('pyrad.client.time', clock):
+            self.assertRaises(Timeout, self.client.SendPacket,
+                              self.client.CreateAcctPacket())
+        self.assertLess(time.monotonic() - start, 2)
