@@ -997,6 +997,29 @@ class PacketEdgeCaseTests(unittest.TestCase):
         self.assertEqual(decoded['Test-Tlv'],
                          {'Test-Tlv-Str': ['text'], 'Test-Tlv-Int': [10]})
 
+    def testSetItemTlvSubAttribute(self):
+        pkt = packet.Packet(dict=self.dict)
+        pkt['Test-Tlv-Str'] = 'first'
+        pkt['Test-Tlv-Int'] = 10
+        pkt['Test-Tlv-Str'] = 'text'
+        self.assertNotIn(1, OrderedDict.keys(pkt))
+        self.assertEqual(pkt['Test-Tlv'],
+                         {'Test-Tlv-Str': ['text'], 'Test-Tlv-Int': [10]})
+        expected = packet.Packet(dict=self.dict)
+        expected.AddAttribute('Test-Tlv-Str', 'text')
+        expected.AddAttribute('Test-Tlv-Int', 10)
+        self.assertEqual(pkt._PktEncodeAttributes(),
+                         expected._PktEncodeAttributes())
+
+    def testSetItemVendorTlvSubAttribute(self):
+        pkt = packet.Packet(dict=self.dict)
+        pkt['Simplon-Tlv-Str'] = '2.1'
+        self.assertNotIn(1, OrderedDict.keys(pkt))
+        self.assertEqual(pkt[(16, 3)], {1: [b'2.1']})
+        self.assertEqual(pkt['Simplon-Tlv'], {'Simplon-Tlv-Str': ['2.1']})
+        self.assertEqual(pkt._PktEncodeAttributes(),
+                         b'\x1a\x0d\x00\x00\x00\x10\x03\x07\x01\x052.1')
+
     def testEapMd5MessageAuthenticator(self):
         pkt = packet.AuthPacket(secret=b'secret', dict=self.dict, auth_type='eap-md5',
                                 authenticator=b'0123456789ABCDEF')

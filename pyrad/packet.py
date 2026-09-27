@@ -424,8 +424,15 @@ class Packet(OrderedDict):
 
     def __setitem__(self, key, item):
         if isinstance(key, str):
+            attr = self.dict.attributes[key.partition(':')[0]]
             (key, item) = self._EncodeKeyValues(key, item)
-            OrderedDict.__setitem__(self, key, item)
+            if attr.is_sub_attribute:
+                # sub-attributes are stored in the TLV of their parent,
+                # like AddAttribute does
+                tlv = self.setdefault(self._EncodeKey(attr.parent.name), {})
+                tlv[key] = item
+            else:
+                OrderedDict.__setitem__(self, key, item)
         else:
             OrderedDict.__setitem__(self, key, item)
 
