@@ -25,6 +25,11 @@ class EncodingTests(unittest.TestCase):
     def testInvalidAddressEncodingRaisesTypeError(self):
         self.assertRaises(TypeError, tools.EncodeAddress, 1)
 
+    def testIPv6AddressEncodingRaisesValueError(self):
+        # ipaddr is an IPv4 address of four octets (RFC 8044 section 3.8)
+        self.assertRaises(ValueError, tools.EncodeAddress, '2001:db8::1')
+        self.assertRaises(ValueError, tools.EncodeAttr, 'ipaddr', '::1')
+
     def testIntegerEncoding(self):
         self.assertEqual(tools.EncodeInteger(0x01020304), b'\x01\x02\x03\x04')
 

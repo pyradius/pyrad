@@ -94,12 +94,13 @@ def EncodeOctets(value):
 
 def EncodeAddress(addr):
     """
-    Encode a RADIUS 'ipaddr' value.
-    Traditionally IPv4, but accept IPv6 as well (robust for real-world use).
+    Encode a RADIUS 'ipaddr' value, an IPv4 address of four octets
+    (RFC 8044 section 3.8). IPv6 addresses raise a ValueError, use the
+    'ipv6addr' type for them.
     """
     if not isinstance(addr, str):
         raise TypeError("Address has to be a string")
-    return ipaddress.ip_address(addr).packed
+    return ipaddress.IPv4Address(addr).packed
 
 
 def EncodeIPv6Address(addr):
