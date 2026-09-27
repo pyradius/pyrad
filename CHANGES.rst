@@ -39,6 +39,19 @@ Unreleased
   after RequestPacket() was called. An Access-Request with salt encrypted
   attributes got an all-zero Request Authenticator, so the User-Password
   encryption was the same in every request; it gets a random one now.
+* Fix crashes on malformed or unusual packets: a vendor TLV that was not
+  the first sub-attribute of a Vendor-Specific attribute, or that appeared
+  in more than one, raised AttributeError while decoding, which stopped
+  the blocking server with a single unauthenticated packet. An empty TLV
+  made VerifyReply raise ValueError instead of rejecting a forged reply,
+  and reading a TLV with an undefined sub-attribute raised KeyError
+  (undefined sub-attributes are returned as raw values keyed by their
+  code now). PwDecrypt raises PacketError for a password that is not a
+  multiple of 16 octets instead of IndexError.
+* The blocking Server (and Proxy) drops and logs packets for which a
+  handler raises an exception, instead of stopping the main loop, like
+  ServerAsync does. Unexpected exceptions while decoding a packet are
+  treated as a broken packet.
 * Fix an infinite loop when decoding a vendor-specific or TLV sub-attribute
   with a length of 0, which let a single unauthenticated packet hang a
   server (#234). Truncated TLVs raise a PacketError instead of struct.error.

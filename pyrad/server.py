@@ -298,7 +298,14 @@ class Server(host.Host):
         :rtype:  Packet class instance
         """
         (data, source) = fd.recvfrom(self.MaxPacketSize)
-        pkt = pktgen(data)
+        try:
+            pkt = pktgen(data)
+        except packet.PacketError:
+            raise
+        except Exception as err:
+            # the packet is not authenticated yet, never let it stop the
+            # main loop
+            raise packet.PacketError('%s: %s' % (type(err).__name__, err))
         pkt.source = source
         pkt.fd = fd
         return pkt
@@ -359,8 +366,9 @@ class Server(host.Host):
         """Main loop.
         This method is the main loop for a RADIUS server. It waits
         for packets to arrive via the network and calls other methods
-        to process them. Invalid packets are dropped and logged; other
-        exceptions raised by the handlers stop the main loop.
+        to process them. Invalid packets are dropped and logged, and so are
+        packets for which a handler raises an exception, so that a
+        malformed packet can't stop the server.
         """
         self._poll = select.poll()
         self._fdmap = {}
@@ -376,5 +384,7 @@ class Server(host.Host):
                         logger.info('Dropping packet: ' + str(err))
                     except packet.PacketError as err:
                         logger.info('Received a broken packet: ' + str(err))
+                    except Exception:
+                        logger.exception('Error processing packet')
                 else:
                     logger.error('Unexpected event in server main loop')

@@ -145,6 +145,14 @@ class SocketTests(unittest.TestCase):
         self.assertTrue(pkt.source is fd.source)
         self.assertTrue(pkt.data is fd.data)
 
+    def testGrabPacketDecodeError(self):
+        def gen(data):
+            raise AttributeError('boom')
+
+        with self.assertRaises(PacketError) as cm:
+            self.server._GrabPacket(gen, MockFd())
+        self.assertIn('AttributeError: boom', str(cm.exception))
+
     def testPrepareSocketNoFds(self):
         self.server._poll = MockPoll()
         self.server._PrepareSockets()
@@ -438,6 +446,15 @@ class ServerRunTests(unittest.TestCase):
         self.server.authfds = [MockFd()]
         MockPoll.results = [(0, select.POLLIN)]
         self.assertRaises(MockFinished, self.server.Run)
+
+    def testRunIgnoresHandlerErrors(self):
+        def RaiseError(self, fd):
+            raise ValueError
+        MockClassMethod(Server, '_ProcessInput', RaiseError)
+        self.server.authfds = [MockFd()]
+        MockPoll.results = [(0, select.POLLIN)]
+        with self.assertLogs('pyrad', 'ERROR'):
+            self.assertRaises(MockFinished, self.server.Run)
 
     def testRunRunsProcessInput(self):
         MockClassMethod(Server, '_ProcessInput')
