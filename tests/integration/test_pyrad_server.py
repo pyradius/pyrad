@@ -8,6 +8,7 @@ the encoding of the pyrad servers.
 """
 import asyncio
 import re
+import shlex
 import socket
 import subprocess
 import threading
@@ -143,13 +144,18 @@ def server(request, pyrad_servers):
 
 
 def radclient(attributes, port, command="auth", secret=SECRET):
-    """Send a request with radclient and return (exit code, output)."""
+    """Send a request with radclient and return (exit code, output).
+
+    The attributes are piped to radclient inside the container instead of
+    attaching stdin with ``docker exec -i``, which sometimes lost the end
+    of the output (the received reply) although radclient succeeded."""
     args = ["-b"] if command == "auth" else []
+    radclient_args = ["/opt/bin/radclient", *args, "-x", "-r", "1", "-t", "2",
+                      f"{SERVER}:{port}", command, secret.decode()]
+    script = 'printf "%s\\n" "$@" | ' + shlex.join(radclient_args)
     result = subprocess.run(
-        ["docker", "exec", "-i", CONTAINER, "/opt/bin/radclient", *args, "-x",
-         "-r", "1", "-t", "2", f"{SERVER}:{port}", command, secret.decode()],
-        input="\n".join(attributes) + "\n", capture_output=True, text=True,
-        timeout=30)
+        ["docker", "exec", CONTAINER, "sh", "-c", script, "sh", *attributes],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
     return result.returncode, result.stdout + result.stderr
 
 
