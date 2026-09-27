@@ -17,6 +17,7 @@ from pyrad.client_async import ClientAsync
 from pyrad.dictionary import Dictionary
 from pyrad.server import RemoteHost, Server, ServerPacketError
 from pyrad.server_async import DatagramProtocolServer, ServerType
+from pyrad.tests.test_curved import load_curved
 
 SECRET = b'secret'
 
@@ -244,3 +245,39 @@ class AsyncServerRequestTests(BlastRadiusTestCase):
         self.server.enforce_ma = True
         self.handle(self.request(message_authenticator=False))
         self.assertEqual(len(self.handled), 1)
+
+
+class CurvedServerRequestTests(BlastRadiusTestCase):
+    def setUp(self):
+        super().setUp()
+        self.handled = []
+        curved, self.log = load_curved()
+        self.protocol = curved.RADIUSAccess(dict=self.dict, hosts={
+            '127.0.0.1': RemoteHost('127.0.0.1', SECRET, 'localhost')})
+        self.protocol.processPacket = self.handled.append
+
+    def handle(self, req):
+        self.protocol.datagramReceived(req.RequestPacket(), ('127.0.0.1', 1812))
+
+    def testValidMessageAuthenticator(self):
+        self.handle(self.request())
+        self.assertEqual(len(self.handled), 1)
+        self.assertTrue(self.handled[0].verify_message_authenticator())
+
+    def testInvalidMessageAuthenticator(self):
+        req = self.request()
+        req.RequestPacket()
+        req.message_authenticator = False
+        req['User-Name'] = 'mallory'
+        self.handle(req)
+        self.assertEqual(self.handled, [])
+        self.assertIn('invalid Message-Authenticator', self.log.msg.call_args[0][0])
+
+    def testMissingMessageAuthenticator(self):
+        self.handle(self.request(message_authenticator=False))
+        self.assertEqual(len(self.handled), 1)
+
+        self.protocol.enforce_ma = True
+        self.handle(self.request(message_authenticator=False))
+        self.assertEqual(len(self.handled), 1)
+        self.assertIn('without Message-Authenticator', self.log.msg.call_args[0][0])

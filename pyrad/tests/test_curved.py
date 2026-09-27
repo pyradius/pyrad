@@ -4,12 +4,19 @@ import importlib
 import sys
 import types
 import unittest
+from io import StringIO
 from unittest import mock
 
 from pyrad import packet
 from pyrad.dictionary import Dictionary
+from pyrad.server import RemoteHost
 
 SECRET = b'secret'
+
+DICTIONARY = '''
+ATTRIBUTE User-Name     1  string
+ATTRIBUTE User-Password 2  string
+'''
 
 
 def load_curved():
@@ -45,8 +52,8 @@ def load_curved():
 class CurvedTests(unittest.TestCase):
     def setUp(self):
         self.curved, self.log = load_curved()
-        self.dict = Dictionary()
-        self.hosts = {'127.0.0.1': object()}
+        self.dict = Dictionary(StringIO(DICTIONARY))
+        self.hosts = {'127.0.0.1': RemoteHost('127.0.0.1', SECRET, 'localhost')}
 
     def receive(self, protocol, pkt, host='127.0.0.1'):
         protocol.datagramReceived(pkt.RequestPacket(), (host, 1812))
@@ -102,3 +109,78 @@ class CurvedTests(unittest.TestCase):
                      host='192.0.2.1')
         protocol.processPacket.assert_not_called()
         self.assertIn('unknown host 192.0.2.1', self.log.msg.call_args[0][0])
+
+    def received(self, protocol, pkt, host='127.0.0.1'):
+        """Receive a packet and return what was passed to processPacket."""
+        protocol.processPacket = mock.Mock()
+        self.receive(protocol, pkt, host)
+        if not protocol.processPacket.called:
+            return None
+        return protocol.processPacket.call_args[0][0]
+
+    def testDefaultArguments(self):
+        one = self.curved.RADIUSAccess()
+        two = self.curved.RADIUSAccess()
+        self.assertEqual(one.hosts, {})
+        self.assertIsNot(one.hosts, two.hosts)
+        self.assertIsInstance(one.dict, Dictionary)
+        self.assertIsNot(one.dict, two.dict)
+
+    def testCreatePacketReturnsPacket(self):
+        access = self.curved.RADIUSAccess(hosts=self.hosts, dict=self.dict)
+        self.assertIsInstance(access.createPacket(secret=SECRET), packet.AuthPacket)
+        accounting = self.curved.RADIUSAccounting(hosts=self.hosts, dict=self.dict)
+        self.assertIsInstance(accounting.createPacket(secret=SECRET), packet.AcctPacket)
+
+    def testAccessRequestIsDecodedWithSecret(self):
+        protocol = self.curved.RADIUSAccess(hosts=self.hosts, dict=self.dict)
+        req = packet.AuthPacket(secret=SECRET, dict=self.dict, User_Name='alice')
+        req['User-Password'] = req.PwCrypt('password')
+        pkt = self.received(protocol, req)
+        self.assertIsInstance(pkt, packet.AuthPacket)
+        self.assertEqual(pkt.secret, SECRET)
+        self.assertEqual(pkt.PwDecrypt(pkt['User-Password'][0]), 'password')
+
+    def testAccountingRequestIsDecodedWithSecret(self):
+        protocol = self.curved.RADIUSAccounting(hosts=self.hosts, dict=self.dict)
+        pkt = self.received(protocol, packet.AcctPacket(secret=SECRET, dict=self.dict))
+        self.assertIsInstance(pkt, packet.AcctPacket)
+        self.assertEqual(pkt.secret, SECRET)
+        self.assertEqual(pkt.CreateReply().secret, SECRET)
+
+    def testInvalidAccountingRequest(self):
+        protocol = self.curved.RADIUSAccounting(hosts=self.hosts, dict=self.dict)
+        self.assertIsNone(self.received(
+            protocol, packet.AcctPacket(secret=b'wrong', dict=self.dict)))
+        self.assertIn('verification failed', self.log.msg.call_args[0][0])
+
+    def testAccountingVerificationDisabled(self):
+        protocol = self.curved.RADIUSAccounting(hosts=self.hosts, dict=self.dict,
+                                                enable_pkt_verify=False)
+        self.assertIsNotNone(self.received(
+            protocol, packet.AcctPacket(secret=b'wrong', dict=self.dict)))
+
+    def testMappedAddress(self):
+        protocol = self.curved.RADIUSAccounting(hosts=self.hosts, dict=self.dict)
+        pkt = self.received(protocol, packet.AcctPacket(secret=SECRET, dict=self.dict),
+                            host='::ffff:127.0.0.1')
+        self.assertEqual(pkt.secret, SECRET)
+        self.assertEqual(pkt.source, ('::ffff:127.0.0.1', 1812))
+
+    def testBaseClassUsesGenericPacket(self):
+        # subclasses of RADIUS that don't implement createPacket keep
+        # receiving generic packets
+        protocol = self.curved.RADIUS(hosts=self.hosts, dict=self.dict)
+        pkt = self.received(protocol, packet.AcctPacket(secret=SECRET, dict=self.dict))
+        self.assertEqual(pkt.code, packet.AccountingRequest)
+        self.assertEqual(pkt.secret, SECRET)
+        self.assertIsNone(self.received(
+            protocol, packet.AcctPacket(secret=b'wrong', dict=self.dict)))
+
+    def testIPv6Source(self):
+        self.hosts['::1'] = RemoteHost('::1', SECRET, 'localhost6')
+        protocol = self.curved.RADIUSAccounting(hosts=self.hosts, dict=self.dict)
+        protocol.processPacket = mock.Mock()
+        req = packet.AcctPacket(secret=SECRET, dict=self.dict)
+        protocol.datagramReceived(req.RequestPacket(), ('::1', 1813, 0, 0))
+        self.assertEqual(protocol.processPacket.call_args[0][0].source, ('::1', 1813))
