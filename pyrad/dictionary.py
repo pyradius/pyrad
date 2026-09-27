@@ -91,13 +91,8 @@ The datatypes currently supported are:
 +---------------+----------------------------------------------+
 | integer64     | 64 bits unsigned number                      |
 +---------------+----------------------------------------------+
-
-These datatypes are parsed but not supported:
-
-+---------------+----------------------------------------------+
-| type          | description                                  |
-+===============+==============================================+
-| ifid          | 8 octets in network byte order               |
+| ifid          | 8 octets IPv6 interface identifier, written  |
+|               | as hhhh:hhhh:hhhh:hhhh                       |
 +---------------+----------------------------------------------+
 | ether         | 6 octets of hh:hh:hh:hh:hh:hh                |
 |               | where 'h' is hex digits, upper or lowercase. |

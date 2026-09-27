@@ -3,7 +3,14 @@
 # Utility functions
 import binascii
 import ipaddress
+import re
 import struct
+
+_IFID_RE = re.compile(r"([0-9a-fA-F]{1,4}):([0-9a-fA-F]{1,4}):"
+                      r"([0-9a-fA-F]{1,4}):([0-9a-fA-F]{1,4})")
+_ETHER_RE = re.compile(r"([0-9a-fA-F]{1,2})([:-])([0-9a-fA-F]{1,2})\2"
+                       r"([0-9a-fA-F]{1,2})\2([0-9a-fA-F]{1,2})\2"
+                       r"([0-9a-fA-F]{1,2})\2([0-9a-fA-F]{1,2})")
 
 
 # -------------------------
@@ -236,6 +243,48 @@ def _PackInteger(num, format, datatype):
     return struct.pack(format, num)
 
 
+def EncodeIfId(value):
+    """
+    Encode a RADIUS 'ifid' value, an IPv6 interface identifier of eight
+    octets (RFC 3162 section 2.2).
+
+    Accepts the textual form FreeRADIUS uses, four colon separated groups
+    of one to four hex digits (e.g. "211:22ff:fe33:4455"), or bytes of
+    length 8.
+    """
+    if isinstance(value, (bytes, bytearray)):
+        value = bytes(value)
+        _CheckLength(value, 8, "ifid")
+        return value
+    if not isinstance(value, str):
+        raise TypeError("Interface id has to be a string or bytes")
+    match = _IFID_RE.fullmatch(value)
+    if match is None:
+        raise ValueError("Invalid ifid value: %r" % value)
+    return struct.pack("!4H", *(int(group, 16) for group in match.groups()))
+
+
+def EncodeEther(value):
+    """
+    Encode a RADIUS 'ether' value, an Ethernet MAC address of six octets.
+
+    Accepts six groups of one or two hex digits, separated by colons or
+    dashes (e.g. "00:11:22:aa:bb:cc" or "00-11-22-AA-BB-CC"), or bytes of
+    length 6.
+    """
+    if isinstance(value, (bytes, bytearray)):
+        value = bytes(value)
+        _CheckLength(value, 6, "ether")
+        return value
+    if not isinstance(value, str):
+        raise TypeError("Ethernet address has to be a string or bytes")
+    match = _ETHER_RE.fullmatch(value)
+    if match is None:
+        raise ValueError("Invalid ether value: %r" % value)
+    groups = match.groups()
+    return bytes(int(group, 16) for group in groups[:1] + groups[2:])
+
+
 def EncodeInteger(num, format="!I"):
     try:
         num = int(num)
@@ -308,6 +357,17 @@ def DecodeIPv6Address(addr):
     return str(ipaddress.IPv6Address(addr))
 
 
+def DecodeIfId(value):
+    # printed like FreeRADIUS does, e.g. "211:22ff:fe33:4455"
+    _CheckLength(value, 8, "ifid")
+    return "%x:%x:%x:%x" % struct.unpack("!4H", value)
+
+
+def DecodeEther(value):
+    _CheckLength(value, 6, "ether")
+    return ":".join("%02x" % octet for octet in value)
+
+
 def DecodeAscendBinary(value):
     return value
 
@@ -356,6 +416,10 @@ def EncodeAttr(datatype, value):
         return EncodeDate(value)
     elif datatype == "integer64":
         return EncodeInteger64(value)
+    elif datatype == "ifid":
+        return EncodeIfId(value)
+    elif datatype == "ether":
+        return EncodeEther(value)
     else:
         raise ValueError("Unknown attribute type %s" % datatype)
 
@@ -385,5 +449,9 @@ def DecodeAttr(datatype, value):
         return DecodeDate(value)
     elif datatype == "integer64":
         return DecodeInteger64(value)
+    elif datatype == "ifid":
+        return DecodeIfId(value)
+    elif datatype == "ether":
+        return DecodeEther(value)
     else:
         raise ValueError("Unknown attribute type %s" % datatype)

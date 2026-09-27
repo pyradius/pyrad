@@ -149,7 +149,7 @@ class DecodeLengthTests(unittest.TestCase):
     def testFixedLengthTypes(self):
         for datatype, length in (('integer', 4), ('signed', 4), ('short', 2),
                                  ('byte', 1), ('date', 4), ('integer64', 8),
-                                 ('ipaddr', 4)):
+                                 ('ipaddr', 4), ('ifid', 8), ('ether', 6)):
             for value in (b'', b'\x01' * (length - 1), b'\x01' * (length + 1)):
                 with self.subTest(datatype=datatype, length=len(value)):
                     self.assertRaises(ValueError, tools.DecodeAttr, datatype, value)
@@ -354,6 +354,54 @@ class IntegerEncodingTests(unittest.TestCase):
         self.assertRaises(ValueError, tools.EncodeDate, -1)
 
 
+class InterfaceIdTests(unittest.TestCase):
+    # RFC 3162 section 2.2: 8 octets, textual form as FreeRADIUS uses it
+    VALUE = b'\x02\x11\x22\xff\xfe\x33\x44\x55'
+
+    def testEncode(self):
+        self.assertEqual(tools.EncodeIfId('211:22ff:fe33:4455'), self.VALUE)
+        self.assertEqual(tools.EncodeIfId('0211:22FF:FE33:4455'), self.VALUE)
+        self.assertEqual(tools.EncodeIfId(self.VALUE), self.VALUE)
+        self.assertEqual(tools.EncodeIfId(bytearray(self.VALUE)), self.VALUE)
+        self.assertEqual(tools.EncodeAttr('ifid', '0:0:0:1'), 7 * b'\x00' + b'\x01')
+
+    def testEncodeInvalid(self):
+        for value in ('', '0:0:0', '0:0:0:0:0', '0:0::1', '::1', '00000:0:0:1',
+                      'g:0:0:1', '0:0:0:1:', ' 0:0:0:1', '+1:0:0:1',
+                      7 * b'\x00', 9 * b'\x00'):
+            with self.subTest(value=value):
+                self.assertRaises(ValueError, tools.EncodeIfId, value)
+        self.assertRaises(TypeError, tools.EncodeIfId, 1)
+
+    def testDecode(self):
+        self.assertEqual(tools.DecodeIfId(self.VALUE), '211:22ff:fe33:4455')
+        self.assertEqual(tools.DecodeAttr('ifid', 8 * b'\x00'), '0:0:0:0')
+
+
+class EthernetTests(unittest.TestCase):
+    VALUE = b'\x00\x11\x22\xaa\xbb\xcc'
+
+    def testEncode(self):
+        for value in ('00:11:22:aa:bb:cc', '00:11:22:AA:BB:CC',
+                      '00-11-22-aa-bb-cc', '0:11:22:aa:bb:cc'):
+            with self.subTest(value=value):
+                self.assertEqual(tools.EncodeEther(value), self.VALUE)
+        self.assertEqual(tools.EncodeEther(self.VALUE), self.VALUE)
+        self.assertEqual(tools.EncodeAttr('ether', '00:11:22:aa:bb:cc'), self.VALUE)
+
+    def testEncodeInvalid(self):
+        for value in ('', '00:11:22:aa:bb', '00:11:22:aa:bb:cc:dd',
+                      '00:11:22-aa-bb-cc', '000:11:22:aa:bb:cc', 'gg:11:22:aa:bb:cc',
+                      '001122aabbcc', '00:11:22:aa:bb:cc:', 5 * b'\x00', 7 * b'\x00'):
+            with self.subTest(value=value):
+                self.assertRaises(ValueError, tools.EncodeEther, value)
+        self.assertRaises(TypeError, tools.EncodeEther, 1)
+
+    def testDecode(self):
+        self.assertEqual(tools.DecodeEther(self.VALUE), '00:11:22:aa:bb:cc')
+        self.assertEqual(tools.DecodeAttr('ether', b'\xff' * 6), 'ff:ff:ff:ff:ff:ff')
+
+
 class DispatchTests(unittest.TestCase):
     VALUES = [
         ('string', 'text', b'text'),
@@ -367,6 +415,8 @@ class DispatchTests(unittest.TestCase):
         ('byte', 7, b'\x07'),
         ('date', 10, b'\x00\x00\x00\x0a'),
         ('integer64', 2 ** 40, b'\x00\x00\x01\x00\x00\x00\x00\x00'),
+        ('ifid', 'fe80:0:0:1', b'\xfe\x80' + 5 * b'\x00' + b'\x01'),
+        ('ether', '00:11:22:aa:bb:cc', b'\x00\x11\x22\xaa\xbb\xcc'),
     ]
 
     def testRoundTrip(self):
