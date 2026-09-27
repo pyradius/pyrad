@@ -397,6 +397,30 @@ class PacketTests(unittest.TestCase):
         else:
             self.fail()
 
+    def testDecodePacketShorterThanLength(self):
+        self.assertRaises(packet.PacketError, self.packet.DecodePacket,
+                          b'\x01\x02\x00\x1b1234567890123456\x01\x07valu')
+
+    def testDecodePacketWithPadding(self):
+        # RFC 2865 section 3: octets outside the range of the Length field
+        # MUST be treated as padding and ignored on reception.
+        raw = b'\x01\x02\x00\x1b1234567890123456\x01\x07value'
+        self.packet.DecodePacket(raw + b'\x00\x00\x01\x07other')
+        self.assertEqual(self.packet[1], [b'value'])
+        self.assertEqual(self.packet.raw_packet, raw)
+
+    def testConstructWithPaddedPacket(self):
+        raw = b'\x01\x02\x00\x1b1234567890123456\x01\x07value'
+        pkt = packet.Packet(dict=self.dict, packet=raw + 4 * b'\x00')
+        self.assertEqual(pkt[1], [b'value'])
+        self.assertEqual(pkt.raw_packet, raw)
+
+    def testVerifyReplyWithPadding(self):
+        reply = self.packet.CreateReply(**{'Test-String': 'test'})
+        raw = reply.ReplyPacket() + 4 * b'\x00'
+        received = self.packet.CreateReply(packet=raw)
+        self.assertTrue(self.packet.VerifyReply(received, raw))
+
     def testDecodePacketWithTooBigPacket(self):
         try:
             self.packet.DecodePacket(b'\x00\x00\x24\x00' + (0x2400 - 4) * b'X')
@@ -735,6 +759,16 @@ class AcctPacketTests(unittest.TestCase):
 
         pkt.raw_packet = b'X' + pkt.raw_packet[1:]
         self.assertEqual(pkt.VerifyAcctRequest(), False)
+
+    def testVerifyAcctRequestWithPadding(self):
+        self.packet['Test-String'] = 'test'
+        self.packet.add_message_authenticator()
+        rawpacket = self.packet.RequestPacket() + 4 * b'\x00'
+        pkt = packet.AcctPacket(secret=b'secret', dict=self.dict,
+                                packet=rawpacket)
+        self.assertEqual(pkt['Test-String'], ['test'])
+        self.assertTrue(pkt.VerifyAcctRequest())
+        self.assertTrue(pkt.verify_message_authenticator())
 
     def testRequestPacket(self):
         self.assertEqual(self.packet.RequestPacket(),

@@ -502,6 +502,9 @@ class Packet(OrderedDict):
 
         if rawreply is None:
             rawreply = reply.ReplyPacket()
+        elif len(rawreply) >= 4:
+            # ignore padding after the Length field (RFC 2865 section 3)
+            rawreply = rawreply[:struct.unpack('!H', rawreply[2:4])[0]]
 
         # The Authenticator field in an Accounting-Response packet is called
         # the Response Authenticator, and contains a one-way MD5 hash
@@ -660,10 +663,15 @@ class Packet(OrderedDict):
 
         except struct.error:
             raise PacketError('Packet header is corrupt')
-        if len(packet) != length:
+        if length < 20 or len(packet) < length:
             raise PacketError('Packet has invalid length')
         if length > 8192:
             raise PacketError('Packet length is too long (%d)' % length)
+
+        # RFC 2865 section 3: octets outside the range of the Length field
+        # MUST be treated as padding and ignored on reception.
+        packet = packet[:length]
+        self.raw_packet = packet
 
         self.clear()
 
