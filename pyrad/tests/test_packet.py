@@ -1163,3 +1163,59 @@ class PacketEdgeCaseTests(unittest.TestCase):
                                      dict=self.dict)
         self.assertTrue(received.VerifyAcctRequest())
         self.assertTrue(received.verify_message_authenticator())
+
+    def testEncodeAttributeTooLong(self):
+        pkt = packet.Packet(dict=self.dict, secret=b'secret',
+                            authenticator=16 * b'\x00')
+        pkt[1] = [253 * b'x']
+        self.assertEqual(len(pkt.ReplyPacket()), 20 + 255)
+        pkt[1] = [254 * b'x']
+        with self.assertRaisesRegex(ValueError, 'too long'):
+            pkt.ReplyPacket()
+
+    def testEncodeVendorAttributeTooLong(self):
+        pkt = packet.Packet(dict=self.dict, secret=b'secret',
+                            authenticator=16 * b'\x00')
+        # 26, length, 4 octets vendor id, type, length, value
+        pkt[(16, 2)] = [247 * b'x']
+        self.assertEqual(len(pkt.ReplyPacket()), 20 + 255)
+        pkt[(16, 2)] = [248 * b'x']
+        with self.assertRaisesRegex(ValueError, 'too long'):
+            pkt.ReplyPacket()
+
+    def testEncodeTlvAttributeTooLong(self):
+        pkt = packet.Packet(dict=self.dict, secret=b'secret',
+                            authenticator=16 * b'\x00')
+        pkt.AddAttribute('Test-Tlv-Str', 251 * 'x')
+        pkt.ReplyPacket()
+        pkt = packet.Packet(dict=self.dict, secret=b'secret',
+                            authenticator=16 * b'\x00')
+        pkt.AddAttribute('Test-Tlv-Str', 252 * 'x')
+        with self.assertRaisesRegex(ValueError, 'too long'):
+            pkt.ReplyPacket()
+
+    def testEncodeVendorTlvAttributeTooLong(self):
+        pkt = packet.Packet(dict=self.dict, secret=b'secret',
+                            authenticator=16 * b'\x00')
+        pkt.AddAttribute('Simplon-Tlv-Str', 245 * 'x')
+        pkt.ReplyPacket()
+        pkt = packet.Packet(dict=self.dict, secret=b'secret',
+                            authenticator=16 * b'\x00')
+        pkt.AddAttribute('Simplon-Tlv-Str', 246 * 'x')
+        with self.assertRaisesRegex(ValueError, 'too long'):
+            pkt.ReplyPacket()
+
+    def testSaltCryptTooLong(self):
+        pkt = packet.Packet(dict=self.dict, secret=b'secret',
+                            authenticator=16 * b'\x00')
+        self.assertRaises(ValueError, pkt.SaltCrypt, 256 * 'x')
+
+    def testTunnelPasswordTooLong(self):
+        dictionary = Dictionary(StringIO(
+            'ATTRIBUTE Tunnel-Password 69 string has_tag,encrypt=2\n'))
+        request = packet.AuthPacket(secret=b'secret', dict=dictionary,
+                                    authenticator=b'0123456789ABCDEF')
+        reply = request.CreateReply()
+        reply.AddAttribute('Tunnel-Password:1', 240 * 'x')
+        with self.assertRaisesRegex(ValueError, 'too long'):
+            reply.ReplyPacket()

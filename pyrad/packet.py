@@ -548,11 +548,26 @@ class Packet(OrderedDict):
 
         return True
 
+    @staticmethod
+    def _CheckAttributeLength(key, length):
+        """Raise ValueError if an attribute with a value of length octets
+        does not fit into the one octet Length field (RFC 2865 section 5).
+        """
+        if length + 2 > 255:
+            raise ValueError('Value of attribute %r is too long (%d octets, '
+                             'at most 253 fit into an attribute)'
+                             % (key, length))
+
     def _PktEncodeAttribute(self, key, value):
         if isinstance(key, tuple):
-            value = struct.pack('!L', key[0]) + \
-                self._PktEncodeAttribute(key[1], value)
+            inner = self._PktEncodeAttribute(key[1], value)
+            # vendor id and vendor attribute inside a Vendor-Specific
+            # attribute (RFC 2865 section 5.26)
+            self._CheckAttributeLength(key, 4 + len(inner))
+            value = struct.pack('!L', key[0]) + inner
             key = 26
+        else:
+            self._CheckAttributeLength(key, len(value))
 
         return struct.pack('!BB', key, (len(value) + 2)) + value
 
@@ -576,11 +591,13 @@ class Packet(OrderedDict):
         avps.append(curr_avp)
         tlv_avps = []
         for avp in avps:
+            self._CheckAttributeLength(tlv_attr.name, len(avp))
             value = struct.pack('!BB', tlv_attr.code, (len(avp) + 2)) + avp
             tlv_avps.append(value)
         if tlv_attr.vendor:
             vendor_avps = b''
             for avp in tlv_avps:
+                self._CheckAttributeLength(tlv_attr.name, 4 + len(avp))
                 vendor_avps += struct.pack(
                     '!BBL', 26, (len(avp) + 6),
                     self.dict.vendors.GetForward(tlv_attr.vendor)
@@ -752,6 +769,7 @@ class Packet(OrderedDict):
         :type value:     str or bytes
         :return:         encrypted value including salt
         :rtype:          bytes
+        :raise ValueError: if the value is longer than 255 octets
         """
 
         if isinstance(value, str):
@@ -762,6 +780,9 @@ class Packet(OrderedDict):
         salt_raw = struct.pack('!H', random_value)
 
         # length prefixing
+        if len(value) > 255:
+            raise ValueError('Value is too long for salt encryption '
+                             '(%d octets, at most 255)' % len(value))
         length = struct.pack("B", len(value))
         value = length + value
 
