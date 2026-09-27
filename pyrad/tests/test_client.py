@@ -264,6 +264,17 @@ class EapMd5Tests(unittest.TestCase):
         self.assertEqual(eap, struct.pack('!BBHBB', 2, 7, 22, 4, 16) + digest)
         self.assertEqual(state, [b'state'])
 
+    def testChallengeWithName(self):
+        # the Name after the Value is not part of the MD5 challenge
+        eap_request = struct.pack('!BBHBB', 1, 7, 28, 4, 16) + self.challenge + b'server'
+        accept = self.reply(AccessAccept)
+        self.replies = [self.reply(AccessChallenge, {79: [eap_request], 24: [b'state']}),
+                        accept]
+        self.assertIs(self.send({1: [b'alice'], 2: [b'password']}), accept)
+        eap = self.sent[1][1]
+        digest = hashlib.md5(b'\x07' + b'password' + self.challenge).digest()
+        self.assertEqual(eap, struct.pack('!BBHBB', 2, 7, 22, 4, 16) + digest)
+
     def testChallengeIgnoredForPap(self):
         challenge = self.reply(AccessChallenge)
         self.replies = [challenge]

@@ -266,8 +266,11 @@ class Client(host.Host):
                 # Sending back an EAP-Type-MD5-Challenge
                 # Thank god for http://www.secdev.org/python/eapy.py
                 client_pw = pkt[2][0] if 2 in pkt else pkt[1][0]
+                # RFC 3748 section 5.4: Type-Data is Value-Size, Value and
+                # an optional Name
+                value = eap_md5[1:1 + eap_md5[0]] if eap_md5 else b''
                 md5_challenge = hashlib.md5(
-                    struct.pack('!B', eap_id) + client_pw + eap_md5[1:]
+                    struct.pack('!B', eap_id) + client_pw + value
                 ).digest()
                 pkt[79] = [
                     struct.pack('!BBHBB', 2, eap_id, len(md5_challenge) + 6,
