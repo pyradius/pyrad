@@ -588,3 +588,45 @@ class DictionaryParsingTests(unittest.TestCase):
             self.assertEqual('dictfiletest' in str(e), True)
         else:
             self.fail()
+
+
+class DictFileIncludeTests(unittest.TestCase):
+    def setUp(self):
+        self.tmpdir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmpdir.cleanup)
+
+    def write(self, name, content):
+        path = os.path.join(self.tmpdir.name, name)
+        with open(path, 'w') as fd:
+            fd.write(content)
+        return path
+
+    def testSelfInclude(self):
+        path = self.write('dictionary', '\n$INCLUDE dictionary\n')
+        with self.assertRaises(ParseError) as cm:
+            list(DictFile(path))
+        self.assertEqual(cm.exception.file, 'dictionary')
+        self.assertEqual(cm.exception.line, 2)
+        self.assertIn('Recursive include', str(cm.exception))
+
+    def testCyclicInclude(self):
+        path = self.write('dictionary', '$INCLUDE dictionary.a\n')
+        self.write('dictionary.a', 'ATTRIBUTE Test-A 1 string\n'
+                                   '$INCLUDE sub/../dictionary.b\n')
+        os.mkdir(os.path.join(self.tmpdir.name, 'sub'))
+        self.write('dictionary.b', '$INCLUDE dictionary.a\n')
+        with self.assertRaises(ParseError) as cm:
+            Dictionary(path)
+        self.assertEqual(cm.exception.file, 'dictionary.b')
+        self.assertEqual(cm.exception.line, 1)
+
+    def testIncludeTwice(self):
+        path = self.write('dictionary', '$INCLUDE dictionary.a\n'
+                                        '$INCLUDE dictionary.a\n')
+        self.write('dictionary.a', 'ATTRIBUTE Test-A 1 string\n')
+        self.assertEqual(list(DictFile(path)),
+                         ['ATTRIBUTE Test-A 1 string\n'] * 2)
+
+    def testIncludeMissingFile(self):
+        path = self.write('dictionary', '$INCLUDE dictionary.missing\n')
+        self.assertRaises(IOError, Dictionary, path)

@@ -16,9 +16,11 @@ class _Node:
 
     A single dictionary file.
     """
-    __slots__ = ('name', 'lines', 'current', 'length', 'dir')
+    __slots__ = ('name', 'lines', 'current', 'length', 'dir', 'path')
 
-    def __init__(self, fd, name, parentdir):
+    def __init__(self, fd, name, parentdir, path=None):
+        # real path of the file, None for file-like objects
+        self.path = path
         self.lines = fd.readlines()
         self.length = len(self.lines)
         self.current = 0
@@ -59,9 +61,14 @@ class DictFile:
                 fname = fil
             else:
                 fname = os.path.join(parentdir, fil)
-            fd = open(fname, "rt")
-            node = _Node(fd, fil, parentdir)
-            fd.close()
+            path = os.path.realpath(fname)
+            if any(node.path == path for node in self.stack):
+                # imported here, pyrad.dictionary imports this module
+                from pyrad.dictionary import ParseError
+                raise ParseError('Recursive include of ' + fil,
+                                 file=self.File(), line=self.Line())
+            with open(fname, "rt") as fd:
+                node = _Node(fd, fil, parentdir, path)
         else:
             node = _Node(fil, '', parentdir)
         self.stack.append(node)
