@@ -62,6 +62,104 @@ Unreleased
 * ClientAsync and ServerAsync created without a loop use the running
   event loop instead of calling asyncio.get_event_loop() in the
   constructor, which fails outside of a running loop on Python 3.14.
+* Client:
+
+  * Timeouts use a monotonic clock, so a step of the system clock no
+    longer extends the wait for a reply.
+  * A late reply to an earlier attempt of an Accounting-Request, whose
+    Request Authenticator changed with Acct-Delay-Time, is accepted
+    instead of timing out. Retrying an Accounting-Request no longer fails
+    with KeyError if the dictionary has no Acct-Delay-Time.
+  * The EAP-MD5 challenge response only hashes the Value of the challenge,
+    so challenges with a Name work, and the Access-Request answering the
+    Access-Challenge has a new Identifier and Request Authenticator
+    (RFC 2865 section 4.4).
+  * A Client without a dictionary can send Access-Requests again.
+
+* ClientAsync and ServerAsync:
+
+  * initialize_transports can be retried after a transport failed to open
+    (e.g. a DNS or bind error); the failed transport stayed registered.
+  * ClientAsync doesn't hand out the id of a pending request, so more than
+    256 requests over time no longer fail with "Packet with id N already
+    present"; it raises only if all 256 ids are in use. CreatePacket
+    accepts the id 0.
+  * ClientAsync timeouts use a monotonic clock.
+  * Transports are opened on platforms without SO_REUSEPORT (e.g.
+    Windows), and ClientAsync binds to local_addr also without a local
+    port.
+  * The ClientAsync retries documentation is corrected (a request is sent
+    up to retries + 1 times) and the asyncio examples work on Python 3.14.
+
+* Servers and Proxy:
+
+  * IPv4 clients of a dual stack server bound to '::' (source
+    ::ffff:a.b.c.d) are matched against their IPv4 hosts entry, in Server,
+    Proxy, ServerAsync and the Twisted integration.
+  * Proxy accepts Access-Challenge, CoA-ACK/NAK and Disconnect-ACK/NAK
+    replies on the proxy socket instead of dropping them.
+  * Twisted integration (pyrad.curved): packets are decoded with the
+    packet class of RADIUSAccess/RADIUSAccounting and get the client's
+    secret, the Message-Authenticator of Access-Requests (BlastRADIUS) and
+    the Request Authenticator of Accounting-Requests are verified (new
+    enforce_ma and enable_pkt_verify arguments), and the default hosts and
+    dictionary are no longer shared between instances.
+
+* Packets:
+
+  * Received packets longer than their Length field are accepted, the
+    extra octets are ignored as padding (RFC 2865 section 3).
+  * VerifyReply(reply) without rawreply verifies a received reply with the
+    bytes it was decoded from, instead of rejecting and modifying it.
+  * PwCrypt encrypts an empty password as 16 octets and raises ValueError
+    for passwords longer than 128 octets (RFC 2865 section 5.2).
+  * Values too long for an attribute, a Vendor-Specific or TLV wrapper or
+    salt encryption raise ValueError instead of struct.error, and a TLV
+    whose first sub-attributes are long is no longer preceded by an empty
+    TLV.
+  * Setting a TLV sub-attribute with ``pkt['Name'] = value`` stores it in
+    its TLV; it was sent as a top-level attribute with the sub-attribute's
+    code.
+  * VerifyChapPasswd returns False without CHAP-Password instead of
+    raising TypeError, and compares in constant time.
+  * Status-Server built with AcctPacket gets a random Request
+    Authenticator and a valid Message-Authenticator, and replies to it are
+    signed with its Request Authenticator (RFC 5997). VerifyAcctRequest
+    verifies the Message-Authenticator of Status-Server packets.
+  * A packet created without a dictionary has ``dict`` set to None, so
+    CreateReply() of such a received packet works.
+  * The VerifyAuthRequest documentation says what it checks.
+
+* Attribute values:
+
+  * ipaddr values reject IPv6 addresses with ValueError instead of
+    encoding 16 octets (RFC 8044 section 3.8).
+  * The 253 octet limit of string values is checked on the UTF-8 encoded
+    value.
+  * ipv6prefix values given as netaddr.IPNetwork clear the host bits and
+    reject IPv4 networks, like str values.
+  * Out of range integer, signed, short, byte, integer64 and date values
+    raise ValueError instead of struct.error.
+  * Ascend binary filters raise ValueError if an address doesn't match the
+    filter family instead of producing a malformed filter, and terms may
+    be separated by any whitespace.
+  * The ifid (e.g. Framed-Interface-Id, RFC 3162) and ether types can be
+    encoded and decoded.
+
+* Dictionaries:
+
+  * TLV sub-attributes are no longer attached to a TLV with the same code
+    of another vendor, and TLVs defined in one dictionary file are found
+    by sub-attributes in another.
+  * Malformed attribute codes, vendor codes and VALUE definitions raise
+    ParseError with file and line instead of ValueError, TypeError or
+    struct.error. VALUE definitions for date attributes work.
+  * A dictionary file that includes itself raises ParseError instead of
+    looping forever, and the FreeRADIUS ``$INCLUDE-`` directive (include
+    if the file exists) is supported.
+  * A redefined attribute or value name is no longer decoded to its old
+    name (stale BiDict reverse entries).
+
 * Fix an infinite loop when decoding a vendor-specific or TLV sub-attribute
   with a length of 0, which let a single unauthenticated packet hang a
   server (#234). Truncated TLVs raise a PacketError instead of struct.error.
