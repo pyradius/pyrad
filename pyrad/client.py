@@ -258,6 +258,11 @@ class Client(host.Host):
                 reply
                 and reply.code == packet.AccessChallenge
                 and pkt.auth_type == 'eap-md5'
+                # the server decides what it sends: without these checks a
+                # missing EAP-Message or State raises KeyError and a short
+                # EAP-Message struct.error
+                and 79 in reply and len(reply[79][0]) >= 5
+                and 24 in reply
             ):
                 # Got an Access-Challenge
                 eap_code, eap_id, eap_size, eap_type, eap_md5 = struct.unpack(
