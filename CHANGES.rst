@@ -6,14 +6,26 @@ Unreleased
 
 * BlastRADIUS (CVE-2024-3596) countermeasures (#200):
 
+  * **Backwards incompatible:** enforce_ma now defaults to True, so a
+    Message-Authenticator is required, not only verified when it happens to
+    be present. Servers drop Access-Requests without one and clients reject
+    replies to Access-Request and Status-Server packets without one.
+    Stripping the attribute was all an attacker on the path needed to get
+    back to the unprotected MD5 Response Authenticator, which is what the
+    attack forges. Peers that do not send a Message-Authenticator need
+    enforce_ma=False, which leaves them open to the attack.
+  * A Message-Authenticator which is present is now verified in
+    Accounting-, CoA- and Disconnect-Requests as well (RFC 5176 section
+    3.3); only Access-Request checked it, so a broken one was accepted in
+    the other request types. These types still do not require the
+    attribute.
   * Clients add a Message-Authenticator to all Access-Request and
     Status-Server packets by default.
   * Clients always verify a Message-Authenticator in replies (enforce_ma
     verified the request instead) and discard replies with unexpected
     Proxy-State attributes.
-  * Servers add a Message-Authenticator to all replies to Access-Requests,
-    verify it in received Access-Requests and can require it with the new
-    enforce_ma option.
+  * Servers add a Message-Authenticator to all replies to Access-Requests
+    and verify it in received Access-Requests.
   * Message-Authenticator is added as first attribute and verification
     uses the correct authenticator for received replies, including
     CoA/Disconnect ACK/NAK and replies to Status-Server.

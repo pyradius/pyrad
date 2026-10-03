@@ -494,7 +494,7 @@ class Packet(OrderedDict):
 
         return header + authenticator + attr
 
-    def VerifyReply(self, reply, rawreply=None, enforce_ma=False):
+    def VerifyReply(self, reply, rawreply=None, enforce_ma=True):
         """Verify that a reply belongs to this request.
         Checks the packet ID and the response authenticator and, as
         countermeasure against the BlastRADIUS attack (CVE-2024-3596),
@@ -507,6 +507,11 @@ class Packet(OrderedDict):
         :type rawreply:    bytes
         :param enforce_ma: require a Message-Authenticator in replies to
                            Access-Request and Status-Server packets
+                           (default True; a Message-Authenticator which is
+                           present is always verified). Set it to False
+                           only to talk to a server which does not sign
+                           its replies, which leaves the reply open to
+                           forgery by an attacker on the path.
         :type enforce_ma:  bool
         :return:           True if the reply is valid else False
         :rtype:            bool

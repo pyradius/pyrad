@@ -102,6 +102,9 @@ class DatagramProtocolServer(asyncio.Protocol):
                 req = CoAPacket(secret=remote_host.secret,
                                 dict=self.server.dict,
                                 packet=data)
+                # RFC 5176 section 3.3: a Message-Authenticator which is
+                # present has to be valid
+                CheckMessageAuthenticator(req, enforce_ma=False)
                 if self.server.enable_pkt_verify:
                     if not req.VerifyCoARequest():
                         raise PacketError('Packet verification failed')
@@ -113,6 +116,9 @@ class DatagramProtocolServer(asyncio.Protocol):
                 req = AcctPacket(secret=remote_host.secret,
                                  dict=self.server.dict,
                                  packet=data)
+                # RFC 2866 does not require a Message-Authenticator here,
+                # but one that is present has to be valid
+                CheckMessageAuthenticator(req, enforce_ma=False)
                 if self.server.enable_pkt_verify:
                     if not req.VerifyAcctRequest():
                         raise PacketError('Packet verification failed')
@@ -156,7 +162,7 @@ class ServerAsync(metaclass=ABCMeta):
                  coa_port=3799, hosts=None, dictionary=None,
                  loop=None, logger_name='pyrad',
                  enable_pkt_verify=True,
-                 debug=False, enforce_ma=False):
+                 debug=False, enforce_ma=True):
         """Constructor.
 
         :param  auth_port: port to listen on for authentication packets
@@ -179,9 +185,12 @@ class ServerAsync(metaclass=ABCMeta):
         :type  enable_pkt_verify: bool
         :param      debug: log the traceback of errors
         :type       debug: bool
-        :param enforce_ma: drop Access-Requests without Message-Authenticator
-                           (default False, an invalid Message-Authenticator
-                           is always dropped)
+        :param enforce_ma: drop Access-Requests without a Message-Authenticator
+                           (default True, BlastRADIUS countermeasure,
+                           CVE-2024-3596; an invalid Message-Authenticator
+                           is always dropped). Set it to False only for
+                           clients which do not send one, which leaves them
+                           open to the attack.
         :type  enforce_ma: bool
         """
 

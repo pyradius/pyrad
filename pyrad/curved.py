@@ -28,7 +28,7 @@ class PacketError(Exception):
 
 
 class RADIUS(host.Host, protocol.DatagramProtocol):
-    def __init__(self, hosts=None, dict=None, enforce_ma=False,
+    def __init__(self, hosts=None, dict=None, enforce_ma=True,
                  enable_pkt_verify=True):
         """Constructor.
 
@@ -37,8 +37,9 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
         @type hosts: dictionary mapping IP to RemoteHost class instances
         @param dict: RADIUS dictionary to use
         @type dict: Dictionary class instance
-        @param enforce_ma: drop Access-Requests without Message-Authenticator
-            (an invalid Message-Authenticator is always dropped)
+        @param enforce_ma: drop Access-Requests without a Message-Authenticator
+            (default True, BlastRADIUS countermeasure, CVE-2024-3596; an
+            invalid Message-Authenticator is always dropped)
         @type enforce_ma: bool
         @param enable_pkt_verify: drop Accounting-Requests with an invalid
             request authenticator
@@ -73,8 +74,12 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
         """
         if pkt.code == packet.AccessRequest:
             CheckMessageAuthenticator(pkt, self.enforce_ma)
-        elif pkt.code == packet.AccountingRequest and self.enable_pkt_verify:
-            if not packet.AcctPacket.VerifyAcctRequest(pkt):
+        elif pkt.code == packet.AccountingRequest:
+            # RFC 2866 does not require a Message-Authenticator here, but
+            # one that is present has to be valid
+            CheckMessageAuthenticator(pkt, enforce_ma=False)
+            if self.enable_pkt_verify and \
+                    not packet.AcctPacket.VerifyAcctRequest(pkt):
                 raise packet.PacketError('Packet verification failed')
 
     def datagramReceived(self, datagram, source):

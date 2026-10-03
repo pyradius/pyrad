@@ -47,9 +47,14 @@ class ServerPacketError(Exception):
     """
 
 
-def CheckMessageAuthenticator(pkt, enforce_ma=False):
-    """Check the Message-Authenticator of a received Access-Request
+def CheckMessageAuthenticator(pkt, enforce_ma=True):
+    """Check the Message-Authenticator of a received request
     (BlastRADIUS countermeasure, CVE-2024-3596).
+
+    A Message-Authenticator which is present is always verified. Requiring
+    one only makes sense for the packet types which must carry it:
+    Access-Request (RFC 2869 section 5.14) and Status-Server (RFC 5997
+    section 3).
 
     :param pkt:        received packet with secret set
     :type  pkt:        Packet class instance
@@ -60,10 +65,10 @@ def CheckMessageAuthenticator(pkt, enforce_ma=False):
     if pkt.message_authenticator:
         if not pkt.verify_message_authenticator():
             raise ServerPacketError(
-                'Received Access-Request with invalid Message-Authenticator')
+                'Received packet with invalid Message-Authenticator')
     elif enforce_ma:
         raise ServerPacketError(
-            'Received Access-Request without Message-Authenticator')
+            'Received packet without Message-Authenticator')
 
 
 def _HostAddresses(address):
@@ -121,7 +126,7 @@ class Server(host.Host):
 
     def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=3799,
                  hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False,
-                 enforce_ma=False, enable_pkt_verify=True):
+                 enforce_ma=True, enable_pkt_verify=True):
         """Constructor.
 
         :param     addresses: IP addresses to listen on
@@ -143,9 +148,12 @@ class Server(host.Host):
         :type   acct_enabled: bool
         :param   coa_enabled: enable CoA server (default False)
         :type    coa_enabled: bool
-        :param    enforce_ma: drop Access-Requests without Message-Authenticator
-                              (default False, an invalid Message-Authenticator
-                              is always dropped)
+        :param    enforce_ma: drop Access-Requests without a Message-Authenticator
+                              (default True, BlastRADIUS countermeasure,
+                              CVE-2024-3596; an invalid Message-Authenticator
+                              is always dropped). Set it to False only for
+                              clients which do not send one, which leaves
+                              them open to the attack.
         :type     enforce_ma: bool
         :param enable_pkt_verify: drop accounting, CoA and Disconnect requests
                                   with an invalid request authenticator
@@ -302,6 +310,9 @@ class Server(host.Host):
         if pkt.code != packet.AccountingRequest:
             raise ServerPacketError(
                     'Received non-accounting packet on accounting port')
+        # RFC 2866 does not require a Message-Authenticator here, but one
+        # that is present has to be valid
+        CheckMessageAuthenticator(pkt, enforce_ma=False)
         if self.enable_pkt_verify and not pkt.VerifyAcctRequest():
             raise packet.PacketError('Packet verification failed')
         self.HandleAcctPacket(pkt)
@@ -318,6 +329,9 @@ class Server(host.Host):
         self._AddSecret(pkt)
         if pkt.code not in (packet.CoARequest, packet.DisconnectRequest):
             raise ServerPacketError('Received non-coa packet on coa port')
+        # RFC 5176 section 3.3: a Message-Authenticator which is present
+        # has to be valid
+        CheckMessageAuthenticator(pkt, enforce_ma=False)
         if self.enable_pkt_verify and not pkt.VerifyCoARequest():
             raise packet.PacketError('Packet verification failed')
         if pkt.code == packet.CoARequest:

@@ -76,7 +76,8 @@ class CurvedTests(unittest.TestCase):
     def testAccessRequest(self):
         protocol = self.curved.RADIUSAccess(hosts=self.hosts, dict=self.dict)
         protocol.processPacket = mock.Mock(wraps=protocol.processPacket)
-        self.receive(protocol, packet.AuthPacket(secret=SECRET, dict=self.dict))
+        self.receive(protocol, packet.AuthPacket(secret=SECRET, dict=self.dict,
+                                                 message_authenticator=True))
         pkt = protocol.processPacket.call_args[0][0]
         self.assertEqual(pkt.code, packet.AccessRequest)
         self.assertEqual(pkt.source, ('127.0.0.1', 1812))
@@ -91,7 +92,8 @@ class CurvedTests(unittest.TestCase):
         access = self.curved.RADIUSAccess(hosts=self.hosts, dict=self.dict)
         self.receive(access, packet.AcctPacket(secret=SECRET, dict=self.dict))
         accounting = self.curved.RADIUSAccounting(hosts=self.hosts, dict=self.dict)
-        self.receive(accounting, packet.AuthPacket(secret=SECRET, dict=self.dict))
+        self.receive(accounting, packet.AuthPacket(secret=SECRET, dict=self.dict,
+                                                   message_authenticator=True))
         messages = [call[0][0] for call in self.log.msg.call_args_list]
         self.assertEqual(len(messages), 2)
         self.assertIn('non-AccessRequest packet', messages[0])
@@ -105,7 +107,8 @@ class CurvedTests(unittest.TestCase):
     def testUnknownHost(self):
         protocol = self.curved.RADIUSAccess(hosts=self.hosts, dict=self.dict)
         protocol.processPacket = mock.Mock()
-        self.receive(protocol, packet.AuthPacket(secret=SECRET, dict=self.dict),
+        self.receive(protocol, packet.AuthPacket(secret=SECRET, dict=self.dict,
+                                                 message_authenticator=True),
                      host='192.0.2.1')
         protocol.processPacket.assert_not_called()
         self.assertIn('unknown host 192.0.2.1', self.log.msg.call_args[0][0])
@@ -134,7 +137,8 @@ class CurvedTests(unittest.TestCase):
 
     def testAccessRequestIsDecodedWithSecret(self):
         protocol = self.curved.RADIUSAccess(hosts=self.hosts, dict=self.dict)
-        req = packet.AuthPacket(secret=SECRET, dict=self.dict, User_Name='alice')
+        req = packet.AuthPacket(secret=SECRET, dict=self.dict, User_Name='alice',
+                                message_authenticator=True)
         req['User-Password'] = req.PwCrypt('password')
         pkt = self.received(protocol, req)
         self.assertIsInstance(pkt, packet.AuthPacket)

@@ -34,7 +34,7 @@ class Client(host.Host):
     :type timeout: float
     """
     def __init__(self, server, authport=1812, acctport=1813,
-                 coaport=3799, secret=b'', dict=None, retries=3, timeout=5, enforce_ma=False):
+                 coaport=3799, secret=b'', dict=None, retries=3, timeout=5, enforce_ma=True):
         """Constructor.
 
         :param   server: hostname or IP address of RADIUS server
@@ -54,9 +54,13 @@ class Client(host.Host):
         :param  timeout: number of seconds to wait for a reply
         :type   timeout: float
         :param enforce_ma: Require a Message-Authenticator in replies to
-                           Access-Request and Status-Server packets (a
-                           Message-Authenticator in a reply is always
-                           verified)
+                           Access-Request and Status-Server packets
+                           (default True, BlastRADIUS countermeasure,
+                           CVE-2024-3596; a Message-Authenticator in a
+                           reply is always verified). Set it to False only
+                           to talk to a server which does not sign its
+                           replies, which leaves them open to forgery by
+                           an attacker on the path.
         :type  enforce_ma: boolean
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
