@@ -225,7 +225,7 @@ class ClientAsync:
     def __init__(self, server, auth_port=1812, acct_port=1813,
                  coa_port=3799, secret=b'', dict=None,
                  loop=None, retries=3, timeout=30,
-                 logger_name='pyrad', enforce_ma=False):
+                 logger_name='pyrad', enforce_ma=True):
 
         """Constructor.
 
@@ -251,9 +251,13 @@ class ClientAsync:
         :param logger_name: name of the logger
         :type  logger_name: string
         :param enforce_ma: Require a Message-Authenticator in replies to
-                           Access-Request and Status-Server packets (a
-                           Message-Authenticator in a reply is always
-                           verified)
+                           Access-Request and Status-Server packets
+                           (default True, BlastRADIUS countermeasure,
+                           CVE-2024-3596; a Message-Authenticator in a
+                           reply is always verified). Set it to False only
+                           to talk to a server which does not sign its
+                           replies, which leaves them open to forgery by
+                           an attacker on the path.
         :type  enforce_ma: boolean
         """
         # resolved when used, asyncio.get_event_loop() fails outside of a

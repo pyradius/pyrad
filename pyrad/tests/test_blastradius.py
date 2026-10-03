@@ -6,6 +6,7 @@ by a Message-Authenticator (HMAC-MD5) in requests and responses.
 """
 import asyncio
 import hashlib
+import inspect
 import logging
 import struct
 import unittest
@@ -15,8 +16,10 @@ from pyrad import packet
 from pyrad.client import Client
 from pyrad.client_async import ClientAsync
 from pyrad.dictionary import Dictionary
-from pyrad.server import RemoteHost, Server, ServerPacketError
-from pyrad.server_async import DatagramProtocolServer, ServerType
+from pyrad.server import (CheckMessageAuthenticator, RemoteHost, Server,
+                          ServerPacketError)
+from pyrad.server_async import (DatagramProtocolServer, ServerAsync,
+                                ServerType)
 from pyrad.tests.test_curved import load_curved
 
 SECRET = b'secret'
@@ -260,12 +263,13 @@ class ServerRequestTests(BlastRadiusTestCase):
         self.assertEqual(self.handled, [])
 
     def testMissingMessageAuthenticator(self):
-        self.handle(self.request(message_authenticator=False))
-        self.assertEqual(len(self.handled), 1)
-
-        self.server.enforce_ma = True
+        # dropped by default (enforce_ma), BlastRADIUS countermeasure
         self.assertRaises(ServerPacketError, self.handle,
                           self.request(message_authenticator=False))
+        self.assertEqual(self.handled, [])
+
+        self.server.enforce_ma = False
+        self.handle(self.request(message_authenticator=False))
         self.assertEqual(len(self.handled), 1)
 
 
@@ -277,7 +281,7 @@ class AsyncServerRequestTests(BlastRadiusTestCase):
         self.server.dict = self.dict
         self.server.debug = False
         self.server.enable_pkt_verify = False
-        self.server.enforce_ma = False
+        self.server.enforce_ma = True
         self.protocol = DatagramProtocolServer(
             '127.0.0.1', 1812, logging.getLogger('pyrad-test'), self.server,
             ServerType.Auth, {'127.0.0.1': RemoteHost('127.0.0.1', SECRET, 'localhost')},
@@ -299,10 +303,11 @@ class AsyncServerRequestTests(BlastRadiusTestCase):
         self.assertEqual(self.handled, [])
 
     def testMissingMessageAuthenticator(self):
+        # dropped by default (enforce_ma), BlastRADIUS countermeasure
         self.handle(self.request(message_authenticator=False))
-        self.assertEqual(len(self.handled), 1)
+        self.assertEqual(self.handled, [])
 
-        self.server.enforce_ma = True
+        self.server.enforce_ma = False
         self.handle(self.request(message_authenticator=False))
         self.assertEqual(len(self.handled), 1)
 
@@ -334,10 +339,107 @@ class CurvedServerRequestTests(BlastRadiusTestCase):
         self.assertIn('invalid Message-Authenticator', self.log.msg.call_args[0][0])
 
     def testMissingMessageAuthenticator(self):
+        # dropped by default (enforce_ma), BlastRADIUS countermeasure
+        self.handle(self.request(message_authenticator=False))
+        self.assertEqual(self.handled, [])
+        self.assertIn('without Message-Authenticator', self.log.msg.call_args[0][0])
+
+        self.protocol.enforce_ma = False
         self.handle(self.request(message_authenticator=False))
         self.assertEqual(len(self.handled), 1)
 
-        self.protocol.enforce_ma = True
-        self.handle(self.request(message_authenticator=False))
+
+def forge_acct_request_authenticator(raw):
+    """Recalculate the Request Authenticator of a modified Accounting-,
+    CoA- or Disconnect-Request (RFC 2866 section 3)."""
+    authenticator = hashlib.md5(raw[:4] + 16 * b'\x00' + raw[20:] + SECRET).digest()
+    return raw[:4] + authenticator + raw[20:]
+
+
+def break_message_authenticator(raw):
+    """Flip a bit of the Message-Authenticator value of a request and sign
+    it again, so that only the Message-Authenticator is wrong."""
+    loc = 20
+    while loc + 2 <= len(raw):
+        (key, length) = struct.unpack('!BB', raw[loc:loc+2])
+        if key == 80:
+            raw = raw[:loc+2] + bytes([raw[loc+2] ^ 0xff]) + raw[loc+3:]
+            return forge_acct_request_authenticator(raw)
+        loc += length
+    raise AssertionError('no Message-Authenticator in the packet')
+
+
+class SecureDefaultTests(unittest.TestCase):
+    """The countermeasures are on by default (CVE-2024-3596)."""
+
+    def enforce_ma_default(self, callable):
+        return inspect.signature(callable).parameters['enforce_ma'].default
+
+    def testVerifyReplyRequiresMessageAuthenticator(self):
+        self.assertIs(self.enforce_ma_default(packet.Packet.VerifyReply), True)
+
+    def testClientsRequireMessageAuthenticator(self):
+        self.assertIs(self.enforce_ma_default(Client.__init__), True)
+        self.assertIs(self.enforce_ma_default(ClientAsync.__init__), True)
+        self.assertIs(Client(server='127.0.0.1', secret=SECRET).enforce_ma, True)
+
+    def testServersRequireMessageAuthenticator(self):
+        self.assertIs(self.enforce_ma_default(Server.__init__), True)
+        self.assertIs(self.enforce_ma_default(ServerAsync.__init__), True)
+        self.assertIs(self.enforce_ma_default(CheckMessageAuthenticator), True)
+        self.assertIs(Server().enforce_ma, True)
+        self.assertIs(load_curved()[0].RADIUS().enforce_ma, True)
+
+
+class AcctCoaMessageAuthenticatorTests(BlastRadiusTestCase):
+    """A Message-Authenticator which is present is verified in every request
+    type, not only in Access-Request."""
+
+    def setUp(self):
+        super().setUp()
+        self.handled = []
+        self.server = Server(dict=self.dict, coa_enabled=True, hosts={
+            '127.0.0.1': RemoteHost('127.0.0.1', SECRET, 'localhost')})
+        self.server.HandleAcctPacket = self.handled.append
+        self.server.HandleCoaPacket = self.handled.append
+
+    def handle(self, raw, acct=True):
+        create = self.server.CreateAcctPacket if acct else self.server.CreateCoAPacket
+        pkt = create(packet=raw)
+        pkt.source = ('127.0.0.1', 1813)
+        if acct:
+            self.server._HandleAcctPacket(pkt)
+        else:
+            self.server._HandleCoaPacket(pkt)
+
+    def acct_request(self, **attrs):
+        req = self.client.CreateAcctPacket(User_Name='alice', **attrs)
+        return req.RequestPacket()
+
+    def coa_request(self, **attrs):
+        req = packet.CoAPacket(secret=SECRET, dict=self.dict,
+                               User_Name='alice', **attrs)
+        return req.RequestPacket()
+
+    def testValidMessageAuthenticator(self):
+        self.handle(self.acct_request(message_authenticator=True))
         self.assertEqual(len(self.handled), 1)
-        self.assertIn('without Message-Authenticator', self.log.msg.call_args[0][0])
+
+    def testInvalidMessageAuthenticator(self):
+        raw = break_message_authenticator(
+            self.acct_request(message_authenticator=True))
+        self.assertRaises(ServerPacketError, self.handle, raw)
+        self.assertEqual(self.handled, [])
+
+    def testInvalidMessageAuthenticatorInCoARequest(self):
+        raw = break_message_authenticator(
+            self.coa_request(message_authenticator=True))
+        self.assertRaises(ServerPacketError, self.handle, raw, acct=False)
+        self.assertEqual(self.handled, [])
+
+    def testMissingMessageAuthenticatorIsAccepted(self):
+        # RFC 2866 and RFC 5176 do not require one, enforce_ma is only
+        # about Access-Request
+        self.handle(self.acct_request())
+        self.handle(self.coa_request(), acct=False)
+        self.assertEqual(len(self.handled), 2)
