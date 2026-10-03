@@ -86,8 +86,6 @@ def EncodeOctets(value):
             out = binascii.unhexlify(s[2:])
         elif s.isdecimal():
             n = int(s)
-            if n < 0:
-                raise ValueError("Octet decimal value must be >= 0")
             if n <= 255:
                 out = struct.pack("!B", n)
             else:
