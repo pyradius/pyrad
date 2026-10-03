@@ -9,7 +9,7 @@ from unittest import mock
 
 from pyrad import packet
 from pyrad.dictionary import Dictionary
-from pyrad.server import RemoteHost
+from pyrad.server import RemoteHost, ServerPacketError
 
 SECRET = b'secret'
 
@@ -109,6 +109,54 @@ class CurvedTests(unittest.TestCase):
                      host='192.0.2.1')
         protocol.processPacket.assert_not_called()
         self.assertIn('unknown host 192.0.2.1', self.log.msg.call_args[0][0])
+
+    def handlerRaises(self, error):
+        """Let the packet handler raise error and return the protocol."""
+        protocol = self.curved.RADIUSAccess(hosts=self.hosts, dict=self.dict)
+
+        def processPacket(pkt):
+            raise error
+
+        protocol.processPacket = processPacket
+        self.receive(protocol, packet.AuthPacket(secret=SECRET, dict=self.dict))
+        return protocol
+
+    def testHandlerRaisingCurvedPacketError(self):
+        self.handlerRaises(self.curved.PacketError('bogus'))
+        self.assertIn('Dropping packet from 127.0.0.1: bogus',
+                      self.log.msg.call_args[0][0])
+        self.log.err.assert_not_called()
+
+    def testHandlerRaisingPyradPacketError(self):
+        # pyrad.packet.PacketError is shadowed by the PacketError of the
+        # curved module, it used to escape into the reactor
+        self.handlerRaises(packet.PacketError('bogus'))
+        self.assertIn('Dropping packet from 127.0.0.1: bogus',
+                      self.log.msg.call_args[0][0])
+        self.log.err.assert_not_called()
+
+    def testHandlerRaisingServerPacketError(self):
+        self.handlerRaises(ServerPacketError('bogus'))
+        self.assertIn('Dropping packet from 127.0.0.1: bogus',
+                      self.log.msg.call_args[0][0])
+        self.log.err.assert_not_called()
+
+    def testHandlerRaisingOtherError(self):
+        # a ValueError from decoding an attribute value, or a bug in the
+        # handler, is logged with its traceback instead of stopping the
+        # reactor
+        self.handlerRaises(ValueError('Invalid ipaddr value'))
+        self.assertIn('Error processing packet from 127.0.0.1',
+                      self.log.err.call_args[0][1])
+
+    def testDecodeRaisingOtherError(self):
+        protocol = self.curved.RADIUSAccess(hosts=self.hosts, dict=self.dict)
+        protocol.createPacket = mock.Mock(side_effect=RuntimeError('boom'))
+        protocol.processPacket = mock.Mock()
+        protocol.datagramReceived(b'garbage', ('127.0.0.1', 1812))
+        protocol.processPacket.assert_not_called()
+        self.assertIn('Error decoding packet from 127.0.0.1',
+                      self.log.err.call_args[0][1])
 
     def received(self, protocol, pkt, host='127.0.0.1'):
         """Receive a packet and return what was passed to processPacket."""

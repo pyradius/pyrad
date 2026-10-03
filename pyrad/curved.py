@@ -24,6 +24,10 @@ class PacketError(Exception):
 
     PacketError exceptions are only used inside the Server class to
     abort processing of a packet.
+
+    NOTE: this is not pyrad.packet.PacketError, which it shadows in this
+    module. A packet handler may raise either, so datagramReceived catches
+    both; the name is kept for the packet handlers which raise it.
     """
 
 
@@ -84,6 +88,11 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
         except packet.PacketError as err:
             log.msg('Dropping invalid packet: ' + str(err))
             return
+        except Exception:
+            # the packet is not authenticated yet, never let it reach the
+            # reactor, like Server._GrabPacket does
+            log.err(None, 'Error decoding packet from %s' % host)
+            return
 
         remote_host = _LookupHost(self.hosts, host)
         if remote_host is None:
@@ -100,8 +109,17 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
 
         try:
             self.processPacket(pkt)
-        except PacketError as err:
+        except (PacketError, packet.PacketError, ServerPacketError) as err:
+            # a handler which reads an attribute of a malformed packet gets
+            # a pyrad.packet.PacketError, not only the PacketError of this
+            # module, which shadows it here
             log.msg('Dropping packet from %s: %s' % (host, str(err)))
+        except Exception:
+            # anything else, such as a ValueError from decoding an attribute
+            # value, is logged with its traceback; a handler must not be able
+            # to stop the reactor, like in Server.Run and
+            # ServerAsync.datagram_received
+            log.err(None, 'Error processing packet from %s' % host)
 
 
 class RADIUSAccess(RADIUS):
