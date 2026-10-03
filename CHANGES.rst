@@ -75,6 +75,9 @@ Unreleased
     Access-Challenge has a new Identifier and Request Authenticator
     (RFC 2865 section 4.4).
   * A Client without a dictionary can send Access-Requests again.
+  * An Access-Challenge without EAP-Message or State, or with an
+    EAP-Message shorter than 5 octets, is returned to the caller instead
+    of raising KeyError or struct.error.
 
 * ClientAsync and ServerAsync:
 

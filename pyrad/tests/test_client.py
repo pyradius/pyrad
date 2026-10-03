@@ -306,6 +306,24 @@ class EapMd5Tests(unittest.TestCase):
         decoded = AuthPacket(secret=b'secret', dict=self.client.dict, packet=second)
         self.assertTrue(decoded.verify_message_authenticator())
 
+    def incompleteChallenge(self, attributes):
+        """An Access-Challenge the EAP-MD5 exchange cannot continue with is
+        returned to the caller instead of raising."""
+        challenge = self.reply(AccessChallenge, attributes)
+        self.replies = [challenge]
+        self.assertIs(self.send({1: [b'alice'], 2: [b'password']}), challenge)
+        self.assertEqual(len(self.sent), 1)
+
+    def testChallengeWithoutEapMessage(self):
+        self.incompleteChallenge({24: [b'state']})
+
+    def testChallengeWithShortEapMessage(self):
+        self.incompleteChallenge({79: [b'\x01\x07\x00'], 24: [b'state']})
+
+    def testChallengeWithoutState(self):
+        eap_request = struct.pack('!BBHBB', 1, 7, 22, 4, 16) + self.challenge
+        self.incompleteChallenge({79: [eap_request]})
+
     def testChallengeIgnoredForPap(self):
         challenge = self.reply(AccessChallenge)
         self.replies = [challenge]
