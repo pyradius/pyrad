@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import secrets
 import struct
+import warnings
 
 random_generator = secrets.SystemRandom()
 
@@ -36,6 +37,29 @@ CurrentID = random_generator.randrange(1, 255)
 
 class PacketError(Exception):
     pass
+
+
+_enforce_ma_warned = False
+
+
+def _EnforceMA(enforce_ma):
+    """Resolve the enforce_ma argument of a client or server constructor.
+
+    None (not passed) warns once per process and falls back to False. The
+    default changes to True in a future release.
+    """
+    global _enforce_ma_warned
+    if enforce_ma is not None:
+        return enforce_ma
+    if not _enforce_ma_warned:
+        _enforce_ma_warned = True
+        warnings.warn(
+            'enforce_ma defaults to False, which leaves you open to the '
+            'BlastRADIUS attack (CVE-2024-3596); the default will change to '
+            'True in a future release. Pass enforce_ma=True (recommended) or '
+            'enforce_ma=False explicitly to silence this warning.',
+            FutureWarning, stacklevel=3)
+    return False
 
 
 class Packet(OrderedDict):
@@ -507,6 +531,9 @@ class Packet(OrderedDict):
         :type rawreply:    bytes
         :param enforce_ma: require a Message-Authenticator in replies to
                            Access-Request and Status-Server packets
+                           (default False; a Message-Authenticator which
+                           is present is always verified). Clients pass
+                           their own enforce_ma.
         :type enforce_ma:  bool
         :return:           True if the reply is valid else False
         :rtype:            bool

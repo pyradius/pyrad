@@ -60,9 +60,17 @@ pyrad implements the countermeasures against the BlastRADIUS attack
   Access-Requests and copy the Proxy-State attributes from the request.
 * ``Client(enforce_ma=True)`` and ``ClientAsync(enforce_ma=True)`` discard
   replies to Access-Request and Status-Server packets without
-  Message-Authenticator, and ``Server(enforce_ma=True)`` and
-  ``ServerAsync(enforce_ma=True)`` drop Access-Requests without
-  Message-Authenticator. This is recommended if all peers support it.
+  Message-Authenticator, and ``Server(enforce_ma=True)`` (and so
+  ``Proxy``), ``ServerAsync(enforce_ma=True)`` and the Twisted integration
+  drop Access-Requests without Message-Authenticator. Stripping the
+  attribute is all an attacker on the path needs to get back to the
+  forgeable MD5 Response Authenticator, so passing ``enforce_ma=True`` is
+  recommended.
+* ``enforce_ma`` still defaults to ``False``; the default will change to
+  ``True`` in a future release. Until then a ``FutureWarning`` is issued,
+  once per process, when ``enforce_ma`` is not passed. Pass
+  ``enforce_ma=True``, or ``enforce_ma=False`` for peers which do not send
+  a Message-Authenticator, to silence it.
 
 Requirements & Installation
 ===========================
