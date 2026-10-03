@@ -15,6 +15,7 @@ from pyrad import packet
 EAP_CODE_REQUEST = 1
 EAP_CODE_RESPONSE = 2
 EAP_TYPE_IDENTITY = 1
+EAP_TYPE_MD5_CHALLENGE = 4
 
 
 class Timeout(Exception):
@@ -258,6 +259,12 @@ class Client(host.Host):
                 reply
                 and reply.code == packet.AccessChallenge
                 and pkt.auth_type == 'eap-md5'
+                # the server decides what it sends: without these checks a
+                # missing EAP-Message raises KeyError and a short one
+                # struct.error. Only an EAP-MD5 Request is answered.
+                and 79 in reply and len(reply[79][0]) >= 5
+                and reply[79][0][0] == EAP_CODE_REQUEST
+                and reply[79][0][4] == EAP_TYPE_MD5_CHALLENGE
             ):
                 # Got an Access-Challenge
                 eap_code, eap_id, eap_size, eap_type, eap_md5 = struct.unpack(
@@ -277,8 +284,10 @@ class Client(host.Host):
                     struct.pack('!BBHBB', 2, eap_id, len(md5_challenge) + 6,
                                 4, len(md5_challenge)) + md5_challenge
                 ]
-                # Copy over Challenge-State
-                pkt[24] = reply[24]
+                # RFC 2865 section 5.24: an Access-Challenge may contain
+                # State, which is then sent back unchanged
+                if 24 in reply:
+                    pkt[24] = reply[24]
                 # RFC 2865 section 4.4: the Access-Request answering an
                 # Access-Challenge has a new Identifier, and section 3: its
                 # Request Authenticator is unique. The Message-Authenticator
