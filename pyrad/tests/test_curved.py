@@ -155,8 +155,9 @@ class CurvedTests(unittest.TestCase):
         protocol.processPacket = mock.Mock()
         protocol.datagramReceived(b'garbage', ('127.0.0.1', 1812))
         protocol.processPacket.assert_not_called()
-        self.assertIn('Error decoding packet from 127.0.0.1',
-                      self.log.err.call_args[0][1])
+        self.assertEqual(self.log.msg.call_args[0][0],
+                         'Dropping invalid packet: RuntimeError: boom')
+        self.log.err.assert_not_called()
 
     def received(self, protocol, pkt, host='127.0.0.1'):
         """Receive a packet and return what was passed to processPacket."""

@@ -104,13 +104,10 @@ Unreleased
     the Request Authenticator of Accounting-Requests are verified (new
     enforce_ma and enable_pkt_verify arguments), and the default hosts and
     dictionary are no longer shared between instances.
-  * Twisted integration: an exception of a packet handler no longer reaches
-    the reactor. pyrad.curved defines its own PacketError, which shadows
-    pyrad.packet.PacketError in that module, so only the former was caught
-    around processPacket; a handler reading an attribute of a malformed
-    packet raises the latter or a ValueError from the decoder. These are
-    dropped and logged now, like in Server.Run and ServerAsync, and so is
-    an error of an overridden createPacket.
+  * Twisted integration: exceptions raised by packet handlers (including
+    pyrad.packet.PacketError and ServerPacketError) or by createPacket are
+    now dropped and logged, like in Server.Run and ServerAsync. Packets
+    that fail to decode are logged with one line, without a traceback.
 
 * Packets:
 
