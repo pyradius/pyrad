@@ -58,6 +58,10 @@ zip-safe = true
 [tool.pytest.ini_options]
 testpaths = ["pyrad/tests"]
 addopts = "-ra"
+# most tests leave enforce_ma out; SecureDefaultTests checks the warning
+filterwarnings = [
+    "ignore:enforce_ma defaults to False:FutureWarning",
+]
 
 [tool.setuptools.dynamic]
 version = { attr = "pyrad.__version__" }

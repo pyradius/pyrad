@@ -34,7 +34,7 @@ class Client(host.Host):
     :type timeout: float
     """
     def __init__(self, server, authport=1812, acctport=1813,
-                 coaport=3799, secret=b'', dict=None, retries=3, timeout=5, enforce_ma=False):
+                 coaport=3799, secret=b'', dict=None, retries=3, timeout=5, enforce_ma=None):
         """Constructor.
 
         :param   server: hostname or IP address of RADIUS server
@@ -54,9 +54,13 @@ class Client(host.Host):
         :param  timeout: number of seconds to wait for a reply
         :type   timeout: float
         :param enforce_ma: Require a Message-Authenticator in replies to
-                           Access-Request and Status-Server packets (a
+                           Access-Request and Status-Server packets
+                           (BlastRADIUS countermeasure, CVE-2024-3596; a
                            Message-Authenticator in a reply is always
-                           verified)
+                           verified). True is recommended. If it is not
+                           passed, it is False and a FutureWarning is
+                           issued: the default will change to True in a
+                           future release.
         :type  enforce_ma: boolean
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
@@ -66,7 +70,7 @@ class Client(host.Host):
         self._socket = None
         self.retries = retries
         self.timeout = timeout
-        self.enforce_ma = enforce_ma
+        self.enforce_ma = packet._EnforceMA(enforce_ma)
         self._poll = select.poll()
 
     def bind(self, addr):

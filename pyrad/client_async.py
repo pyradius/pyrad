@@ -10,7 +10,7 @@ import random
 import socket
 import time
 
-from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket
+from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket, _EnforceMA
 
 
 def _endpoint_options():
@@ -225,7 +225,7 @@ class ClientAsync:
     def __init__(self, server, auth_port=1812, acct_port=1813,
                  coa_port=3799, secret=b'', dict=None,
                  loop=None, retries=3, timeout=30,
-                 logger_name='pyrad', enforce_ma=False):
+                 logger_name='pyrad', enforce_ma=None):
 
         """Constructor.
 
@@ -251,9 +251,13 @@ class ClientAsync:
         :param logger_name: name of the logger
         :type  logger_name: string
         :param enforce_ma: Require a Message-Authenticator in replies to
-                           Access-Request and Status-Server packets (a
+                           Access-Request and Status-Server packets
+                           (BlastRADIUS countermeasure, CVE-2024-3596; a
                            Message-Authenticator in a reply is always
-                           verified)
+                           verified). True is recommended. If it is not
+                           passed, it is False and a FutureWarning is
+                           issued: the default will change to True in a
+                           future release.
         :type  enforce_ma: boolean
         """
         # resolved when used, asyncio.get_event_loop() fails outside of a
@@ -275,7 +279,7 @@ class ClientAsync:
 
         self.protocol_coa = None
         self.coa_port = coa_port
-        self.enforce_ma = enforce_ma
+        self.enforce_ma = _EnforceMA(enforce_ma)
 
     @property
     def loop(self):
