@@ -1,8 +1,9 @@
 # client.py
 #
 # Copyright 2002-2007 Wichert Akkerman <wichert@wiggy.net>
+"""Blocking RADIUS client."""
 
-__docformat__ = "epytext en"
+__docformat__ = "restructuredtext en"
 
 import hashlib
 import select
@@ -19,46 +20,59 @@ EAP_TYPE_MD5 = 4
 
 
 class Timeout(Exception):
-    """Simple exception class which is raised when a timeout occurs
-    while waiting for a RADIUS server to respond."""
+    """Raised by :meth:`Client.SendPacket` when no valid reply was received.
+
+    :class:`pyrad.client_async.ClientAsync` fails its futures with
+    :class:`TimeoutError` instead.
+    """
 
 
 class Client(host.Host):
-    """Basic RADIUS client.
-    This class implements a basic RADIUS client. It can send requests
-    to a RADIUS server, taking care of timeouts and retries, and
-    validate its replies.
+    """Basic blocking RADIUS client.
 
-    :ivar retries: number of times to retry sending a RADIUS request
-    :type retries: integer
-    :ivar timeout: number of seconds to wait for an answer
+    Sends requests to one RADIUS server, retransmits them if no reply is
+    received and verifies the replies. Packets are created with
+    :meth:`CreateAuthPacket`, :meth:`CreateAcctPacket` and
+    :meth:`CreateCoAPacket` and sent with :meth:`SendPacket`.
+
+    :ivar  server: hostname or IP address of the RADIUS server
+    :type  server: str
+    :ivar  secret: RADIUS secret shared with the server
+    :type  secret: bytes
+    :ivar retries: maximum number of times a request is sent in total
+                   (``0`` never sends it and raises :exc:`Timeout`)
+    :type retries: int
+    :ivar timeout: number of seconds to wait for a reply after each send
     :type timeout: float
+    :ivar enforce_ma: require a Message-Authenticator in replies to
+                      Access-Request and Status-Server packets
+    :type enforce_ma: bool
     """
     def __init__(self, server, authport=1812, acctport=1813,
                  coaport=3799, secret=b'', dict=None, retries=3, timeout=5, enforce_ma=False):
-        """Constructor.
-
-        :param   server: hostname or IP address of RADIUS server
-        :type    server: string
-        :param authport: port to use for authentication packets
-        :type  authport: integer
-        :param acctport: port to use for accounting packets
-        :type  acctport: integer
-        :param coaport: port to use for CoA packets
-        :type  coaport: integer
+        """
+        :param   server: hostname or IP address of the RADIUS server
+        :type    server: str
+        :param authport: server port for authentication packets
+        :type  authport: int
+        :param acctport: server port for accounting packets
+        :type  acctport: int
+        :param  coaport: server port for CoA and Disconnect packets
+        :type   coaport: int
         :param   secret: RADIUS secret
         :type    secret: bytes
         :param     dict: RADIUS dictionary
         :type      dict: pyrad.dictionary.Dictionary
-        :param  retries: number of times to send a request
-        :type   retries: integer
-        :param  timeout: number of seconds to wait for a reply
+        :param  retries: maximum number of times a request is sent in total
+        :type   retries: int
+        :param  timeout: number of seconds to wait for a reply after each
+                         send
         :type   timeout: float
-        :param enforce_ma: Require a Message-Authenticator in replies to
+        :param enforce_ma: require a Message-Authenticator in replies to
                            Access-Request and Status-Server packets (a
                            Message-Authenticator in a reply is always
                            verified)
-        :type  enforce_ma: boolean
+        :type  enforce_ma: bool
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
 
@@ -71,12 +85,14 @@ class Client(host.Host):
         self._poll = select.poll()
 
     def bind(self, addr):
-        """Bind socket to an address.
-        Binding the socket used for communicating to an address can be
-        useful when working on a machine with multiple addresses.
+        """Bind the client socket to a local address.
 
-        :param addr: network address (hostname or IP) and port to bind to
-        :type  addr: host,port tuple
+        Useful on a machine with multiple addresses. The socket is closed
+        and opened again first.
+
+        :param addr: local address (hostname or IP) and port to bind to,
+                     port 0 for any free port
+        :type  addr: tuple
         """
         self._CloseSocket()
         self._SocketOpen()
@@ -101,17 +117,27 @@ class Client(host.Host):
             self._socket = None
 
     def CreateAuthPacket(self, **args):
-        """Create a new RADIUS packet.
-        This utility function creates a new RADIUS packet which can
-        be used to communicate with the RADIUS server this client
-        talks to. This is initializing the new packet with the
-        dictionary and secret used for the client.
+        """Create an authentication packet for the server of this client.
 
-        A Message-Authenticator is added by default as countermeasure
-        against the BlastRADIUS attack (CVE-2024-3596), which can be
-        disabled with message_authenticator=False.
+        The packet has the dictionary and secret of the client. The
+        keyword arguments are passed to :class:`pyrad.packet.AuthPacket`:
+        packet arguments (``code``, ``id``, ``authenticator``,
+        ``auth_type``, ``message_authenticator``, ``packet``) and
+        attributes to add, with ``-`` in the attribute names replaced by
+        ``_``. The default code is Access-Request, use
+        ``code=pyrad.packet.StatusServer`` for a Status-Server packet to
+        the authentication port.
 
-        :return: a new empty packet instance
+        A Message-Authenticator is added when the packet is encoded, as
+        countermeasure against the BlastRADIUS attack (CVE-2024-3596);
+        disable it with ``message_authenticator=False``.
+
+        For PAP the password must be encrypted:
+        ``pkt['User-Password'] = pkt.PwCrypt(password)``. For EAP-MD5 pass
+        ``auth_type='eap-md5'`` and set the cleartext password as
+        User-Password, see :meth:`SendPacket`.
+
+        :return: a new packet
         :rtype:  pyrad.packet.AuthPacket
         """
         if 'packet' not in args:
@@ -120,25 +146,33 @@ class Client(host.Host):
         return host.Host.CreateAuthPacket(self, secret=self.secret, **args)
 
     def CreateAcctPacket(self, **args):
-        """Create a new accounting RADIUS packet.
-        This utility function creates a new RADIUS packet which can
-        be used to communicate with the RADIUS server this client
-        talks to. This is initializing the new packet with the
-        dictionary and secret used for the client.
+        """Create an accounting packet for the server of this client.
 
-        :return: a new empty packet instance
+        The packet has the dictionary and secret of the client. The
+        keyword arguments are passed to :class:`pyrad.packet.AcctPacket`:
+        packet arguments (``code``, ``id``, ``authenticator``,
+        ``message_authenticator``, ``packet``) and attributes to add,
+        with ``-`` in the attribute names replaced by ``_``. The default
+        code is Accounting-Request; ``code=pyrad.packet.StatusServer``
+        creates a Status-Server packet to the accounting port.
+
+        :return: a new packet
         :rtype:  pyrad.packet.AcctPacket
         """
         return host.Host.CreateAcctPacket(self, secret=self.secret, **args)
 
     def CreateCoAPacket(self, **args):
-        """Create a new CoA RADIUS packet.
-        This utility function creates a new RADIUS packet which can
-        be used to communicate with the RADIUS server this client
-        talks to. This is initializing the new packet with the
-        dictionary and secret used for the client.
+        """Create a CoA-Request or Disconnect-Request for this client's server.
 
-        :return: a new empty packet instance
+        The packet has the dictionary and secret of the client. The
+        keyword arguments are passed to :class:`pyrad.packet.CoAPacket`:
+        packet arguments (``code``, ``id``, ``authenticator``,
+        ``message_authenticator``, ``packet``) and attributes to add,
+        with ``-`` in the attribute names replaced by ``_``. The default
+        code is CoA-Request, pass ``code=pyrad.packet.DisconnectRequest``
+        for a Disconnect-Request.
+
+        :return: a new packet
         :rtype:  pyrad.packet.CoAPacket
         """
         return host.Host.CreateCoAPacket(self, secret=self.secret, **args)
@@ -183,7 +217,7 @@ class Client(host.Host):
         :param pkt:  the packet to send
         :type pkt:   pyrad.packet.Packet
         :param port: UDP port to send packet to
-        :type port:  integer
+        :type port:  int
         :return:     the reply packet received
         :rtype:      pyrad.packet.Packet
         :raise Timeout: RADIUS server does not reply
@@ -297,17 +331,42 @@ class Client(host.Host):
             pkt[2] = user_password
 
     def SendPacket(self, pkt):
-        """Send a packet to a RADIUS server.
-        Authentication packets are sent to the authport, CoA and
-        Disconnect packets to the coaport and accounting packets to the
-        acctport. The request is retried until a valid reply is received;
-        invalid replies are ignored.
+        """Send a request to the RADIUS server and wait for a valid reply.
 
-        :param pkt: the packet to send
-        :type pkt:  pyrad.packet.Packet
-        :return:    the reply packet received
+        The port depends on the packet class: an
+        :class:`~pyrad.packet.AuthPacket` (also a Status-Server created
+        with :meth:`CreateAuthPacket`) is sent to ``authport``, a
+        :class:`~pyrad.packet.CoAPacket` to ``coaport`` and any other
+        packet (also a Status-Server :class:`~pyrad.packet.AcctPacket`) to
+        ``acctport``.
+
+        The request is sent at most ``retries`` times, waiting
+        ``timeout`` seconds for a reply after each send. Invalid
+        replies are ignored: a wrong Response Authenticator or
+        Message-Authenticator, a Proxy-State that was not sent, or a
+        missing Message-Authenticator with ``enforce_ma``. Before an
+        Accounting-Request is sent again, its Acct-Delay-Time is increased
+        by ``timeout`` (this modifies ``pkt``).
+
+        With ``auth_type='eap-md5'`` the client authenticates with
+        EAP-MD5 (RFC 3748, RFC 3579): the EAP-Response/Identity carries
+        the User-Name, and User-Password holds the cleartext password,
+        which is used for the MD5 response but not sent. The
+        Access-Challenge of the server is answered automatically, so
+        ``pkt`` ends up with an EAP-Message, the State of the challenge
+        and a new id.
+
+        :param pkt: the request to send
+        :type  pkt: pyrad.packet.Packet
+        :return:    the reply; check ``reply.code``, e.g. Access-Accept or
+                    Access-Reject
         :rtype:     pyrad.packet.Packet
-        :raise Timeout: RADIUS server does not reply
+        :raise Timeout: no valid reply was received
+        :raise ValueError: ``auth_type='eap-md5'`` without User-Name or
+                           User-Password, or an attribute value that cannot
+                           be encoded
+        :raise OSError: the socket fails, e.g. the server name cannot be
+                        resolved
         """
         if isinstance(pkt, packet.AuthPacket):
             if pkt.auth_type == 'eap-md5':

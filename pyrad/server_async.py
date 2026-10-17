@@ -39,6 +39,17 @@ class ServerType(Enum):
 
 
 class DatagramProtocolServer(asyncio.Protocol):
+    """The transport of one listening socket of a :class:`ServerAsync`.
+
+    :meth:`ServerAsync.initialize_transports` creates one for each address
+    and port it listens on, and passes it to the packet handlers as
+    ``protocol``. Don't create it yourself.
+
+    :ivar ip: address the socket is bound to
+    :vartype ip: str
+    :ivar port: port the socket is bound to
+    :vartype port: int
+    """
 
     def __init__(self, ip, port, logger, server, server_type, hosts,
                  request_callback):
@@ -62,12 +73,13 @@ class DatagramProtocolServer(asyncio.Protocol):
             self.logger.info('[%s:%d] Transport closed', self.ip, self.port)
 
     def send_response(self, reply, addr):
-        """Send a reply packet.
+        """Send a reply packet to a client.
 
-        :param reply: reply packet
+        :param reply: reply packet, e.g. created with
+            :meth:`ServerAsync.CreateReplyPacket`
         :type  reply: pyrad.packet.Packet
         :param  addr: address of the client, as passed to the handler
-        :type   addr: (host, port) tuple
+        :type   addr: tuple
         """
         self.transport.sendto(reply.ReplyPacket(), addr)
 
@@ -153,9 +165,20 @@ class DatagramProtocolServer(asyncio.Protocol):
 
 class ServerAsync(metaclass=ABCMeta):
     """Basic asyncio RADIUS server.
-    Derive from this class and implement the handle_auth_packet,
-    handle_acct_packet, handle_coa_packet and handle_disconnect_packet
-    methods, then call initialize_transports to start listening.
+
+    Derive from this class and implement all four packet handlers,
+    :meth:`handle_auth_packet`, :meth:`handle_acct_packet`,
+    :meth:`handle_coa_packet` and :meth:`handle_disconnect_packet`;
+    instantiating a class that lacks one of them raises a
+    :exc:`TypeError`. Then create the server and await
+    :meth:`initialize_transports` in the running event loop to start
+    listening.
+
+    The handlers are plain methods called for each received request, not
+    coroutines: an ``async def`` handler is never run (Python warns that
+    the coroutine was never awaited and the client times out). For
+    asynchronous work, start a task from the handler and send the reply
+    from that task.
     """
 
     def __init__(self, auth_port=1812, acct_port=1813,
@@ -163,31 +186,34 @@ class ServerAsync(metaclass=ABCMeta):
                  loop=None, logger_name='pyrad',
                  enable_pkt_verify=True,
                  debug=False, enforce_ma=False):
-        """Constructor.
-
-        :param  auth_port: port to listen on for authentication packets
-        :type   auth_port: integer
-        :param  acct_port: port to listen on for accounting packets
-        :type   acct_port: integer
-        :param   coa_port: port to listen on for CoA packets
-        :type    coa_port: integer
-        :param      hosts: hosts who we can talk to
-        :type       hosts: dictionary mapping IP to RemoteHost class instances
-        :param dictionary: RADIUS dictionary to use
+        """
+        :param auth_port: port to listen on for authentication packets
+        :type  auth_port: int
+        :param acct_port: port to listen on for accounting packets
+        :type  acct_port: int
+        :param coa_port: port to listen on for CoA and Disconnect packets
+        :type  coa_port: int
+        :param hosts: clients allowed to send requests, mapping their IP
+            address to a :class:`~pyrad.server.RemoteHost` with the shared
+            secret. The entry ``'0.0.0.0'`` is used for all other clients.
+            IPv4 clients of a socket bound to ``'::'`` are looked up by
+            their IPv4 address. Requests of other clients are dropped.
+        :type  hosts: dict[str, pyrad.server.RemoteHost]
+        :param dictionary: RADIUS dictionary used to decode the requests
         :type  dictionary: pyrad.dictionary.Dictionary
-        :param       loop: Python loop handler
-        :type        loop: asyncio event loop
+        :param loop: event loop, by default the loop running when it is
+            used
+        :type  loop: asyncio.AbstractEventLoop
         :param logger_name: name of the logger
-        :type  logger_name: string
-        :param enable_pkt_verify: drop accounting, CoA and Disconnect requests
-                                  with an invalid request authenticator
-                                  (default True)
+        :type  logger_name: str
+        :param enable_pkt_verify: drop Accounting, CoA and Disconnect requests
+            with an invalid Request Authenticator
         :type  enable_pkt_verify: bool
-        :param      debug: log the traceback of errors
-        :type       debug: bool
-        :param enforce_ma: drop Access-Requests without Message-Authenticator
-                           (default False, an invalid Message-Authenticator
-                           is always dropped)
+        :param debug: log a traceback for packets that fail verification or
+            in a handler, instead of a one-line message
+        :type  debug: bool
+        :param enforce_ma: drop Access-Requests without a Message-Authenticator
+            (an invalid Message-Authenticator is always dropped)
         :type  enforce_ma: bool
         """
 
@@ -256,15 +282,23 @@ class ServerAsync(metaclass=ABCMeta):
     # noinspection PyPep8Naming
     @staticmethod
     def CreateReplyPacket(pkt, **attributes):
-        """Create a reply packet.
-        Create a new packet which can be returned as a reply to a received
-        packet.
+        """Create a reply to a received request.
 
-        :param pkt:   original packet
-        :type pkt:    Packet instance
-        :param attributes: attributes to add to the reply
-        :return:      reply packet
-        :rtype:       Packet instance
+        The reply is an Access-Accept for an Access-Request, an
+        Accounting-Response for an Accounting-Request and a CoA-ACK for a
+        CoA-Request or Disconnect-Request; change ``reply.code`` for
+        another reply, e.g. ``pyrad.packet.AccessReject`` or
+        ``pyrad.packet.DisconnectACK``. The Proxy-State attributes of the
+        request are copied and replies to Access-Requests get a
+        Message-Authenticator. Send it with
+        :meth:`DatagramProtocolServer.send_response`.
+
+        :param pkt: received request
+        :type  pkt: pyrad.packet.Packet
+        :param attributes: attributes to add to the reply, as keyword
+            arguments like for :class:`pyrad.packet.Packet`
+        :return: reply packet
+        :rtype:  pyrad.packet.Packet
         """
         reply = pkt.CreateReply(**attributes)
         return reply
@@ -288,16 +322,23 @@ class ServerAsync(metaclass=ABCMeta):
                                     enable_auth=False, enable_coa=False,
                                     addresses=None):
         """Open the sockets and start listening.
-        At least one transport has to be enabled.
+
+        Opens a socket for each address and enabled port in the running
+        event loop. At least one of the ports has to be enabled, otherwise
+        an :exc:`Exception` is raised. Addresses which are already listened
+        on for a port are skipped, so this method can be called again to
+        add addresses, or to retry after a socket couldn't be opened (the
+        error of the socket is raised).
 
         :param enable_acct: listen for accounting packets
         :type  enable_acct: bool
         :param enable_auth: listen for authentication packets
         :type  enable_auth: bool
-        :param  enable_coa: listen for CoA and Disconnect packets
-        :type   enable_coa: bool
-        :param   addresses: IP addresses to listen on (default 127.0.0.1)
-        :type    addresses: sequence of strings
+        :param enable_coa: listen for CoA and Disconnect packets
+        :type  enable_coa: bool
+        :param addresses: IP addresses to listen on, by default
+            ``['127.0.0.1']``
+        :type  addresses: list[str]
         """
 
         if not enable_acct and not enable_auth and not enable_coa:
@@ -349,7 +390,7 @@ class ServerAsync(metaclass=ABCMeta):
 
     # noinspection SpellCheckingInspection
     async def deinitialize_transports(self, deinit_coa=True, deinit_auth=True, deinit_acct=True):
-        """Close the sockets.
+        """Close the sockets opened by :meth:`initialize_transports`.
 
         :param deinit_coa:  close the CoA transports
         :type  deinit_coa:  bool
@@ -381,32 +422,80 @@ class ServerAsync(metaclass=ABCMeta):
 
     @abstractmethod
     def handle_auth_packet(self, protocol, pkt, addr):
-        """Authentication packet handler.
-        Called for each valid Access-Request. Send the reply with
-        protocol.send_response(reply, addr).
+        """Handle an Access-Request.
 
-        :param protocol: protocol the packet was received on
+        Called for each Access-Request from a known client (a client in
+        ``hosts`` or, if present, the ``'0.0.0.0'`` entry). A
+        Message-Authenticator in the request has been verified, and with
+        ``enforce_ma`` requests without one have been dropped. The
+        User-Password is not verified: decrypt it with
+        :meth:`pkt.PwDecrypt <pyrad.packet.AuthPacket.PwDecrypt>` and check
+        it yourself.
+
+        This is a plain method, not a coroutine (see :class:`ServerAsync`).
+        To answer, send a reply with
+        ``protocol.send_response(self.CreateReplyPacket(pkt), addr)``. If
+        the handler doesn't reply, the request is dropped. An exception
+        raised by the handler is logged and the request is dropped.
+
+        :param protocol: transport the request was received on
         :type  protocol: DatagramProtocolServer
-        :param      pkt: packet to process
-        :type       pkt: pyrad.packet.AuthPacket
-        :param     addr: address of the client
-        :type      addr: (host, port) tuple
+        :param pkt: received request, with ``pkt.secret`` set to the secret
+            of the client
+        :type  pkt: pyrad.packet.AuthPacket
+        :param addr: address of the client
+        :type  addr: tuple
         """
 
     @abstractmethod
     def handle_acct_packet(self, protocol, pkt, addr):
-        """Accounting packet handler.
-        Called for each valid Accounting-Request, see handle_auth_packet.
+        """Handle an Accounting-Request.
+
+        Called for each Accounting-Request from a known client. With
+        ``enable_pkt_verify`` its Request Authenticator has been verified.
+        Reply as described for :meth:`handle_auth_packet`.
+
+        :param protocol: transport the request was received on
+        :type  protocol: DatagramProtocolServer
+        :param pkt: received request, with ``pkt.secret`` set to the secret
+            of the client
+        :type  pkt: pyrad.packet.AcctPacket
+        :param addr: address of the client
+        :type  addr: tuple
         """
 
     @abstractmethod
     def handle_coa_packet(self, protocol, pkt, addr):
-        """CoA packet handler.
-        Called for each valid CoA-Request, see handle_auth_packet.
+        """Handle a CoA-Request.
+
+        Called for each CoA-Request from a known client. With
+        ``enable_pkt_verify`` its Request Authenticator has been verified.
+        Reply as described for :meth:`handle_auth_packet`.
+
+        :param protocol: transport the request was received on
+        :type  protocol: DatagramProtocolServer
+        :param pkt: received request, with ``pkt.secret`` set to the secret
+            of the client
+        :type  pkt: pyrad.packet.CoAPacket
+        :param addr: address of the client
+        :type  addr: tuple
         """
 
     @abstractmethod
     def handle_disconnect_packet(self, protocol, pkt, addr):
-        """Disconnect packet handler.
-        Called for each valid Disconnect-Request, see handle_auth_packet.
+        """Handle a Disconnect-Request.
+
+        Called for each Disconnect-Request from a known client. With
+        ``enable_pkt_verify`` its Request Authenticator has been verified.
+        Reply as described for :meth:`handle_auth_packet`.
+        :meth:`CreateReplyPacket` creates a CoA-ACK; set ``reply.code`` to
+        ``pyrad.packet.DisconnectACK`` or ``pyrad.packet.DisconnectNAK``.
+
+        :param protocol: transport the request was received on
+        :type  protocol: DatagramProtocolServer
+        :param pkt: received request, with ``pkt.secret`` set to the secret
+            of the client
+        :type  pkt: pyrad.packet.CoAPacket
+        :param addr: address of the client
+        :type  addr: tuple
         """

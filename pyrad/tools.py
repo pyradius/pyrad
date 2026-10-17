@@ -1,6 +1,12 @@
 # tools.py
 #
 # Utility functions
+"""Encoding and decoding of attribute values.
+
+Converts attribute values between their Python form and the octets sent
+in a packet, per RADIUS data type (see :mod:`pyrad.dictionary`). Used by
+:class:`pyrad.packet.Packet`.
+"""
 import binascii
 import ipaddress
 import re

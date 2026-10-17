@@ -14,23 +14,30 @@ logger = logging.getLogger('pyrad')
 
 
 class RemoteHost:
-    """Remote RADIUS capable host we can talk to."""
+    """A RADIUS client or server and its shared secret.
+
+    Used as the values of the ``hosts`` mapping of :class:`Server`,
+    :class:`pyrad.server_async.ServerAsync` and :class:`pyrad.proxy.Proxy`.
+    pyrad only uses ``secret``: the servers look up the client by the
+    key of the ``hosts`` mapping (the IP address as the socket reports it),
+    not by ``address``. The address, name and ports are stored for the
+    application and are not used by pyrad.
+    """
 
     def __init__(self, address, secret, name, authport=1812, acctport=1813, coaport=3799):
-        """Constructor.
-
-        :param   address: IP address
-        :type    address: string
-        :param    secret: RADIUS secret
-        :type     secret: bytes
-        :param      name: short name (used for logging only)
-        :type       name: string
-        :param  authport: port used for authentication packets
-        :type   authport: integer
-        :param  acctport: port used for accounting packets
-        :type   acctport: integer
-        :param   coaport: port used for CoA packets
-        :type    coaport: integer
+        """
+        :param  address: IP address of the host (informational)
+        :type   address: str
+        :param   secret: RADIUS shared secret
+        :type    secret: bytes
+        :param     name: short name of the host (informational)
+        :type      name: str
+        :param authport: authentication port of the host (informational)
+        :type  authport: int
+        :param acctport: accounting port of the host (informational)
+        :type  acctport: int
+        :param  coaport: CoA port of the host (informational)
+        :type   coaport: int
         """
         self.address = address
         self.secret = secret
@@ -41,18 +48,28 @@ class RemoteHost:
 
 
 class ServerPacketError(Exception):
-    """Exception class for bogus packets.
-    ServerPacketError exceptions are only used inside the Server class to
-    abort processing of a packet.
+    """A received packet is dropped.
+
+    Raised by :class:`Server`, :class:`pyrad.server_async.ServerAsync` and
+    :class:`pyrad.proxy.Proxy` for packets they don't accept: packets from
+    an unknown client, packets of the wrong type for the port they were
+    received on, and Access-Requests with an invalid or (with
+    ``enforce_ma``) a missing Message-Authenticator.
+
+    A packet handler may raise it to drop a request: the server then logs
+    a single line with the message instead of a traceback.
     """
 
 
 def CheckMessageAuthenticator(pkt, enforce_ma=False):
-    """Check the Message-Authenticator of a received Access-Request
-    (BlastRADIUS countermeasure, CVE-2024-3596).
+    """Check the Message-Authenticator of a received Access-Request.
 
-    :param pkt:        received packet with secret set
-    :type  pkt:        Packet class instance
+    This is the BlastRADIUS countermeasure (CVE-2024-3596) of the servers.
+    An invalid Message-Authenticator is always rejected, a missing one only
+    with ``enforce_ma``.
+
+    :param        pkt: received packet with the secret set
+    :type         pkt: pyrad.packet.Packet
     :param enforce_ma: require a Message-Authenticator
     :type  enforce_ma: bool
     :raise ServerPacketError: if the packet should be dropped
@@ -67,15 +84,15 @@ def CheckMessageAuthenticator(pkt, enforce_ma=False):
 
 
 def _HostAddresses(address):
-    """Return the keys under which a source address is looked up in a hosts
-    dictionary: the address as received and, for an IPv4-mapped IPv6
-    address (an IPv4 client of a dual stack socket bound to '::'), its IPv4
-    form.
+    """Return the keys under which a source address is looked up in hosts.
+
+    These are the address as received and, for an IPv4-mapped IPv6 address
+    (an IPv4 client of a dual stack socket bound to '::'), its IPv4 form.
 
     :param address: source address of a packet
-    :type  address: string
+    :type  address: str
     :return: addresses to look up, in order
-    :rtype:  list of strings
+    :rtype:  list[str]
     """
     addresses = [address]
     try:
@@ -91,9 +108,9 @@ def _LookupHost(hosts, address):
     """Return the hosts entry of a source address, or None.
 
     :param   hosts: hosts who are allowed to talk to us
-    :type    hosts: dictionary mapping IP to RemoteHost class instances
+    :type    hosts: dict[str, RemoteHost]
     :param address: source address of a packet
-    :type  address: string
+    :type  address: str
     """
     for key in _HostAddresses(address):
         if key in hosts:
@@ -102,54 +119,58 @@ def _LookupHost(hosts, address):
 
 
 class Server(host.Host):
-    """Basic RADIUS server.
-    This class implements the basics of a RADIUS server. It takes care
-    of the details of receiving and decoding requests; processing of
-    the requests should be done by overloading the appropriate methods
-    in derived classes.
+    """Basic blocking RADIUS server.
 
-    :ivar  hosts: hosts who are allowed to talk to us
-    :type  hosts: dictionary mapping IP to RemoteHost class instances
-    :ivar  _poll: poll object for network sockets
-    :type  _poll: select.poll class instance
-    :ivar _fdmap: map of file descriptors to network sockets
-    :type _fdmap: dictionary
-    :cvar MaxPacketSize: maximum size of a RADIUS packet
-    :type MaxPacketSize: integer
+    The server receives and decodes requests, checks that they come from a
+    known client and are valid, and passes them to the packet handlers.
+    Derive from it and override :meth:`HandleAuthPacket`,
+    :meth:`HandleAcctPacket`, :meth:`HandleCoaPacket` and
+    :meth:`HandleDisconnectPacket`; the default handlers ignore the
+    request. Then call :meth:`Run`.
+
+    :ivar hosts: clients allowed to send requests, see the ``hosts``
+        parameter
+    :vartype hosts: dict[str, RemoteHost]
+    :cvar MaxPacketSize: size of the receive buffer (RADIUS packets are at
+        most 4096 octets)
+    :vartype MaxPacketSize: int
     """
     MaxPacketSize = 8192
 
     def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=3799,
                  hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False,
                  enforce_ma=False, enable_pkt_verify=True):
-        """Constructor.
-
-        :param     addresses: IP addresses to listen on
-        :type      addresses: sequence of strings
-        :param      authport: port to listen on for authentication packets
-        :type       authport: integer
-        :param      acctport: port to listen on for accounting packets
-        :type       acctport: integer
-        :param       coaport: port to listen on for CoA packets
-        :type        coaport: integer
-        :param         hosts: hosts who we can talk to, a host with the
-                              address 0.0.0.0 is used for all other clients
-        :type          hosts: dictionary mapping IP to RemoteHost class instances
-        :param          dict: RADIUS dictionary to use
-        :type           dict: Dictionary class instance
-        :param  auth_enabled: enable auth server (default True)
-        :type   auth_enabled: bool
-        :param  acct_enabled: enable accounting server (default True)
-        :type   acct_enabled: bool
-        :param   coa_enabled: enable CoA server (default False)
-        :type    coa_enabled: bool
-        :param    enforce_ma: drop Access-Requests without Message-Authenticator
-                              (default False, an invalid Message-Authenticator
-                              is always dropped)
-        :type     enforce_ma: bool
-        :param enable_pkt_verify: drop accounting, CoA and Disconnect requests
-                                  with an invalid request authenticator
-                                  (default True)
+        """
+        :param addresses: IP addresses or host names to listen on. The
+            constructor binds them with :meth:`~pyrad.server.Server.BindToAddress`. Without
+            addresses no packets are received unless :meth:`~pyrad.server.Server.BindToAddress`
+            is called.
+        :type  addresses: list[str]
+        :param authport: port to listen on for authentication packets
+        :type  authport: int
+        :param acctport: port to listen on for accounting packets
+        :type  acctport: int
+        :param coaport: port to listen on for CoA and Disconnect packets
+        :type  coaport: int
+        :param hosts: clients allowed to send requests, mapping their IP
+            address to a :class:`~pyrad.server.RemoteHost` with the shared secret. The
+            entry ``'0.0.0.0'`` is used for all other clients. IPv4 clients
+            of a socket bound to ``'::'`` are looked up by their IPv4
+            address. Requests of other clients are dropped.
+        :type  hosts: dict[str, pyrad.server.RemoteHost]
+        :param dict: RADIUS dictionary used to decode the requests
+        :type  dict: pyrad.dictionary.Dictionary
+        :param auth_enabled: listen for authentication packets
+        :type  auth_enabled: bool
+        :param acct_enabled: listen for accounting packets
+        :type  acct_enabled: bool
+        :param coa_enabled: listen for CoA and Disconnect packets
+        :type  coa_enabled: bool
+        :param enforce_ma: drop Access-Requests without a Message-Authenticator
+            (an invalid Message-Authenticator is always dropped)
+        :type  enforce_ma: bool
+        :param enable_pkt_verify: drop Accounting, CoA and Disconnect requests
+            with an invalid Request Authenticator
         :type  enable_pkt_verify: bool
         """
         host.Host.__init__(self, authport, acctport, coaport, dict)
@@ -171,13 +192,13 @@ class Server(host.Host):
             self.BindToAddress(addr)
 
     def _GetAddrInfo(self, addr):
-        """Use getaddrinfo to lookup all addresses for each address.
+        """Use getaddrinfo to look up all addresses of an address.
 
-        Returns a list of tuples or an empty list:
-          [(family, address)]
+        Returns a set of (family, address) tuples, or an empty list if the
+        address can't be resolved.
 
-        :param addr: IP address to lookup
-        :type  addr: string
+        :param addr: IP address or host name to look up
+        :type  addr: str
         """
         results = set()
         try:
@@ -191,11 +212,17 @@ class Server(host.Host):
         return results
 
     def BindToAddress(self, addr):
-        """Add an address to listen on a specific interface.
-        String "0.0.0.0" indicates you want to listen on all interfaces.
+        """Listen on an address.
 
-        :param addr: IP address to listen on
-        :type  addr: string
+        Opens a socket for each enabled port (authentication, accounting,
+        CoA). ``'0.0.0.0'`` listens on all IPv4 addresses, ``'::'`` on all
+        IPv6 addresses and, on a dual stack host, on all IPv4 addresses as
+        well. A host name is resolved and every address it resolves to is
+        bound; a name that can't be resolved is ignored silently. Call it
+        before :meth:`Run`.
+
+        :param addr: IP address or host name to listen on
+        :type  addr: str
         """
         addrFamily = self._GetAddrInfo(addr)
         for (family, address) in addrFamily:
@@ -218,52 +245,121 @@ class Server(host.Host):
                 self.coafds.append(coafd)
 
     def HandleAuthPacket(self, pkt):
-        """Authentication packet handler.
-        This is an empty function that is called when a valid
-        authentication packet has been received. It can be overridden in
-        derived classes to add custom behaviour. Send the reply with
-        SendReplyPacket(pkt.fd, reply).
+        """Handle an Access-Request.
 
-        :param pkt: packet to process
-        :type  pkt: Packet class instance
+        Called by :meth:`Run` for each Access-Request from a known client: a
+        client in ``hosts`` or, if present, the ``'0.0.0.0'`` entry.
+        A Message-Authenticator in the request has been verified, and with
+        ``enforce_ma`` requests without one have been dropped. The
+        User-Password is not verified: decrypt it with
+        :meth:`pkt.PwDecrypt <pyrad.packet.AuthPacket.PwDecrypt>` and check
+        it yourself.
+
+        To answer, create the reply with :meth:`CreateReplyPacket` and send
+        it with ``self.SendReplyPacket(pkt.fd, reply)``
+        (:meth:`pyrad.host.Host.SendReplyPacket`). If the handler doesn't
+        reply, the request is dropped. An exception raised by the handler
+        is logged with a traceback and the request is dropped; raise
+        :class:`ServerPacketError` to drop it with a one-line log message.
+
+        The packet has the attributes ``pkt.source`` (the client address
+        as returned by :meth:`socket.socket.recvfrom`), ``pkt.fd`` (the
+        socket it was received on) and ``pkt.secret`` (the secret of the
+        client).
+
+        The default implementation ignores the request.
+
+        :param pkt: received request
+        :type  pkt: pyrad.packet.AuthPacket
         """
 
     def HandleAcctPacket(self, pkt):
-        """Accounting packet handler.
-        This is an empty function that is called when a valid
-        accounting packet has been received. It can be overridden in
-        derived classes to add custom behaviour.
+        """Handle an Accounting-Request.
 
-        :param pkt: packet to process
-        :type  pkt: Packet class instance
+        Called by :meth:`Run` for each Accounting-Request from a known client: a
+        client in ``hosts`` or, if present, the ``'0.0.0.0'`` entry.
+        With ``enable_pkt_verify`` its Request Authenticator has been
+        verified.
+
+        To answer, create the reply with :meth:`CreateReplyPacket` and send
+        it with ``self.SendReplyPacket(pkt.fd, reply)``
+        (:meth:`pyrad.host.Host.SendReplyPacket`). If the handler doesn't
+        reply, the request is dropped. An exception raised by the handler
+        is logged with a traceback and the request is dropped; raise
+        :class:`ServerPacketError` to drop it with a one-line log message.
+
+        The packet has the attributes ``pkt.source`` (the client address
+        as returned by :meth:`socket.socket.recvfrom`), ``pkt.fd`` (the
+        socket it was received on) and ``pkt.secret`` (the secret of the
+        client).
+
+        The default implementation ignores the request.
+
+        :param pkt: received request
+        :type  pkt: pyrad.packet.AcctPacket
         """
 
     def HandleCoaPacket(self, pkt):
-        """CoA packet handler.
-        This is an empty function that is called when a valid
-        CoA packet has been received. It can be overridden in
-        derived classes to add custom behaviour.
+        """Handle a CoA-Request.
 
-        :param pkt: packet to process
-        :type  pkt: Packet class instance
+        Called by :meth:`Run` for each CoA-Request from a known client: a
+        client in ``hosts`` or, if present, the ``'0.0.0.0'`` entry.
+        With ``enable_pkt_verify`` its Request Authenticator has been
+        verified.
+
+        To answer, create the reply with :meth:`CreateReplyPacket` and send
+        it with ``self.SendReplyPacket(pkt.fd, reply)``
+        (:meth:`pyrad.host.Host.SendReplyPacket`). If the handler doesn't
+        reply, the request is dropped. An exception raised by the handler
+        is logged with a traceback and the request is dropped; raise
+        :class:`ServerPacketError` to drop it with a one-line log message.
+
+        The packet has the attributes ``pkt.source`` (the client address
+        as returned by :meth:`socket.socket.recvfrom`), ``pkt.fd`` (the
+        socket it was received on) and ``pkt.secret`` (the secret of the
+        client).
+
+        The default implementation ignores the request.
+
+        :param pkt: received request
+        :type  pkt: pyrad.packet.CoAPacket
         """
 
     def HandleDisconnectPacket(self, pkt):
-        """Disconnect packet handler.
-        This is an empty function that is called when a valid
-        Disconnect packet has been received. It can be overridden in
-        derived classes to add custom behaviour.
+        """Handle a Disconnect-Request.
 
-        :param pkt: packet to process
-        :type  pkt: Packet class instance
+        Called by :meth:`Run` for each Disconnect-Request from a known client: a
+        client in ``hosts`` or, if present, the ``'0.0.0.0'`` entry.
+        With ``enable_pkt_verify`` its Request Authenticator has been
+        verified. :meth:`CreateReplyPacket` creates a CoA-ACK; set
+        ``reply.code`` to ``pyrad.packet.DisconnectACK`` or
+        ``pyrad.packet.DisconnectNAK``.
+
+        To answer, create the reply with :meth:`CreateReplyPacket` and send
+        it with ``self.SendReplyPacket(pkt.fd, reply)``
+        (:meth:`pyrad.host.Host.SendReplyPacket`). If the handler doesn't
+        reply, the request is dropped. An exception raised by the handler
+        is logged with a traceback and the request is dropped; raise
+        :class:`ServerPacketError` to drop it with a one-line log message.
+
+        The packet has the attributes ``pkt.source`` (the client address
+        as returned by :meth:`socket.socket.recvfrom`), ``pkt.fd`` (the
+        socket it was received on) and ``pkt.secret`` (the secret of the
+        client).
+
+        The default implementation ignores the request.
+
+        :param pkt: received request
+        :type  pkt: pyrad.packet.CoAPacket
         """
 
     def _AddSecret(self, pkt):
-        """Add secret to packets received and raise ServerPacketError
-        for unknown hosts.
+        """Add the secret of the client to a received packet.
+
+        Raises :class:`ServerPacketError` for unknown hosts.
 
         :param pkt: packet to process
-        :type  pkt: Packet class instance
+        :type  pkt: pyrad.packet.Packet
         """
         remote_host = _LookupHost(self.hosts, pkt.source[0])
         if remote_host is not None:
@@ -275,12 +371,13 @@ class Server(host.Host):
 
     def _HandleAuthPacket(self, pkt):
         """Process a packet received on the authentication port.
+
         If this packet should be dropped instead of processed a
         ServerPacketError exception should be raised. The main loop will
         drop the packet and log the reason.
 
         :param pkt: packet to process
-        :type  pkt: Packet class instance
+        :type  pkt: pyrad.packet.Packet
         """
         self._AddSecret(pkt)
         if pkt.code != packet.AccessRequest:
@@ -291,12 +388,13 @@ class Server(host.Host):
 
     def _HandleAcctPacket(self, pkt):
         """Process a packet received on the accounting port.
+
         If this packet should be dropped instead of processed a
         ServerPacketError exception should be raised. The main loop will
         drop the packet and log the reason.
 
         :param pkt: packet to process
-        :type  pkt: Packet class instance
+        :type  pkt: pyrad.packet.Packet
         """
         self._AddSecret(pkt)
         if pkt.code != packet.AccountingRequest:
@@ -308,12 +406,13 @@ class Server(host.Host):
 
     def _HandleCoaPacket(self, pkt):
         """Process a packet received on the CoA port.
+
         If this packet should be dropped instead of processed a
         ServerPacketError exception should be raised. The main loop will
         drop the packet and log the reason.
 
         :param pkt: packet to process
-        :type  pkt: Packet class instance
+        :type  pkt: pyrad.packet.Packet
         """
         self._AddSecret(pkt)
         if pkt.code not in (packet.CoARequest, packet.DisconnectRequest):
@@ -327,12 +426,13 @@ class Server(host.Host):
 
     def _GrabPacket(self, pktgen, fd):
         """Read a packet from a network connection.
+
         This method assumes there is data waiting to be read.
 
         :param fd: socket to read packet from
-        :type  fd: socket class instance
+        :type  fd: socket.socket
         :return: RADIUS packet
-        :rtype:  Packet class instance
+        :rtype:  pyrad.packet.Packet
         """
         (data, source) = fd.recvfrom(self.MaxPacketSize)
         try:
@@ -348,8 +448,7 @@ class Server(host.Host):
         return pkt
 
     def _PrepareSockets(self):
-        """Prepare all sockets to receive packets.
-        """
+        """Prepare all sockets to receive packets."""
         for fd in self.authfds + self.acctfds + self.coafds:
             self._fdmap[fd.fileno()] = fd
             self._poll.register(fd.fileno(), select.POLLIN | select.POLLPRI | select.POLLERR)
@@ -361,15 +460,24 @@ class Server(host.Host):
             self._realcoafds = list(map(lambda x: x.fileno(), self.coafds))
 
     def CreateReplyPacket(self, pkt, **attributes):
-        """Create a reply packet.
-        Create a new packet which can be returned as a reply to a received
-        packet.
+        """Create a reply to a received request.
 
-        :param pkt:   original packet
-        :type pkt:    Packet instance
-        :param attributes: attributes to add to the reply
-        :return:      reply packet
-        :rtype:       Packet instance
+        The reply is an Access-Accept for an Access-Request, an
+        Accounting-Response for an Accounting-Request and a CoA-ACK for a
+        CoA-Request or Disconnect-Request; change ``reply.code`` for
+        another reply, e.g. ``pyrad.packet.AccessReject`` or
+        ``pyrad.packet.DisconnectACK``. The Proxy-State attributes of
+        the request are copied, replies to Access-Requests get a
+        Message-Authenticator, and ``reply.source`` is set to the client
+        address so the reply can be sent with
+        :meth:`pyrad.host.Host.SendReplyPacket`.
+
+        :param pkt: received request
+        :type  pkt: pyrad.packet.Packet
+        :param attributes: attributes to add to the reply, as keyword
+            arguments like for :class:`pyrad.packet.Packet`
+        :return: reply packet
+        :rtype:  pyrad.packet.Packet
         """
         reply = pkt.CreateReply(**attributes)
         reply.source = pkt.source
@@ -377,6 +485,7 @@ class Server(host.Host):
 
     def _ProcessInput(self, fd):
         """Process available data.
+
         If this packet should be dropped instead of processed a
         PacketError exception should be raised. The main loop will
         drop the packet and log the reason.
@@ -384,8 +493,8 @@ class Server(host.Host):
         This function calls _HandleAuthPacket(), _HandleAcctPacket() or
         _HandleCoaPacket() depending on which socket is being processed.
 
-        :param  fd: socket to read packet from
-        :type   fd: socket class instance
+        :param fd: socket to read packet from
+        :type  fd: socket.socket
         """
         if self.auth_enabled and fd.fileno() in self._realauthfds:
             pkt = self._GrabPacket(lambda data, s=self: s.CreateAuthPacket(packet=data), fd)
@@ -400,12 +509,13 @@ class Server(host.Host):
             raise ServerPacketError('Received packet for unknown handler')
 
     def Run(self):
-        """Main loop.
-        This method is the main loop for a RADIUS server. It waits
-        for packets to arrive via the network and calls other methods
-        to process them. Invalid packets are dropped and logged, and so are
-        packets for which a handler raises an exception, so that a
-        malformed packet can't stop the server.
+        """Run the server; this method never returns.
+
+        Waits for packets on the sockets opened by :meth:`BindToAddress`
+        and passes valid requests to the packet handlers. Invalid packets
+        are dropped and logged, and so are packets for which a handler
+        raises an exception, so that a malformed packet can't stop the
+        server. Uses :func:`select.poll`, which is not available on Windows.
         """
         self._poll = select.poll()
         self._fdmap = {}

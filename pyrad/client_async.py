@@ -1,8 +1,9 @@
 # client_async.py
 #
 # Copyright 2018-2020 Geaaru <geaaru<@>gmail.com>
+"""asyncio RADIUS client."""
 
-__docformat__ = "epytext en"
+__docformat__ = "restructuredtext en"
 
 import asyncio
 import logging
@@ -216,16 +217,25 @@ class DatagramProtocolClient(asyncio.Protocol):
 
 class ClientAsync:
     """Basic asyncio RADIUS client.
-    This class implements a basic RADIUS client. It can send requests
-    to a RADIUS server, taking care of timeouts and retries, and
-    validate its replies. Call initialize_transports before creating
-    and sending packets.
 
-    :ivar retries: number of times to retry sending a RADIUS request (it
-                   is sent at most retries + 1 times)
-    :type retries: integer
-    :ivar timeout: number of seconds to wait for an answer
+    Sends requests to one RADIUS server, retransmits them if no reply is
+    received and verifies the replies. Await
+    :meth:`initialize_transports` before creating and sending packets,
+    and :meth:`deinitialize_transports` when done. There is one transport
+    (socket) each for authentication, accounting and CoA packets.
+
+    :ivar  server: hostname or IP address of the RADIUS server
+    :type  server: str
+    :ivar  secret: RADIUS secret shared with the server
+    :type  secret: bytes
+    :ivar retries: number of times a request is retransmitted, it is sent
+                   at most ``retries + 1`` times
+    :type retries: int
+    :ivar timeout: number of seconds to wait for a reply after each send
     :type timeout: float
+    :ivar enforce_ma: require a Message-Authenticator in replies to
+                      Access-Request and Status-Server packets
+    :type enforce_ma: bool
     """
     # noinspection PyShadowingBuiltins
     def __init__(self, server, auth_port=1812, acct_port=1813,
@@ -233,34 +243,34 @@ class ClientAsync:
                  loop=None, retries=3, timeout=30,
                  logger_name='pyrad', enforce_ma=False):
 
-        """Constructor.
-
-        :param    server: hostname or IP address of RADIUS server
-        :type     server: string
-        :param auth_port: port to use for authentication packets
-        :type  auth_port: integer
-        :param acct_port: port to use for accounting packets
-        :type  acct_port: integer
-        :param  coa_port: port to use for CoA packets
-        :type   coa_port: integer
+        """
+        :param    server: hostname or IP address of the RADIUS server
+        :type     server: str
+        :param auth_port: server port for authentication packets
+        :type  auth_port: int
+        :param acct_port: server port for accounting packets
+        :type  acct_port: int
+        :param  coa_port: server port for CoA and Disconnect packets
+        :type   coa_port: int
         :param    secret: RADIUS secret
         :type     secret: bytes
         :param      dict: RADIUS dictionary
         :type       dict: pyrad.dictionary.Dictionary
-        :param      loop: Python loop handler
-        :type       loop:  asyncio event loop
-        :param   retries: number of times to retry sending a request, a
-                          request is sent at most retries + 1 times
-        :type    retries: integer
-        :param   timeout: number of seconds to wait for a reply
+        :param      loop: event loop, defaults to the running loop
+        :type       loop: asyncio.AbstractEventLoop
+        :param   retries: number of times a request is retransmitted, it is
+                          sent at most ``retries + 1`` times
+        :type    retries: int
+        :param   timeout: number of seconds to wait for a reply after each
+                          send
         :type    timeout: float
         :param logger_name: name of the logger
-        :type  logger_name: string
-        :param enforce_ma: Require a Message-Authenticator in replies to
+        :type  logger_name: str
+        :param enforce_ma: require a Message-Authenticator in replies to
                            Access-Request and Status-Server packets (a
                            Message-Authenticator in a reply is always
                            verified)
-        :type  enforce_ma: boolean
+        :type  enforce_ma: bool
         """
         # resolved when used, asyncio.get_event_loop() fails outside of a
         # running loop since Python 3.14
@@ -303,8 +313,10 @@ class ClientAsync:
                                     local_addr=None, local_auth_port=None,
                                     local_acct_port=None, local_coa_port=None):
         """Open the sockets to the server.
+
         At least one transport has to be enabled. Packets can only be
-        created and sent for enabled transports.
+        created and sent for enabled transports. Transports which are
+        already open are left as they are.
 
         :param     enable_acct: open the accounting transport
         :type      enable_acct: bool
@@ -314,13 +326,18 @@ class ClientAsync:
         :type       enable_coa: bool
         :param      local_addr: local address to bind to, with the local
                                 port of a transport or any free port
-        :type       local_addr: string
-        :param local_auth_port: local port of the authentication transport
-        :type  local_auth_port: integer
-        :param local_acct_port: local port of the accounting transport
-        :type  local_acct_port: integer
-        :param  local_coa_port: local port of the CoA transport
-        :type   local_coa_port: integer
+        :type       local_addr: str
+        :param local_auth_port: local port of the authentication transport,
+                                only used with ``local_addr``
+        :type  local_auth_port: int
+        :param local_acct_port: local port of the accounting transport,
+                                only used with ``local_addr``
+        :type  local_acct_port: int
+        :param  local_coa_port: local port of the CoA transport, only used
+                                with ``local_addr``
+        :type   local_coa_port: int
+        :raise Exception: no transport is enabled
+        :raise OSError: a socket cannot be opened
         """
 
         if not enable_acct and not enable_auth and not enable_coa:
@@ -382,6 +399,9 @@ class ClientAsync:
                                       deinit_acct=True):
         """Close the sockets to the server.
 
+        Requests still waiting for a reply on a closed transport fail with
+        :class:`ConnectionAbortedError`.
+
         :param deinit_coa:  close the CoA transport
         :type  deinit_coa:  bool
         :param deinit_auth: close the authentication transport
@@ -404,18 +424,33 @@ class ClientAsync:
 
     # noinspection PyPep8Naming
     def CreateAuthPacket(self, **args):
-        """Create a new RADIUS packet.
-        This utility function creates a new RADIUS packet which can
-        be used to communicate with the RADIUS server this client
-        talks to. This is initializing the new packet with the
-        dictionary and secret used for the client.
+        """Create an authentication packet for the server of this client.
 
-        A Message-Authenticator is added by default as countermeasure
-        against the BlastRADIUS attack (CVE-2024-3596), which can be
-        disabled with message_authenticator=False.
+        The packet has the dictionary and secret of the client and an id
+        that is not used by a pending request of the authentication
+        transport. The keyword arguments are passed to
+        :class:`pyrad.packet.AuthPacket`: packet arguments (``code``,
+        ``authenticator``, ``message_authenticator``, ``packet``) and
+        attributes to add, with ``-`` in the attribute names replaced by
+        ``_``. The default code is Access-Request, use
+        ``code=pyrad.packet.StatusServer`` for a Status-Server packet to
+        the authentication port.
 
-        :return: a new empty packet instance
+        A Message-Authenticator is added when the packet is encoded, as
+        countermeasure against the BlastRADIUS attack (CVE-2024-3596);
+        disable it with ``message_authenticator=False``.
+
+        For PAP the password must be encrypted:
+        ``pkt['User-Password'] = pkt.PwCrypt(password)``.
+
+        .. warning:: Unlike :class:`pyrad.client.Client`, this client does
+           not implement ``auth_type='eap-md5'``: such a packet is sent as
+           it is, including a cleartext User-Password.
+
+        :return: a new packet
         :rtype:  pyrad.packet.AuthPacket
+        :raise Exception: the authentication transport is not initialized,
+                          or 256 requests are pending
         """
         if not self.protocol_auth:
             raise Exception('Transport not initialized')
@@ -429,14 +464,22 @@ class ClientAsync:
 
     # noinspection PyPep8Naming
     def CreateAcctPacket(self, **args):
-        """Create a new accounting RADIUS packet.
-        This utility function creates a new RADIUS packet which can
-        be used to communicate with the RADIUS server this client
-        talks to. This is initializing the new packet with the
-        dictionary and secret used for the client.
+        """Create an accounting packet for the server of this client.
 
-        :return: a new empty packet instance
+        The packet has the dictionary and secret of the client and an id
+        that is not used by a pending request of the accounting transport.
+        The keyword arguments are passed to
+        :class:`pyrad.packet.AcctPacket`: packet arguments (``code``,
+        ``authenticator``, ``message_authenticator``, ``packet``) and
+        attributes to add, with ``-`` in the attribute names replaced by
+        ``_``. The default code is Accounting-Request;
+        ``code=pyrad.packet.StatusServer`` creates a Status-Server packet
+        to the accounting port.
+
+        :return: a new packet
         :rtype:  pyrad.packet.AcctPacket
+        :raise Exception: the accounting transport is not initialized, or
+                          256 requests are pending
         """
         if not self.protocol_acct:
             raise Exception('Transport not initialized')
@@ -447,14 +490,21 @@ class ClientAsync:
 
     # noinspection PyPep8Naming
     def CreateCoAPacket(self, **args):
-        """Create a new CoA RADIUS packet.
-        This utility function creates a new RADIUS packet which can
-        be used to communicate with the RADIUS server this client
-        talks to. This is initializing the new packet with the
-        dictionary and secret used for the client.
+        """Create a CoA-Request or Disconnect-Request for this client's server.
 
-        :return: a new empty packet instance
+        The packet has the dictionary and secret of the client and an id
+        that is not used by a pending request of the CoA transport. The
+        keyword arguments are passed to :class:`pyrad.packet.CoAPacket`:
+        packet arguments (``code``, ``authenticator``,
+        ``message_authenticator``, ``packet``) and attributes to add, with
+        ``-`` in the attribute names replaced by ``_``. The default code
+        is CoA-Request, pass ``code=pyrad.packet.DisconnectRequest`` for a
+        Disconnect-Request.
+
+        :return: a new packet
         :rtype:  pyrad.packet.CoAPacket
+        :raise Exception: the CoA transport is not initialized, or 256
+                          requests are pending
         """
 
         if not self.protocol_coa:
@@ -467,6 +517,20 @@ class ClientAsync:
     # noinspection PyPep8Naming
     # noinspection PyShadowingBuiltins
     def CreatePacket(self, id, **args):
+        """Create a generic packet with the dictionary and secret of the client.
+
+        A generic :class:`pyrad.packet.Packet` cannot be sent with
+        :meth:`SendPacket`, use :meth:`CreateAuthPacket`,
+        :meth:`CreateAcctPacket` or :meth:`CreateCoAPacket` instead.
+
+        :param id: packet identifier
+        :type  id: int
+        :param args: further arguments of :class:`pyrad.packet.Packet`
+                     and attributes to add
+        :return: a new packet
+        :rtype:  pyrad.packet.Packet
+        :raise Exception: ``id`` is None
+        """
         if id is None:
             raise Exception('Missing mandatory packet id')
 
@@ -475,15 +539,32 @@ class ClientAsync:
 
     # noinspection PyPep8Naming
     def SendPacket(self, pkt):
-        """Send a packet to a RADIUS server.
-        The request is retried until a valid reply is received; invalid
-        replies are ignored.
+        """Send a request to the RADIUS server.
 
-        :param pkt: the packet to send
+        This is not a coroutine: the request is sent right away and a
+        future is returned, await it for the reply. An
+        :class:`~pyrad.packet.AuthPacket` is sent with the authentication
+        transport, an :class:`~pyrad.packet.AcctPacket` with the
+        accounting transport and a :class:`~pyrad.packet.CoAPacket` with
+        the CoA transport.
+
+        If no valid reply is received within ``timeout`` seconds, the
+        request is retransmitted (the same bytes as the first attempt), at
+        most ``retries`` times. Invalid replies are ignored. Without a
+        valid reply the future fails with the builtin :class:`TimeoutError`
+        after ``(retries + 1) * timeout`` seconds (on Python 3.10 this is
+        not :class:`asyncio.TimeoutError`). It fails with
+        :class:`ConnectionAbortedError` if :meth:`deinitialize_transports`
+        closes the transport first.
+
+        :param pkt: the request to send
         :type  pkt: pyrad.packet.Packet
-        :return:    future with the reply packet, or a TimeoutError if
-                    the server does not reply
+        :return:    future with the reply packet; check ``reply.code``
         :rtype:     asyncio.Future
+        :raise Exception: the transport is not initialized, the packet
+                          class is not supported, or a request with the
+                          same id is pending
+        :raise ValueError: an attribute value cannot be encoded
         """
 
         ans = asyncio.Future(loop=self.loop)

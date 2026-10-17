@@ -4,99 +4,144 @@
 """
 RADIUS uses dictionaries to define the attributes that can
 be used in packets. The Dictionary class stores the attribute
-definitions from one or more dictionary files.
+definitions from one or more dictionary files in the FreeRADIUS format.
 
 Dictionary files are text files with one command per line.
 Comments are specified by starting with a # character, and empty
 lines are ignored.
 
-The commands supported are::
+The commands supported are:
 
-  ATTRIBUTE <attribute> <code> <type> [<vendor>|<flags>]
-  specify an attribute and its type
+``ATTRIBUTE <attribute> <code> <type> [<vendor>|<flags>]``
+  Define an attribute and its data type. The code is decimal, or
+  hexadecimal with a ``0x`` prefix (octal with ``0o``), and
+  ``<tlv code>.<code>`` for a sub-attribute of a TLV.
 
-  VALUE <attribute> <valuename> <value>
-  specify a named value of an attribute
+``VALUE <attribute> <valuename> <value>``
+  Define a named value of an attribute.
 
-  VENDOR <name> <id>
-  specify a vendor ID
+``VENDOR <name> <id> [format=<t>,<l>]``
+  Define a vendor and its ID. Only the RFC 2865 format ``format=1,1`` (the
+  default) is supported, the attributes of vendors with another format
+  are skipped.
 
-  BEGIN-VENDOR <vendorname>
-  begin definition of vendor attributes
+``BEGIN-VENDOR <name> [format=<attribute>]``
+  Begin the definition of the attributes of a vendor. The attributes of a
+  block with a ``format=`` option are extended vendor-specific attributes
+  (RFC 6929) and are skipped.
 
-  END-VENDOR <vendorname>
-  end definition of vendor attributes
+``END-VENDOR <name>``
+  End the definition of the attributes of a vendor.
 
-  $INCLUDE <filename>
-  read another dictionary file, relative to the current one
+``$INCLUDE <filename>``
+  Read another dictionary file. A relative file name is relative to the
+  directory of the current file, or to the current working directory if
+  the dictionary is read from a file-like object.
+
+``$INCLUDE- <filename>``
+  Like ``$INCLUDE``, but a file that doesn't exist is ignored.
+
+Other commands are ignored.
 
 The attribute flags are a comma separated list of:
 
-  has_tag
-  the attribute is tagged (RFC 2868)
+``has_tag``
+  The attribute is tagged (RFC 2868).
 
-  encrypt=1
-  User-Password encryption (RFC 2865 section 5.2), which is not applied
-  automatically, see AuthPacket.PwCrypt and AuthPacket.PwDecrypt
+``encrypt=1``
+  User-Password encryption (RFC 2865 section 5.2). It is not applied
+  automatically, see :meth:`pyrad.packet.AuthPacket.PwCrypt` and
+  :meth:`pyrad.packet.AuthPacket.PwDecrypt`.
 
-  encrypt=2
-  salt encryption (RFC 2868 section 3.5), applied automatically
+``encrypt=2``
+  Salt encryption (RFC 2868 section 3.5), applied automatically.
 
-The FreeRADIUS flags secret, virtual and concat are accepted and ignored.
+``encrypt=3``
+  Ascend-Send-Secret encryption. Accepted, but not applied.
+
+The FreeRADIUS flags ``secret``, ``virtual`` and ``concat`` are accepted
+and ignored.
 
 FreeRADIUS dictionaries also define attributes that pyrad cannot encode or
 decode. These are skipped with a warning, so that the FreeRADIUS dictionary
 files can be read as they are:
 
-- attributes of the types listed in UNSUPPORTED_DATATYPES, such as the
-  RFC 6929 extended attributes, and their sub-attributes
-- attributes with the array flag
+- attributes of the data types ``vsa``, ``extended``, ``long-extended``,
+  ``evs`` (the RFC 6929 extended attributes), ``ipv4prefix``,
+  ``combo-ip``, ``bool``, ``uint16`` and ``uint32``, and their
+  sub-attributes
+- attributes with the ``array`` flag
 - TLVs nested more than one level deep
-- attributes of vendors with a format other than format=1,1 (VENDOR)
-- vendor attributes in a BEGIN-VENDOR block with a format= option, which
-  are extended vendor-specific attributes (RFC 6929)
+- attributes of vendors with a format other than ``format=1,1``
+  (``VENDOR``)
+- vendor attributes in a ``BEGIN-VENDOR`` block with a ``format=``
+  option, which are extended vendor-specific attributes (RFC 6929)
 
 VALUE definitions for skipped attributes are ignored, and VALUE definitions
 for unknown attributes are ignored with a warning. Received attributes
 that were skipped are decoded as undefined attributes.
 
-The datatypes currently supported are:
+The data types currently supported, and the Python values used for them in
+packets:
 
-+---------------+----------------------------------------------+
-| type          | description                                  |
-+===============+==============================================+
-| string        | UTF-8 string                                 |
-+---------------+----------------------------------------------+
-| ipaddr        | IPv4 address                                 |
-+---------------+----------------------------------------------+
-| date          | 32 bits UNIX timestamp                       |
-+---------------+----------------------------------------------+
-| octets        | arbitrary binary data                        |
-+---------------+----------------------------------------------+
-| abinary       | Ascend binary filter                         |
-+---------------+----------------------------------------------+
-| ipv6addr      | 16 octets in network byte order              |
-+---------------+----------------------------------------------+
-| ipv6prefix    | up to 18 octets in network byte order        |
-+---------------+----------------------------------------------+
-| integer       | 32 bits unsigned number                      |
-+---------------+----------------------------------------------+
-| signed        | 32 bits signed number                        |
-+---------------+----------------------------------------------+
-| short         | 16 bits unsigned number                      |
-+---------------+----------------------------------------------+
-| byte          | 8 bits unsigned number                       |
-+---------------+----------------------------------------------+
-| tlv           | nested type-length-value                     |
-+---------------+----------------------------------------------+
-| integer64     | 64 bits unsigned number                      |
-+---------------+----------------------------------------------+
-| ifid          | 8 octets IPv6 interface identifier, written  |
-|               | as hhhh:hhhh:hhhh:hhhh                       |
-+---------------+----------------------------------------------+
-| ether         | 6 octets of hh:hh:hh:hh:hh:hh                |
-|               | where 'h' is hex digits, upper or lowercase. |
-+---------------+----------------------------------------------+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 40 45
+
+   * - type
+     - description
+     - Python value
+   * - string
+     - UTF-8 string
+     - :class:`str` or :class:`bytes`, at most 253 octets encoded; a
+       received value which is not valid UTF-8 is returned as
+       :class:`bytes`
+   * - ipaddr
+     - IPv4 address
+     - :class:`str`, e.g. ``'192.0.2.1'``
+   * - date
+     - 32 bits UNIX timestamp
+     - :class:`int`
+   * - octets
+     - arbitrary binary data
+     - :class:`bytes`; a value starting with ``0x`` is decoded from hex
+   * - abinary
+     - Ascend binary filter
+     - Ascend filter :class:`str`, e.g. ``'family=ipv4 action=accept
+       direction=in'``; received values are returned as :class:`bytes`
+   * - ipv6addr
+     - 16 octets in network byte order
+     - :class:`str` or :class:`ipaddress.IPv6Address`; received values
+       are returned as :class:`str`
+   * - ipv6prefix
+     - up to 18 octets in network byte order
+     - :class:`str` ``'address/length'``, e.g. ``'2001:db8::/32'``
+   * - integer
+     - 32 bits unsigned number
+     - :class:`int`
+   * - signed
+     - 32 bits signed number
+     - :class:`int`
+   * - short
+     - 16 bits unsigned number
+     - :class:`int`
+   * - byte
+     - 8 bits unsigned number
+     - :class:`int`
+   * - integer64
+     - 64 bits unsigned number
+     - :class:`int`
+   * - tlv
+     - nested type-length-value
+     - set the sub-attributes by their names; reading the TLV returns a
+       :class:`dict` mapping sub-attribute names to lists of values
+   * - ifid
+     - 8 octets IPv6 interface identifier
+     - :class:`str` ``'hhhh:hhhh:hhhh:hhhh'``, ``h`` being a hex digit
+   * - ether
+     - 6 octets Ethernet MAC address
+     - :class:`str` ``'hh:hh:hh:hh:hh:hh'``, ``h`` being a hex digit,
+       upper or lowercase
 """
 import logging
 import struct
@@ -106,7 +151,7 @@ from pyrad import tools
 from pyrad import dictfile
 from copy import copy
 
-__docformat__ = 'epytext en'
+__docformat__ = "restructuredtext en"
 
 logger = logging.getLogger('pyrad')
 
@@ -128,14 +173,17 @@ ATTRIBUTE_FLAGS = frozenset(['has_tag', 'encrypt', 'secret', 'array',
 
 
 class ParseError(Exception):
-    """Dictionary parser exceptions.
+    """A dictionary file can't be parsed.
 
-    :ivar msg:  Error message
-    :type msg:  string
-    :ivar file: Name of the dictionary file
-    :type file: string
-    :ivar line: Line number on which the error occurred
-    :type line: integer
+    Raised for syntax errors and recursive includes. Note that it is not a
+    subclass of :exc:`ValueError`.
+
+    :ivar msg: error message
+    :vartype msg: str
+    :ivar file: name of the dictionary file, or ``''``
+    :vartype file: str
+    :ivar line: line number on which the error occurred, or -1
+    :vartype line: int
     """
 
     def __init__(self, msg=None, **data):
@@ -159,6 +207,33 @@ class ParseError(Exception):
 
 
 class Attribute(object):
+    """The definition of an attribute in a :class:`Dictionary`.
+
+    Raises :exc:`ValueError` for an unsupported data type.
+
+    :ivar name: name of the attribute
+    :vartype name: str
+    :ivar code: attribute code, for a sub-attribute its code in the TLV
+    :vartype code: int
+    :ivar type: data type, e.g. ``'string'``
+    :vartype type: str
+    :ivar vendor: name of the vendor, ``''`` for a standard attribute
+    :vartype vendor: str
+    :ivar encrypt: encryption method of the ``encrypt=`` flag, 0 for none
+    :vartype encrypt: int
+    :ivar has_tag: the attribute is tagged (RFC 2868)
+    :vartype has_tag: bool
+    :ivar values: named values, mapping the name to the encoded value
+    :vartype values: pyrad.bidict.BiDict
+    :ivar sub_attributes: names of the sub-attributes of a TLV by their
+        code
+    :vartype sub_attributes: dict[int, str]
+    :ivar parent: the TLV of a sub-attribute, else None
+    :vartype parent: Attribute or None
+    :ivar is_sub_attribute: the attribute is a sub-attribute of a TLV
+    :vartype is_sub_attribute: bool
+    """
+
     def __init__(self, name, code, datatype, is_sub_attribute=False, vendor='', values=None,
                  encrypt=0, has_tag=False):
         if datatype not in DATATYPES:
@@ -179,28 +254,36 @@ class Attribute(object):
 
 
 class Dictionary:
-    """RADIUS dictionary class.
-    This class stores all information about vendors, attributes and their
-    values as defined in RADIUS dictionary files.
+    """RADIUS dictionary.
 
-    :ivar vendors:    bidict mapping vendor name to vendor code
-    :type vendors:    bidict
-    :ivar attrindex:  bidict mapping attribute name to attribute code
-                      (or (vendor code, attribute code) tuple)
-    :type attrindex:  bidict
-    :ivar attributes: mapping of attribute name to attribute class
-    :type attributes: dict
+    Stores the vendors, attributes and their values defined in RADIUS
+    dictionary files. ``Dictionary(path, *more)`` reads the files in
+    order, see :meth:`ReadDictionary`. ``dictionary['User-Name']`` returns
+    the :class:`Attribute` of that name and ``'User-Name' in dictionary``
+    checks whether it is defined.
+
+    :ivar attributes: attributes by name
+    :vartype attributes: dict[str, Attribute]
+    :ivar attrindex: attribute names and the keys of the attributes in a
+        packet: the code, ``(vendor, code)`` for a vendor attribute,
+        ``(tlv code, code)`` for a sub-attribute and
+        ``(vendor, tlv code, code)`` for a sub-attribute of a vendor TLV,
+        with the vendor ID as vendor
+    :vartype attrindex: pyrad.bidict.BiDict
+    :ivar vendors: vendor names and IDs, ``''`` is vendor 0
+    :vartype vendors: pyrad.bidict.BiDict
     :ivar skipped_attributes: names of the attributes that were skipped
-                              because pyrad does not support them
-    :type skipped_attributes: set
+        because pyrad does not support them; using them raises a
+        :exc:`KeyError`
+    :vartype skipped_attributes: set[str]
     """
 
     def __init__(self, dict=None, *dicts):
         """
-        :param dict:  path of dictionary file or file-like object to read
-        :type dict:   string or file
-        :param dicts: further dictionaries to read
-        :type dicts:  strings or files
+        :param dict: path of a dictionary file or file-like object to read
+        :type  dict: str or io.TextIOBase
+        :param dicts: further dictionary files to read
+        :type  dicts: str or io.TextIOBase
         """
         self.vendors = bidict.BiDict()
         self.vendors.Add('', 0)
@@ -502,12 +585,17 @@ class Dictionary:
         state['vendor_format'] = None
 
     def ReadDictionary(self, file):
-        """Parse a dictionary file.
-        Reads a RADIUS dictionary file and merges its contents into the
-        class instance.
+        """Read a dictionary file.
 
-        :param file: Name of dictionary file to parse or a file-like object
-        :type file:  string or file-like object
+        Its definitions are merged into the dictionary; later definitions
+        replace earlier ones. Unsupported attributes are skipped, listed in
+        ``skipped_attributes``, and reported with one warning on the
+        ``pyrad`` logger.
+
+        :param file: path of a dictionary file or a file-like object
+        :type  file: str or io.TextIOBase
+        :raises ParseError: for a syntax error or a recursive include
+        :raises OSError: if a file can't be opened
         """
 
         fil = dictfile.DictFile(file)

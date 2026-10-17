@@ -1,8 +1,12 @@
 # packet.py
 #
 # Copyright 2002-2005,2007 Wichert Akkerman <wichert@wiggy.net>
-#
-# A RADIUS packet as defined in RFC 2138
+"""RADIUS packets (RFC 2865): encoding and decoding of packets and
+attributes, password encryption, request and response authenticators and
+the Message-Authenticator.
+"""
+
+__docformat__ = "restructuredtext en"
 
 from collections import OrderedDict
 from pyrad import tools
@@ -35,49 +39,86 @@ CurrentID = random_generator.randrange(1, 255)
 
 
 class PacketError(Exception):
-    pass
+    """Raised for a packet or attribute value that cannot be decoded, e.g.
+    an invalid length."""
 
 
 class Packet(OrderedDict):
-    """Packet acts like a standard python map to provide simple access
-    to the RADIUS attributes. Since RADIUS allows for repeated
-    attributes the value will always be a sequence. pyrad makes sure
-    to preserve the ordering when encoding and decoding packets.
+    """A RADIUS packet, with a dictionary interface to its attributes.
 
-    There are two ways to use the map interface: if attribute
-    names are used pyrad takes care of en-/decoding data. If
-    the attribute type number (or a vendor ID/attribute type
-    tuple for vendor attributes) is used you work with the
-    raw data.
+    Since RADIUS allows repeated attributes, values are always lists, and
+    the order of the attributes is kept when encoding and decoding.
+    Assigning ``pkt['Name'] = value`` replaces all values of the
+    attribute, :meth:`AddAttribute` appends to them.
+
+    With attribute names as keys pyrad encodes and decodes the values
+    according to the dictionary; string values that are not valid UTF-8
+    are returned as :class:`bytes`. With the attribute code (or a
+    ``(vendor, code)`` tuple for vendor attributes) as key you work with
+    the raw :class:`bytes` values; attributes which are not in the
+    dictionary are always keyed like this.
 
     Attributes with the has_tag flag (RFC 2868) take a tag after the
-    name, for example ``pkt['Tunnel-Type:1']``. Without a tag the values
-    of all tags are returned.
+    name, for example ``pkt['Tunnel-Type:1']``. Reading without a tag
+    returns the values of all tags, assigning (also with a tag) replaces
+    the values of all tags; ``del pkt['Name:tag']`` is not supported. An
+    untagged Tunnel-Password is sent with tag 0.
+
+    The value of a TLV attribute is a dict which maps the sub-attribute
+    names to their values. Sub-attributes can also be read, set, deleted
+    and tested with ``in`` by their own name.
 
     Normally you will not use this class directly, but one of the
-    :obj:`AuthPacket`, :obj:`AcctPacket` or :obj:`CoAPacket` classes.
+    :class:`AuthPacket`, :class:`AcctPacket` or :class:`CoAPacket`
+    classes.
+
+    :ivar code: packet type code, e.g. ``AccessRequest``
+    :type code: int
+    :ivar id: packet identifier (0-255)
+    :type id: int
+    :ivar authenticator: Request or Response Authenticator, None until it
+                         is created
+    :type authenticator: bytes
+    :ivar secret: RADIUS secret
+    :type secret: bytes
+    :ivar dict: RADIUS dictionary
+    :type dict: pyrad.dictionary.Dictionary
+    :ivar raw_packet: the data the packet was decoded from, or None
+    :type raw_packet: bytes
+    :ivar message_authenticator: whether the packet has (or gets when it
+                                 is encoded) a Message-Authenticator
+    :type message_authenticator: bool
+    :ivar request_authenticator: in a reply, the Request Authenticator of
+                                 the request, needed to decrypt salt
+                                 encrypted attributes
+    :type request_authenticator: bytes
     """
 
     def __init__(self, code=0, id=None, secret=b'', authenticator=None,
                  **attributes):
-        """Constructor
-
-        :param dict:   RADIUS dictionary
-        :type dict:    pyrad.dictionary.Dictionary class
-        :param secret: secret needed to communicate with a RADIUS server
-        :type secret:  bytes
-        :param id:     packet identification number
-        :type id:      integer (8 bits)
+        """
         :param code:   packet type code
-        :type code:    integer (8 bits)
-        :param packet: raw packet to decode
-        :type packet:  bytes
-        :param authenticator: request or response authenticator
+        :type code:    int
+        :param id:     packet identifier (0-255), defaults to the next
+                       value of the module-wide counter, see
+                       ``pyrad.packet.CreateID()``
+        :type id:      int
+        :param secret: RADIUS secret
+        :type secret:  bytes
+        :param authenticator: Request or Response Authenticator
         :type authenticator:  bytes
-        :param message_authenticator: add a Message-Authenticator
+        :param dict:   RADIUS dictionary; without one only integer keys
+                       (attribute codes) work
+        :type dict:    pyrad.dictionary.Dictionary
+        :param packet: received data to decode
+        :type packet:  bytes
+        :param message_authenticator: add a Message-Authenticator when the
+                                      packet is encoded
         :type message_authenticator:  bool
         :param attributes: attributes to add, with ``-`` in the attribute
                            names replaced by ``_``
+        :raise PacketError: ``packet`` cannot be decoded
+        :raise TypeError: ``secret`` or ``authenticator`` is not bytes
         """
         OrderedDict.__init__(self)
         self.code = code
@@ -134,6 +175,8 @@ class Packet(OrderedDict):
             self._refresh_message_authenticator()
 
     def get_message_authenticator(self):
+        """Calculate the Message-Authenticator and return the
+        ``message_authenticator`` flag."""
         self._refresh_message_authenticator()
         return self.message_authenticator
 
@@ -198,13 +241,23 @@ class Packet(OrderedDict):
     def verify_message_authenticator(self, secret=None,
                                      original_authenticator=None,
                                      original_code=None):
-        """Verify packet Message-Authenticator.
+        """Verify the Message-Authenticator of the packet.
 
         To verify a received reply, the authenticator and code of the
-        request must be passed as original_authenticator and original_code.
+        request must be passed as original_authenticator and original_code
+        (:meth:`VerifyReply` does that).
 
-        :return: False if verification failed else True
-        :rtype: boolean
+        :param secret: RADIUS secret, defaults to ``secret``
+        :type secret: bytes
+        :param original_authenticator: Request Authenticator of the
+                                       request, for a reply
+        :type original_authenticator: bytes
+        :param original_code: code of the request, for a reply
+        :type original_code: int
+        :return: True if the Message-Authenticator is valid else False
+        :rtype: bool
+        :raise Exception: the packet has no Message-Authenticator; check
+                          ``message_authenticator`` first
         """
         if self.message_authenticator is None:
             raise Exception('No Message-Authenticator AVP present')
@@ -261,9 +314,18 @@ class Packet(OrderedDict):
         return reply
 
     def CreateReply(self, **attributes):
-        """Create a new packet as a reply to this one. This method
-        makes sure the authenticator and secret are copied over
-        to the new instance.
+        """Create a reply to this packet.
+
+        The reply gets the id, Request Authenticator, secret and dictionary
+        of this packet, and its Proxy-State attributes (RFC 2865 section
+        5.33). Don't copy Proxy-State yourself: a duplicated Proxy-State
+        makes the client reject the reply. The reply code defaults to 0,
+        pass ``code``. With ``packet=<bytes>`` a received reply is decoded.
+
+        :param attributes: arguments of :class:`Packet` and attributes to
+                           add
+        :return: the reply
+        :rtype: pyrad.packet.Packet
         """
         return self._PrepareReply(
             Packet(id=self.id, secret=self.secret,
@@ -371,9 +433,9 @@ class Packet(OrderedDict):
 
         :param key:   attribute name, with an optional tag for attributes
                       with the has_tag flag (``'Tunnel-Type:1'``)
-        :type key:    string
-        :param value: value or list of values
-        :type value:  depends on type of attribute
+        :type key:    str
+        :param value: value or list of values, of the Python type of the
+                      attribute's data type (e.g. str, int or bytes)
         """
         if not isinstance(key, str):
             raise TypeError('Attribute key must be an attribute name, not %s; '
@@ -392,6 +454,13 @@ class Packet(OrderedDict):
         encoded.extend(value)
 
     def get(self, key, failobj=None):
+        """Return the values of an attribute, or ``failobj`` if the packet
+        does not have it.
+
+        :param key: attribute name, code or ``(vendor, code)`` tuple
+        :param failobj: value to return if the attribute is missing
+        :return: list of values, or ``failobj``
+        """
         try:
             res = self.__getitem__(key)
         except KeyError:
@@ -442,6 +511,10 @@ class Packet(OrderedDict):
         return tlv
 
     def __contains__(self, key):
+        """Return whether the packet has the attribute ``key``.
+
+        ``has_key(key)`` is a deprecated alias of ``key in pkt``.
+        """
         try:
             if isinstance(key, str) and (
                     ':' in key or self.dict.attributes[key].is_sub_attribute):
@@ -479,6 +552,15 @@ class Packet(OrderedDict):
             OrderedDict.__setitem__(self, key, item)
 
     def keys(self):
+        """Return the attribute keys of the packet, in order.
+
+        Attributes in the dictionary are listed by name (a TLV by the TLV
+        name, not by its sub-attributes), undefined attributes by their
+        code or ``(vendor, code)`` tuple.
+
+        :return: attribute names and codes
+        :rtype: list
+        """
         return [self._DecodeKey(key) for key in OrderedDict.keys(self)]
 
     @staticmethod
@@ -497,21 +579,24 @@ class Packet(OrderedDict):
         )
 
     def CreateID(self):
-        """Create a packet ID.  All RADIUS requests have an ID which is used to
-        identify a request. This is used to detect retries and replay attacks.
-        This function returns a suitable random number that can be used as ID.
+        """Return a random packet Identifier (0-255).
 
-        :return: ID number
-        :rtype:  integer
+        All RADIUS requests have an Identifier which is used to match
+        replies to requests and to detect duplicate requests. Packets
+        created without an id get the next value of the module-level
+        counter ``pyrad.packet.CreateID()`` instead.
 
+        :return: packet Identifier
+        :rtype:  int
         """
         return random_generator.randrange(0, 256)
 
     def ReplyPacket(self):
-        """Create a ready-to-transmit reply packet.
-        Returns a RADIUS packet which can be directly transmitted
-        to a RADIUS client. This differs from RequestPacket() in how
-        the authenticator is calculated.
+        """Encode the packet as a reply, ready to be sent to a client.
+
+        The Response Authenticator is calculated from the Request
+        Authenticator in ``authenticator``, and a Message-Authenticator
+        is added if ``message_authenticator`` is set.
 
         :return: raw packet
         :rtype:  bytes
@@ -532,9 +617,12 @@ class Packet(OrderedDict):
 
     def VerifyReply(self, reply, rawreply=None, enforce_ma=False):
         """Verify that a reply belongs to this request.
-        Checks the packet ID and the response authenticator and, as
-        countermeasure against the BlastRADIUS attack (CVE-2024-3596),
-        the Message-Authenticator and the Proxy-State attributes.
+
+        Checks the packet ID and the Response Authenticator and, as
+        countermeasure against the BlastRADIUS attack (CVE-2024-3596), the
+        Message-Authenticator (always verified if the reply has one) and,
+        for Access-Request and Status-Server, that the reply has no
+        Proxy-State which was not sent.
 
         :param reply:      reply packet
         :type reply:       pyrad.packet.Packet
@@ -725,11 +813,14 @@ class Packet(OrderedDict):
         return (attr is not None and attr.type == 'tlv')
 
     def DecodePacket(self, packet):
-        """Initialize the object from raw packet data.
-        Decode a packet as received from the network.
+        """Decode a packet as received from the network.
+
+        The code, id, authenticator and attributes of this packet are
+        replaced by the decoded ones.
 
         :param packet: raw packet
         :type packet:  bytes
+        :raise PacketError: the packet cannot be decoded
         """
 
         try:
@@ -815,6 +906,9 @@ class Packet(OrderedDict):
         """Encrypt a value with the salt encryption of RFC 2868
         section 3.5 (attributes with encrypt=2).
 
+        Values longer than 239 octets don't fit into an attribute; the
+        encoding of the packet fails for them.
+
         :param value:    plaintext value
         :type value:     str or bytes
         :return:         encrypted value including salt
@@ -846,10 +940,14 @@ class Packet(OrderedDict):
         """Decrypt a value encrypted with the salt encryption of
         RFC 2868 section 3.5 (attributes with encrypt=2).
 
+        For a reply, ``request_authenticator`` must be set to the
+        Request Authenticator of the request (the clients do that).
+
         :param value:   encrypted value including salt
         :type value:    bytes
         :return:        decrypted value
         :rtype:         bytes
+        :raise PacketError: the value has an invalid length
         """
         if len(value) < 18 or (len(value) - 2) % 16:
             raise PacketError('Invalid length of salt encrypted value')
@@ -868,34 +966,52 @@ class Packet(OrderedDict):
 
 
 class AuthPacket(Packet):
-    """RADIUS authentication packets. This class is a specialization
-    of the generic :obj:`Packet` class for Access-Request, Status-Server
-    and their replies.
+    """RADIUS authentication packet: Access-Request, Status-Server sent
+    to the authentication port, and their replies.
     """
 
     def __init__(self, code=AccessRequest, id=None, secret=b'',
                  authenticator=None, auth_type='pap', **attributes):
-        """Constructor
-
+        """
         :param code:   packet type code
-        :type code:    integer (8 bits)
-        :param id:     packet identification number
-        :type id:      integer (8 bits)
-        :param secret: secret needed to communicate with a RADIUS server
+        :type code:    int
+        :param id:     packet identifier, see :class:`Packet`
+        :type id:      int
+        :param secret: RADIUS secret
         :type secret:  bytes
-        :param dict:   RADIUS dictionary
-        :type dict:    pyrad.dictionary.Dictionary class
-        :param packet: raw packet to decode
-        :type packet:  bytes
+        :param authenticator: Request Authenticator, created when needed
+        :type authenticator:  bytes
+        :param auth_type: ``'pap'``, or ``'eap-md5'`` to authenticate with
+                          EAP-MD5 using :meth:`pyrad.client.Client.SendPacket`
+                          (:class:`pyrad.client_async.ClientAsync` does not
+                          implement it and sends the packet as it is,
+                          including a cleartext User-Password)
+        :type auth_type: str
+        :param attributes: ``dict``, ``packet``, ``message_authenticator``
+                           and attributes to add, see :class:`Packet`
         """
 
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
         self.auth_type = auth_type
 
     def CreateReply(self, **attributes):
-        """Create a new packet as a reply to this one. This method
-        makes sure the authenticator and secret are copied over
-        to the new instance.
+        """Create a reply to this packet, an Access-Accept by default.
+
+        The reply gets the id, Request Authenticator, secret and dictionary
+        of this packet, and its Proxy-State attributes (RFC 2865 section
+        5.33). Don't copy Proxy-State yourself: a duplicated Proxy-State
+        makes the client reject the reply. Passing ``code`` raises
+        :exc:`TypeError`, set ``reply.code`` instead (e.g. to
+        ``AccessReject``).
+
+        A reply to an Access-Request or Status-Server gets a
+        Message-Authenticator unless ``message_authenticator=False`` is
+        passed. With ``packet=<bytes>`` a received reply is decoded.
+
+        :param attributes: arguments of :class:`AuthPacket` and attributes
+                           to add
+        :return: the reply
+        :rtype: pyrad.packet.AuthPacket
         """
         reply = AuthPacket(AccessAccept, self.id,
                            self.secret, self.authenticator, dict=self.dict,
@@ -907,9 +1023,9 @@ class AuthPacket(Packet):
         return self._PrepareReply(reply, attributes)
 
     def RequestPacket(self):
-        """Create a ready-to-transmit authentication request packet.
-        Return a RADIUS packet which can be directly transmitted
-        to a RADIUS server.
+        """Encode the packet as a request, ready to be sent to a server.
+
+        A Request Authenticator and id are created if not set yet.
 
         :return: raw packet
         :rtype:  bytes
@@ -947,18 +1063,20 @@ class AuthPacket(Packet):
         return header + attr
 
     def PwDecrypt(self, password):
-        """De-Obfuscate a RADIUS password. RADIUS hides passwords in packets by
-        using an algorithm based on the MD5 hash of the packet authenticator
-        and RADIUS secret. This function reverses the obfuscation process.
+        """Decrypt a User-Password (RFC 2865 section 5.2).
+
+        RADIUS hides passwords with an algorithm based on the MD5 hash of
+        the Request Authenticator and the secret; this reverses it.
 
         The password is decoded as UTF-8, the encoding RFC 2865 uses for
         text; invalid UTF-8 sequences (for example if the secret is wrong)
         are ignored.
 
-        :param password: obfuscated form of password
-        :type password:  bytes
+        :param password: encrypted password
+        :type password:  bytes or str
         :return:         plaintext password
         :rtype:          str
+        :raise PacketError: the length is not a multiple of 16 octets
         """
         if isinstance(password, str):
             # str values are created by DecodeString using strict UTF-8
@@ -993,13 +1111,13 @@ class AuthPacket(Packet):
         return pw.decode('utf-8', errors="ignore")
 
     def PwCrypt(self, password):
-        """Obfuscate password.
-        RADIUS hides passwords in packets by using an algorithm
-        based on the MD5 hash of the packet authenticator and RADIUS
-        secret. If no authenticator has been set before calling PwCrypt
-        one is created automatically. Changing the authenticator after
-        setting a password that has been encrypted using this function
-        will not work.
+        """Encrypt a password for the User-Password attribute.
+
+        RADIUS hides passwords with an algorithm based on the MD5 hash of
+        the Request Authenticator and the secret (RFC 2865 section 5.2):
+        ``pkt['User-Password'] = pkt.PwCrypt(password)``. If no
+        authenticator is set, one is created. Changing the authenticator
+        afterwards makes the encrypted password invalid.
 
         :param password: plaintext password
         :type password:  str or bytes
@@ -1040,7 +1158,8 @@ class AuthPacket(Packet):
         section 2.2). The CHAP-Challenge attribute is used as challenge
         if present, else the request authenticator.
 
-        :param userpwd: plaintext password
+        :param userpwd: plaintext password; surrounding whitespace is
+                        stripped from a str, not from bytes
         :type userpwd:  str or bytes
         :return:        True if the password matches else False, also if
                         there is no CHAP-Password attribute
@@ -1081,8 +1200,11 @@ class AuthPacket(Packet):
         to authenticate an Access-Request or Status-Server packet with
         a Message-Authenticator.
 
+        Only for packets decoded from received data (``packet=``), it
+        fails for packets built locally.
+
         :return: True if verification passed else False
-        :rtype: boolean
+        :rtype: bool
         """
         assert (self.raw_packet)
         hash = hashlib.md5(self.raw_packet[0:4] + 16 * b'\x00' +
@@ -1091,31 +1213,45 @@ class AuthPacket(Packet):
 
 
 class AcctPacket(Packet):
-    """RADIUS accounting packets. This class is a specialization
-    of the generic :obj:`Packet` class for accounting packets.
+    """RADIUS accounting packet: Accounting-Request, Status-Server sent to
+    the accounting port, and their replies.
     """
 
     def __init__(self, code=AccountingRequest, id=None, secret=b'',
                  authenticator=None, **attributes):
-        """Constructor
-
-        :param dict:   RADIUS dictionary
-        :type dict:    pyrad.dictionary.Dictionary class
-        :param secret: secret needed to communicate with a RADIUS server
-        :type secret:  bytes
-        :param id:     packet identification number
-        :type id:      integer (8 bits)
+        """
         :param code:   packet type code
-        :type code:    integer (8 bits)
-        :param packet: raw packet to decode
-        :type packet:  bytes
+        :type code:    int
+        :param id:     packet identifier, see :class:`Packet`
+        :type id:      int
+        :param secret: RADIUS secret
+        :type secret:  bytes
+        :param authenticator: Request Authenticator; for an
+                              Accounting-Request it is calculated when the
+                              packet is encoded
+        :type authenticator:  bytes
+        :param attributes: ``dict``, ``packet``, ``message_authenticator``
+                           and attributes to add, see :class:`Packet`
         """
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
 
     def CreateReply(self, **attributes):
-        """Create a new packet as a reply to this one. This method
-        makes sure the authenticator and secret are copied over
-        to the new instance.
+        """Create a reply to this packet, an Accounting-Response.
+
+        The reply gets the id, Request Authenticator, secret and dictionary
+        of this packet, and its Proxy-State attributes. Don't copy
+        Proxy-State yourself: a duplicated Proxy-State makes the client
+        reject the reply. Passing ``code`` raises :exc:`TypeError`, set
+        ``reply.code`` instead.
+
+        A reply to a Status-Server gets a Message-Authenticator unless
+        ``message_authenticator=False`` is passed. With ``packet=<bytes>``
+        a received reply is decoded.
+
+        :param attributes: arguments of :class:`AcctPacket` and attributes
+                           to add
+        :return: the reply
+        :rtype: pyrad.packet.AcctPacket
         """
         reply = AcctPacket(AccountingResponse, self.id,
                            self.secret, self.authenticator, dict=self.dict,
@@ -1128,14 +1264,17 @@ class AcctPacket(Packet):
         return self._PrepareReply(reply, attributes)
 
     def VerifyAcctRequest(self):
-        """Verify request authenticator.
+        """Verify the Request Authenticator of a received request.
 
         The Request Authenticator of a Status-Server packet is random
         (RFC 5997 section 3), for these packets the Message-Authenticator
         is verified instead, and a packet without one fails verification.
 
+        Only for packets decoded from received data (``packet=``), it
+        fails for packets built locally.
+
         :return: True if verification passed else False
-        :rtype: boolean
+        :rtype: bool
         """
         assert (self.raw_packet)
 
@@ -1149,9 +1288,11 @@ class AcctPacket(Packet):
         return hmac.compare_digest(hash, self.authenticator)
 
     def RequestPacket(self):
-        """Create a ready-to-transmit accounting request packet.
-        Return a RADIUS packet which can be directly transmitted
-        to a RADIUS server.
+        """Encode the packet as a request, ready to be sent to a server.
+
+        The Request Authenticator of an Accounting-Request is calculated
+        over the packet (RFC 2866 section 3) and stored in
+        ``authenticator``.
 
         A Status-Server packet (RFC 5997 section 3) gets a random Request
         Authenticator, like an Access-Request, and a Message-Authenticator
@@ -1199,31 +1340,45 @@ class AcctPacket(Packet):
 
 
 class CoAPacket(Packet):
-    """RADIUS CoA packets. This class is a specialization
-    of the generic :obj:`Packet` class for CoA packets.
+    """RADIUS Dynamic Authorization packet (RFC 5176): CoA-Request,
+    Disconnect-Request and their replies.
     """
 
     def __init__(self, code=CoARequest, id=None, secret=b'',
                  authenticator=None, **attributes):
-        """Constructor
-
-        :param dict:   RADIUS dictionary
-        :type dict:    pyrad.dictionary.Dictionary class
-        :param secret: secret needed to communicate with a RADIUS server
+        """
+        :param code:   packet type code, ``CoARequest`` or
+                       ``DisconnectRequest`` for a request
+        :type code:    int
+        :param id:     packet identifier, see :class:`Packet`
+        :type id:      int
+        :param secret: RADIUS secret
         :type secret:  bytes
-        :param id:     packet identification number
-        :type id:      integer (8 bits)
-        :param code:   packet type code
-        :type code:    integer (8 bits)
-        :param packet: raw packet to decode
-        :type packet:  bytes
+        :param authenticator: Request Authenticator; for a request it is
+                              calculated when the packet is encoded
+        :type authenticator:  bytes
+        :param attributes: ``dict``, ``packet``, ``message_authenticator``
+                           and attributes to add, see :class:`Packet`
         """
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
 
     def CreateReply(self, **attributes):
-        """Create a new packet as a reply to this one. This method
-        makes sure the authenticator and secret are copied over
-        to the new instance.
+        """Create a reply to this packet, a CoA-ACK by default.
+
+        The default is CoA-ACK also for a Disconnect-Request: set
+        ``reply.code`` to ``DisconnectACK`` or ``DisconnectNAK``
+        (or ``CoANAK``). Passing ``code`` raises :exc:`TypeError`.
+
+        The reply gets the id, Request Authenticator, secret and dictionary
+        of this packet, and its Proxy-State attributes. Don't copy
+        Proxy-State yourself: a duplicated Proxy-State makes the client
+        reject the reply. With ``packet=<bytes>`` a received reply is
+        decoded.
+
+        :param attributes: arguments of :class:`CoAPacket` and attributes
+                           to add
+        :return: the reply
+        :rtype: pyrad.packet.CoAPacket
         """
         return self._PrepareReply(
             CoAPacket(CoAACK, self.id,
@@ -1231,10 +1386,14 @@ class CoAPacket(Packet):
                       **attributes), attributes)
 
     def VerifyCoARequest(self):
-        """Verify request authenticator.
+        """Verify the Request Authenticator of a received CoA-Request or
+        Disconnect-Request (RFC 5176 section 3.3).
+
+        Only for packets decoded from received data (``packet=``), it
+        fails for packets built locally.
 
         :return: True if verification passed else False
-        :rtype: boolean
+        :rtype: bool
         """
         assert (self.raw_packet)
         hash = hashlib.md5(self.raw_packet[0:4] + 16 * b'\x00' +
@@ -1242,9 +1401,10 @@ class CoAPacket(Packet):
         return hmac.compare_digest(hash, self.authenticator)
 
     def RequestPacket(self):
-        """Create a ready-to-transmit CoA request packet.
-        Return a RADIUS packet which can be directly transmitted
-        to a RADIUS server.
+        """Encode the packet as a request, ready to be sent to a server.
+
+        The Request Authenticator is calculated over the packet (RFC 5176
+        section 3.3) and stored in ``authenticator``.
 
         :return: raw packet
         :rtype:  bytes
@@ -1265,10 +1425,12 @@ class CoAPacket(Packet):
 
 
 def CreateID():
-    """Generate a packet ID.
+    """Return the next packet Identifier of the module-wide counter.
 
-    :return: packet ID
-    :rtype:  8 bit integer
+    Packets created without an id get their id from this counter.
+
+    :return: packet Identifier (0-255)
+    :rtype:  int
     """
     global CurrentID
 
