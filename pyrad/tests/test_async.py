@@ -3,7 +3,9 @@ the loopback interface."""
 import asyncio
 import contextlib
 import datetime
+import hashlib
 import logging
+import struct
 import socket
 import unittest
 from io import StringIO
@@ -18,6 +20,7 @@ from pyrad.server_async import DatagramProtocolServer, ServerAsync, ServerType
 SECRET = b'secret'
 PASSWORD = 'password'
 LOCALHOST = '127.0.0.1'
+EAP_CHALLENGE = b'0123456789abcdef'
 
 DICTIONARY = '''
 ATTRIBUTE User-Name             1  string
@@ -25,7 +28,9 @@ ATTRIBUTE User-Password         2  string
 ATTRIBUTE Reply-Message         18 string
 ATTRIBUTE Acct-Status-Type      40 integer
 ATTRIBUTE Acct-Session-Id       44 string
+ATTRIBUTE State                 24 octets
 ATTRIBUTE Tunnel-Password       69 string has_tag,encrypt=2
+ATTRIBUTE EAP-Message           79 octets
 ATTRIBUTE Message-Authenticator 80 octets
 VALUE     Acct-Status-Type      Start 1
 '''
@@ -62,6 +67,9 @@ class RadiusServer(ServerAsync):
 
     def handle_auth_packet(self, protocol, pkt, addr):
         self.received.append(pkt)
+        if 79 in pkt:
+            protocol.send_response(self.eap_md5_reply(pkt), addr)
+            return
         reply = self.CreateReplyPacket(pkt, Reply_Message='hello')
         if pkt.PwDecrypt(pkt[2][0]) == PASSWORD:
             reply.code = packet.AccessAccept
@@ -69,6 +77,22 @@ class RadiusServer(ServerAsync):
         else:
             reply.code = packet.AccessReject
         protocol.send_response(reply, addr)
+
+    def eap_md5_reply(self, pkt):
+        """Answer an EAP-Response/Identity with an MD5 challenge and an
+        EAP-Response/MD5-Challenge with Access-Accept or -Reject."""
+        eap = pkt[79][0]
+        reply = self.CreateReplyPacket(pkt)
+        if eap[4] == 1:  # Identity
+            reply.code = packet.AccessChallenge
+            reply[79] = [struct.pack('!BBHBB', 1, 7, 22, 4, 16) + EAP_CHALLENGE]
+            reply[24] = [b'state']
+            return reply
+        digest = hashlib.md5(b'\x07' + PASSWORD.encode() + EAP_CHALLENGE).digest()
+        accept = eap == struct.pack('!BBHBB', 2, 7, 22, 4, 16) + digest \
+            and pkt[24] == [b'state']
+        reply.code = packet.AccessAccept if accept else packet.AccessReject
+        return reply
 
     def handle_acct_packet(self, protocol, pkt, addr):
         self.received.append(pkt)
@@ -129,6 +153,54 @@ class AsyncRoundTripTests(unittest.TestCase):
         self.assertEqual(reply['Reply-Message'], ['hello'])
         # salt encrypted with the request authenticator
         self.assertEqual(reply['Tunnel-Password:1'], ['a-tunnel-password-longer-than-16'])
+
+    def eap_md5_request(self, client, password=PASSWORD):
+        req = client.CreateAuthPacket(auth_type='eap-md5', User_Name='alice')
+        req['User-Password'] = password
+        return req
+
+    def testEapMd5(self):
+        # ClientAsync sent eap-md5 packets as they were, with the cleartext
+        # User-Password and without answering the challenge
+        async def test(client, server):
+            req = self.eap_md5_request(client)
+            first_id = req.id
+            reply = await client.SendPacket(req)
+            return req, first_id, reply, server.received
+        req, first_id, reply, received = self.run_with(test)
+        self.assertEqual(reply.code, packet.AccessAccept)
+        (identity, response) = received
+        self.assertEqual(identity[79], [struct.pack('!BBHB', 2, identity[79][0][1], 10, 1)
+                                        + b'alice'])
+        self.assertNotIn(2, identity)
+        self.assertNotIn(2, response)
+        self.assertEqual(response[24], [b'state'])
+        self.assertNotEqual(response.id, first_id)
+        self.assertEqual(req['User-Password'], [PASSWORD])
+
+    def testEapMd5WrongPassword(self):
+        async def test(client, server):
+            return await client.SendPacket(self.eap_md5_request(client, 'wrong'))
+        self.assertEqual(self.run_with(test).code, packet.AccessReject)
+
+    def testEapMd5WithoutPassword(self):
+        async def test(client, server):
+            req = client.CreateAuthPacket(auth_type='eap-md5', User_Name='alice')
+            with self.assertRaises(ValueError):
+                client.SendPacket(req)
+            return dict(client.protocol_auth.pending_requests)
+        self.assertEqual(self.run_with(test), {})
+
+    def testEapMd5Cancelled(self):
+        async def test(client, server):
+            req = self.eap_md5_request(client)
+            with self.assertRaises(asyncio.TimeoutError):
+                await asyncio.wait_for(client.SendPacket(req), timeout=0)
+            await asyncio.sleep(0)
+            return req, dict(client.protocol_auth.pending_requests)
+        req, pending = self.run_with(test)
+        self.assertEqual(pending, {})
+        self.assertEqual(req['User-Password'], [PASSWORD])
 
     def testAccessReject(self):
         async def test(client, server):

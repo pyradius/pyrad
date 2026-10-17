@@ -192,9 +192,10 @@ instead of the User-Password:
 EAP-MD5
 -------
 
-:class:`~pyrad.client.Client` can authenticate with EAP-MD5 (RFC 3748,
-RFC 3579). Set the cleartext password as User-Password: it is only used
-to answer the challenge of the server and is not sent.
+:class:`~pyrad.client.Client` and :class:`~pyrad.client_async.ClientAsync`
+can authenticate with EAP-MD5 (RFC 3748, RFC 3579). Set the cleartext
+password as User-Password: it is only used to answer the challenge of the
+server and is not sent.
 
 .. code-block:: python
 
@@ -259,8 +260,7 @@ same time. ``SendPacket`` returns a future, which raises a
 created after ``initialize_transports`` enabled the transport for them.
 Unlike :class:`~pyrad.client.Client`, its port parameters are
 ``auth_port``, ``acct_port`` and ``coa_port``, its default timeout is 30
-seconds and a request is sent up to ``retries + 1`` times. It doesn't
-implement EAP-MD5.
+seconds and a request is sent up to ``retries + 1`` times.
 
 .. code-block:: python
 

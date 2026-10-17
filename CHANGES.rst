@@ -213,6 +213,9 @@ Changes
     doesn't allow. Challenges without State, EAP packets split over
     several EAP-Message attributes and challenges of other EAP types (which
     are returned) are handled.
+  * ClientAsync authenticates with EAP-MD5 like Client for packets with
+    ``auth_type='eap-md5'``; it sent them as they were, with the cleartext
+    User-Password and without answering the challenge.
   * A Client without a dictionary can send Access-Requests again.
 
 * ClientAsync and ServerAsync:

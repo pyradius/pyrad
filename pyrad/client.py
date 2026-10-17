@@ -19,6 +19,75 @@ EAP_TYPE_IDENTITY = 1
 EAP_TYPE_MD5 = 4
 
 
+def _EapMd5Identity(pkt):
+    """Start an EAP-MD5 authentication (RFC 3748 section 5.4, RFC 3579):
+    set the EAP-Response/Identity, which carries the User-Name, and remove
+    the User-Password, which holds the cleartext password. RFC 3579
+    section 3.3 doesn't allow User-Password together with EAP-Message.
+
+    :param pkt: Access-Request with User-Name and User-Password
+    :type  pkt: pyrad.packet.AuthPacket
+    :return: the password and the removed User-Password values, to restore
+             them with ``pkt[2] = values`` afterwards
+    :rtype:  tuple
+    :raise ValueError: User-Name or User-Password is missing
+    """
+    if 1 not in pkt or 2 not in pkt:
+        raise ValueError('EAP-MD5 requires User-Name and the cleartext '
+                         'password as User-Password')
+    identity = pkt[1][0]
+    user_password = pkt[2]
+    del pkt[2]
+    pkt[79] = [struct.pack('!BBHB', EAP_CODE_RESPONSE, packet.CurrentID,
+                           len(identity) + 5, EAP_TYPE_IDENTITY) + identity]
+    return (user_password[0], user_password)
+
+
+def _EapMd5Response(pkt, reply, password):
+    """Answer the EAP-MD5 challenge of an Access-Challenge.
+
+    Sets the EAP-Response/MD5-Challenge, the State of the challenge and a
+    new Request Authenticator in pkt (RFC 2865 section 4.4); the caller
+    has to give it a new Identifier before sending it.
+
+    :param pkt: the Access-Request the challenge replies to
+    :type  pkt: pyrad.packet.AuthPacket
+    :param reply: the reply to pkt
+    :type  reply: pyrad.packet.Packet
+    :param password: cleartext password
+    :type  password: bytes
+    :return: True if pkt now answers the challenge, False if the reply
+             is not an EAP-MD5 challenge
+    :rtype:  bool
+    """
+    if reply.code != packet.AccessChallenge:
+        return False
+    # RFC 3579 section 3.1: an EAP packet may be split over several
+    # EAP-Message attributes
+    eap = b''.join(reply.get(79, []))
+    if len(eap) < 6 or eap[0] != EAP_CODE_REQUEST or eap[4] != EAP_TYPE_MD5:
+        # not an EAP-MD5 challenge
+        return False
+    eap_id = eap[1]
+    eap = eap[:struct.unpack('!H', eap[2:4])[0]]
+    # RFC 3748 section 5.4: Type-Data is Value-Size, Value and an optional
+    # Name; the response is the MD5 hash of the EAP Identifier, the
+    # password and the Value (RFC 1994 section 4.1)
+    value = eap[6:6 + eap[5]]
+    digest = hashlib.md5(struct.pack('!B', eap_id) + password + value).digest()
+    pkt[79] = [struct.pack('!BBHBB', EAP_CODE_RESPONSE, eap_id,
+                           len(digest) + 6, EAP_TYPE_MD5, len(digest)) + digest]
+    # RFC 2865 section 4.4: the State of the challenge is returned
+    if 24 in reply:
+        pkt[24] = reply[24]
+    elif 24 in pkt:
+        del pkt[24]
+    # RFC 2865 section 3: the Request Authenticator is unique. The
+    # Message-Authenticator is calculated with it when pkt is encoded.
+    pkt.authenticator = pkt.CreateAuthenticator()
+    return True
+
+
 class Timeout(Exception):
     """Raised by :meth:`Client.SendPacket` when no valid reply was received.
 
@@ -284,48 +353,16 @@ class Client(host.Host):
         :raise ValueError: User-Name or User-Password is missing
         :raise Timeout: RADIUS server does not reply
         """
-        if 1 not in pkt or 2 not in pkt:
-            raise ValueError('EAP-MD5 requires User-Name and the cleartext '
-                             'password as User-Password')
-        identity = pkt[1][0]
-        password = pkt[2][0]
-        user_password = pkt[2]
-        del pkt[2]
+        (password, user_password) = _EapMd5Identity(pkt)
         try:
-            pkt[79] = [struct.pack('!BBHB', EAP_CODE_RESPONSE, packet.CurrentID,
-                                   len(identity) + 5, EAP_TYPE_IDENTITY) + identity]
             reply = self._SendPacket(pkt, self.authport)
-            if reply.code != packet.AccessChallenge:
+            if not _EapMd5Response(pkt, reply, password):
                 return reply
-
-            # RFC 3579 section 3.1: an EAP packet may be split over several
-            # EAP-Message attributes
-            eap = b''.join(reply.get(79, []))
-            if len(eap) < 6 or eap[0] != EAP_CODE_REQUEST or eap[4] != EAP_TYPE_MD5:
-                # not an EAP-MD5 challenge
-                return reply
-            eap_id = eap[1]
-            eap = eap[:struct.unpack('!H', eap[2:4])[0]]
-            # RFC 3748 section 5.4: Type-Data is Value-Size, Value and an
-            # optional Name; the response is the MD5 hash of the EAP
-            # Identifier, the password and the Value (RFC 1994 section 4.1)
-            value = eap[6:6 + eap[5]]
-            digest = hashlib.md5(struct.pack('!B', eap_id) + password + value).digest()
-            pkt[79] = [struct.pack('!BBHBB', EAP_CODE_RESPONSE, eap_id,
-                                   len(digest) + 6, EAP_TYPE_MD5, len(digest)) + digest]
-            # RFC 2865 section 4.4: the State of the challenge is returned
-            if 24 in reply:
-                pkt[24] = reply[24]
-            elif 24 in pkt:
-                del pkt[24]
             # RFC 2865 section 4.4: the Access-Request answering an
-            # Access-Challenge has a new Identifier, and section 3: its
-            # Request Authenticator is unique. The Message-Authenticator
-            # is calculated with it when the packet is encoded.
+            # Access-Challenge has a new Identifier
             previous_id = pkt.id
             while pkt.id == previous_id:
                 pkt.id = pkt.CreateID()
-            pkt.authenticator = pkt.CreateAuthenticator()
             return self._SendPacket(pkt, self.authport)
         finally:
             pkt[2] = user_password

@@ -11,6 +11,7 @@ import random
 import socket
 import time
 
+from pyrad.client import _EapMd5Identity, _EapMd5Response
 from pyrad.packet import Packet, AuthPacket, AcctPacket, CoAPacket
 
 
@@ -443,9 +444,8 @@ class ClientAsync:
         For PAP the password must be encrypted:
         ``pkt['User-Password'] = pkt.PwCrypt(password)``.
 
-        .. warning:: Unlike :class:`pyrad.client.Client`, this client does
-           not implement ``auth_type='eap-md5'``: such a packet is sent as
-           it is, including a cleartext User-Password.
+        With ``auth_type='eap-md5'``, :meth:`SendPacket` authenticates with
+        EAP-MD5 instead; User-Password then holds the cleartext password.
 
         :return: a new packet
         :rtype:  pyrad.packet.AuthPacket
@@ -557,6 +557,14 @@ class ClientAsync:
         :class:`ConnectionAbortedError` if :meth:`deinitialize_transports`
         closes the transport first.
 
+        With ``auth_type='eap-md5'`` the client authenticates with
+        EAP-MD5 (RFC 3748, RFC 3579), like
+        :meth:`pyrad.client.Client.SendPacket`: the EAP-Response/Identity
+        carries the User-Name, and User-Password holds the cleartext
+        password, which is used for the MD5 response but not sent. The
+        Access-Challenge of the server is answered automatically and the
+        future has the final reply.
+
         :param pkt: the request to send
         :type  pkt: pyrad.packet.Packet
         :return:    future with the reply packet; check ``reply.code``
@@ -564,8 +572,12 @@ class ClientAsync:
         :raise Exception: the transport is not initialized, the packet
                           class is not supported, or a request with the
                           same id is pending
-        :raise ValueError: an attribute value cannot be encoded
+        :raise ValueError: an attribute value cannot be encoded, or
+                           ``auth_type='eap-md5'`` without User-Name or
+                           User-Password
         """
+        if isinstance(pkt, AuthPacket) and pkt.auth_type == 'eap-md5':
+            return self._SendEapMd5Packet(pkt)
 
         ans = asyncio.Future(loop=self.loop)
 
@@ -591,3 +603,41 @@ class ClientAsync:
             raise Exception('Unsupported packet')
 
         return ans
+
+    def _SendEapMd5Packet(self, pkt):
+        """Authenticate with EAP-MD5, see :meth:`SendPacket`.
+
+        The EAP-Response/Identity is sent right away, the answer to the
+        Access-Challenge by a task.
+
+        :return: future with the final reply
+        :rtype:  asyncio.Future
+        """
+        if not self.protocol_auth:
+            raise Exception('Transport not initialized')
+        (password, user_password) = _EapMd5Identity(pkt)
+        try:
+            first = asyncio.Future(loop=self.loop)
+            self.protocol_auth.send_packet(pkt, first)
+        except BaseException:
+            pkt[2] = user_password
+            raise
+        task = self.loop.create_task(self._AnswerEapMd5Challenge(pkt, first, password))
+
+        def done(task):
+            # also if the task is cancelled before it runs
+            if not first.done():
+                first.cancel()
+            pkt[2] = user_password
+        task.add_done_callback(done)
+        return task
+
+    async def _AnswerEapMd5Challenge(self, pkt, first, password):
+        reply = await first
+        if not _EapMd5Response(pkt, reply, password):
+            return reply
+        # RFC 2865 section 4.4: a new Identifier
+        pkt.id = self.protocol_auth.create_id()
+        ans = asyncio.Future(loop=self.loop)
+        self.protocol_auth.send_packet(pkt, ans)
+        return await ans

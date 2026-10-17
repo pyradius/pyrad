@@ -982,10 +982,9 @@ class AuthPacket(Packet):
         :param authenticator: Request Authenticator, created when needed
         :type authenticator:  bytes
         :param auth_type: ``'pap'``, or ``'eap-md5'`` to authenticate with
-                          EAP-MD5 using :meth:`pyrad.client.Client.SendPacket`
-                          (:class:`pyrad.client_async.ClientAsync` does not
-                          implement it and sends the packet as it is,
-                          including a cleartext User-Password)
+                          EAP-MD5 when the packet is sent with
+                          :meth:`pyrad.client.Client.SendPacket` or
+                          :meth:`pyrad.client_async.ClientAsync.SendPacket`
         :type auth_type: str
         :param attributes: ``dict``, ``packet``, ``message_authenticator``
                            and attributes to add, see :class:`Packet`

@@ -101,6 +101,28 @@ def test_eap_md5_wrong_password(client):
     assert reply[79][0][:1] == b"\x04"  # EAP-Failure
 
 
+def test_async_client_eap_md5(dictionary):
+    async def run():
+        client = ClientAsync(server=SERVER, secret=SECRET, dict=dictionary,
+                             timeout=2, enforce_ma=True)
+        await client.initialize_transports(enable_auth=True)
+        try:
+            return await asyncio.gather(
+                client.SendPacket(eap_md5_request(client, "alice", "alice-password")),
+                client.SendPacket(eap_md5_request(
+                    client, "bob", "a-very-long-password-exceeding-sixteen-octets")),
+                client.SendPacket(eap_md5_request(client, "alice", "wrong")))
+        finally:
+            await client.deinitialize_transports()
+
+    alice, bob, wrong = asyncio.run(run())
+    assert alice.code == packet.AccessAccept
+    assert alice[79][0][:1] == b"\x03"  # EAP-Success
+    assert bob.code == packet.AccessAccept
+    assert wrong.code == packet.AccessReject
+    assert wrong[79][0][:1] == b"\x04"  # EAP-Failure
+
+
 def test_chap_password_starting_with_0x(client):
     # a CHAP-Password with CHAP ID 48 ("0") and a digest starting with "x"
     # was decoded as hex and failed to encode (#49)
