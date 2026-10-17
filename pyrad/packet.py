@@ -97,7 +97,8 @@ class Packet(OrderedDict):
         self.message_authenticator = None
         self.raw_packet = None
 
-        self.dict = attributes.get('dict')
+        # keep a dictionary defined by a subclass
+        self.dict = attributes.get('dict', getattr(self, 'dict', None))
 
         if 'packet' in attributes:
             self.raw_packet = attributes['packet']

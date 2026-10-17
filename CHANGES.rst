@@ -130,8 +130,9 @@ Unreleased
     Authenticator and a valid Message-Authenticator, and replies to it are
     signed with its Request Authenticator (RFC 5997). VerifyAcctRequest
     verifies the Message-Authenticator of Status-Server packets.
-  * A packet created without a dictionary has ``dict`` set to None, so
-    CreateReply() of such a received packet works.
+  * A packet created without a dictionary has ``dict`` set to None (unless
+    its class defines one), so CreateReply() of such a received packet
+    works.
   * The VerifyAuthRequest documentation says what it checks.
 
 * Attribute values:

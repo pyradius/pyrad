@@ -1121,6 +1121,17 @@ class PacketEdgeCaseTests(unittest.TestCase):
         self.assertEqual(reply.id, request.id)
         self.assertTrue(request.VerifyReply(reply, reply.ReplyPacket()))
 
+    def testDictionaryOfSubclass(self):
+        class DictPacket(packet.AuthPacket):
+            dict = self.dict
+
+        pkt = DictPacket(secret=b'secret', **{'Test-String': 'text'})
+        self.assertIs(pkt.dict, self.dict)
+        self.assertEqual(pkt['Test-String'], ['text'])
+        decoded = DictPacket(secret=b'secret', packet=pkt.RequestPacket())
+        self.assertEqual(decoded['Test-String'], ['text'])
+        self.assertIs(DictPacket(dict=None).dict, None)
+
     def testVendorAttributeWithoutDictionary(self):
         pkt = packet.Packet()
         vsa = b'\x00\x00\x00\x10\x01\x06\x00\x00\x00\x02'
