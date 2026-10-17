@@ -317,7 +317,13 @@ class Packet(OrderedDict):
             else:
                 return (key, [tag + self._EncodeValue(attr, v) for v in values])
         else:
-            return (key, [self._EncodeValue(attr, v) for v in values])
+            encoded = [self._EncodeValue(attr, v) for v in values]
+            if attr.has_tag and attr.type != 'integer':
+                # RFC 2868 section 3: a first octet up to 0x1F is read as
+                # tag, so such a value gets the tag 0
+                encoded = [b'\x00' + v if v and v[0] <= 0x1F else v
+                           for v in encoded]
+            return (key, encoded)
 
     @staticmethod
     def _SplitTag(attr, value):

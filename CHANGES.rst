@@ -52,9 +52,9 @@ Check these before upgrading from 2.5.4. Details follow under Changes.
 
   * Tagged attributes (RFC 2868): ``pkt['Tunnel-Type']`` returns the
     values, e.g. ``['L2TP']`` instead of ``16777219`` with the tag in the
-    high octet, and the tag is stripped from string values. A tagged
-    string value starting with an octet up to 0x1F is read as tag and
-    value.
+    high octet, and the tag is stripped from string values. A received
+    string value of a tagged attribute starting with an octet up to 0x1F
+    is read as tag and value (RFC 2868).
   * Values of ``string`` attributes that are not valid UTF-8 are returned
     as bytes instead of str with replacement characters. This applies to
     every string attribute (e.g. a Latin-1 Calling-Station-Id), not only
@@ -318,7 +318,8 @@ Changes
   ``pkt['Tunnel-Type:1']`` the values with tag 1. Decoding a tagged
   Tunnel-Password no longer fails, and an untagged Tunnel-Password is sent
   with the mandatory tag 0. A Tunnel-Password without tag, as sent by older
-  pyrad versions, is still decoded.
+  pyrad versions, is still decoded. An untagged string value starting with
+  an octet up to 0x1F is sent with the tag 0, so that it isn't read as tag.
 * Fix ClientAsync decrypting salt encrypted reply attributes, such as
   Tunnel-Password and MS-MPPE-Send-Key, with the wrong authenticator.
 * Copy Proxy-State attributes into replies (RFC 2865 section 5.33).

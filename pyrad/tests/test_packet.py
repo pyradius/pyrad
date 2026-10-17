@@ -974,6 +974,17 @@ class PacketEdgeCaseTests(unittest.TestCase):
         pkt[81] = [b'\x1fvlan', b' vlan']
         self.assertEqual(pkt['Tunnel-Private-Group-Id'], ['vlan', ' vlan'])
 
+    def testUntaggedValueLookingLikeTag(self):
+        # RFC 2868 section 3: a value whose first octet is at most 0x1F
+        # needs a tag, or its first octet is read as tag
+        dictionary = self.tagged_dictionary()
+        pkt = packet.AuthPacket(dict=dictionary)
+        pkt['Tunnel-Private-Group-Id'] = ['\x05vlan', 'vlan', '']
+        self.assertEqual(pkt[81], [b'\x00\x05vlan', b'vlan', b''])
+        self.assertEqual(pkt['Tunnel-Private-Group-Id'], ['\x05vlan', 'vlan', ''])
+        decoded = packet.AuthPacket(packet=pkt.RequestPacket(), dict=dictionary)
+        self.assertEqual(decoded['Tunnel-Private-Group-Id'], ['\x05vlan', 'vlan', ''])
+
     def testUntaggedTunnelPasswordWithoutTag(self):
         # pyrad 2.5.4 and older sent an untagged Tunnel-Password without
         # the mandatory tag octet
