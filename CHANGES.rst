@@ -31,7 +31,10 @@ Check these before upgrading from 2.5.4. Details follow under Changes.
   * CreateReply() copies the Proxy-State attributes of the request. A
     handler that copies them itself sends them twice, and the client
     rejects that reply.
-  * An untagged Tunnel-Password is sent with the tag 0.
+  * An untagged Tunnel-Password, and an untagged value of a tagged string
+    attribute starting with an octet up to 0x1F, are sent with the tag 0
+    (RFC 2868). Tunnel-Passwords without tag from pyrad 2.5.4 are still
+    decoded.
 
 * Packets that were accepted before are dropped:
 
