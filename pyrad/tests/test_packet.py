@@ -974,6 +974,15 @@ class PacketEdgeCaseTests(unittest.TestCase):
         pkt[81] = [b'\x1fvlan', b' vlan']
         self.assertEqual(pkt['Tunnel-Private-Group-Id'], ['vlan', ' vlan'])
 
+    def testUntaggedTunnelPasswordWithoutTag(self):
+        # pyrad 2.5.4 and older sent an untagged Tunnel-Password without
+        # the mandatory tag octet
+        pkt = packet.AuthPacket(secret=b'secret', dict=self.tagged_dictionary(),
+                                authenticator=b'0123456789ABCDEF')
+        pkt[69] = [pkt.SaltCrypt('password')]
+        self.assertEqual(pkt['Tunnel-Password'], ['password'])
+        self.assertEqual(pkt['Tunnel-Password:0'], ['password'])
+
     def testInvalidTag(self):
         pkt = packet.Packet(dict=self.tagged_dictionary())
         self.assertRaises(ValueError, pkt.__setitem__, 'Tunnel-Type:32', 'VLAN')

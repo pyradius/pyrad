@@ -323,14 +323,20 @@ class Packet(OrderedDict):
     def _SplitTag(attr, value):
         """Split a raw value of a tagged attribute (RFC 2868 section 3) into
         its tag and value. The tag replaces the first octet of integers and
-        always precedes the salt of encrypted values. For other types it is
-        optional and present if the first octet is at most 0x1F.
+        always precedes the salt of encrypted values, unless the value was
+        sent without it (salt and a multiple of 16 octets, as pyrad 2.5.4
+        and older did). For other types it is optional and present if the
+        first octet is at most 0x1F.
         """
         if not attr.has_tag or not value:
             return (0, value)
         if attr.type == 'integer':
             return (value[0], b'\x00' + value[1:])
-        if attr.encrypt == 2 or value[0] <= 0x1F:
+        if attr.encrypt == 2:
+            if len(value) % 16 == 2:
+                return (0, value)
+            return (value[0], value[1:])
+        if value[0] <= 0x1F:
             return (value[0], value[1:])
         return (0, value)
 

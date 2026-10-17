@@ -184,7 +184,8 @@ Unreleased
   the values, ``pkt['Tunnel-Type']`` returns the values of all tags and
   ``pkt['Tunnel-Type:1']`` the values with tag 1. Decoding a tagged
   Tunnel-Password no longer fails, and an untagged Tunnel-Password is sent
-  with the mandatory tag 0.
+  with the mandatory tag 0. A Tunnel-Password without tag, as sent by older
+  pyrad versions, is still decoded.
 * Fix ClientAsync decrypting salt encrypted reply attributes, such as
   Tunnel-Password and MS-MPPE-Send-Key, with the wrong authenticator.
 * Copy Proxy-State attributes into replies (RFC 2865 section 5.33).
