@@ -349,6 +349,9 @@ Changes
   of struct.error or returning a wrong value, such as an IPv6 address for a
   16 byte ipaddr value (#13). Shorter ipv6addr values are still padded with
   zeros.
+* Fix Host.SendPacket(fd, pkt), which called the missing method
+  pkt.Packet() and always raised AttributeError; it sends
+  pkt.RequestPacket() to pkt.source.
 * AddAttribute raises a TypeError with a clear message when the key is not
   an attribute name, e.g. when the key and value arguments are swapped
   (#17).

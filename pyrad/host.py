@@ -105,15 +105,16 @@ class Host:
     def SendPacket(self, fd, pkt):
         """Send a request packet to the address in ``pkt.source``.
 
-        Intended to send a packet with a socket, it is not used by pyrad
-        (:meth:`pyrad.client.Client.SendPacket` replaces it).
+        The packet is encoded with ``pkt.RequestPacket()``. pyrad doesn't
+        use this method itself; :meth:`pyrad.client.Client.SendPacket`
+        replaces it.
 
         :param  fd: socket to send the packet with
         :type   fd: socket.socket
         :param pkt: packet to send
         :type  pkt: pyrad.packet.Packet
         """
-        fd.sendto(pkt.Packet(), pkt.source)
+        fd.sendto(pkt.RequestPacket(), pkt.source)
 
     def SendReplyPacket(self, fd, pkt):
         """Send a reply packet to the address in ``pkt.source``.

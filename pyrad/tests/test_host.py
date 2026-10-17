@@ -1,3 +1,4 @@
+import socket
 import unittest
 from pyrad.host import Host
 from pyrad.packet import Packet
@@ -54,7 +55,7 @@ class MockPacket:
     replypacket = object()
     source = object()
 
-    def Packet(self):
+    def RequestPacket(self):
         return self.packet
 
     def ReplyPacket(self):
@@ -85,3 +86,17 @@ class PacketSendTest(unittest.TestCase):
         self.host.SendReplyPacket(self.fd, self.packet)
         self.assertTrue(self.fd.data is self.packet.replypacket)
         self.assertTrue(self.fd.target is self.packet.source)
+
+    def testSendRealPacket(self):
+        # SendPacket called pkt.Packet(), which no packet class has
+        receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sender = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.addCleanup(receiver.close)
+        self.addCleanup(sender.close)
+        receiver.bind(('127.0.0.1', 0))
+        receiver.settimeout(5)
+        pkt = AuthPacket(secret=b'secret')
+        pkt.source = receiver.getsockname()
+        self.host.SendPacket(sender, pkt)
+        decoded = AuthPacket(secret=b'secret', packet=receiver.recv(4096))
+        self.assertEqual((decoded.code, decoded.id), (pkt.code, pkt.id))
