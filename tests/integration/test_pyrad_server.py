@@ -55,11 +55,19 @@ PORTS = {
 def create_reply(create_reply_packet, pkt):
     """Return the reply of both servers to a request."""
     if pkt.code == packet.AccessRequest:
-        accept = (pkt["User-Name"] == ["alice"]
-                  and pkt.PwDecrypt(pkt[2][0]) == PASSWORD)
-        reply = create_reply_packet(pkt, Reply_Message="Hello, alice")
+        (name,) = pkt["User-Name"]
+        if name == "boom":
+            raise RuntimeError("handler bug")
+        accept = pkt.PwDecrypt(pkt[2][0]) == PASSWORD
+        reply = create_reply_packet(pkt, Reply_Message=f"Hello, {name}")
         reply.code = packet.AccessAccept if accept else packet.AccessReject
-        if accept:
+        if accept and name == "untagged":
+            # untagged values of tagged attributes, one of them looking
+            # like a tag (RFC 2868 section 3)
+            reply["Tunnel-Type"] = "VLAN"
+            reply["Tunnel-Private-Group-Id"] = "\x05vlan"
+            reply["Tunnel-Password"] = TUNNEL_PASSWORD
+        elif accept:
             reply.AddAttribute("Tunnel-Type:1", "VLAN")
             reply.AddAttribute("Tunnel-Medium-Type:1", "IEEE-802")
             reply.AddAttribute("Tunnel-Private-Group-Id:1", "100")
@@ -276,3 +284,103 @@ def test_enforce_message_authenticator(pyrad_servers):
         "Message-Authenticator !* ANY"], STRICT_AUTH_PORT)
     assert code != 0, output
     assert "Received Access-Accept" not in output
+
+
+def test_handler_exception(server):
+    # the request is dropped and the server keeps serving
+    srv, ports = server
+    code, output = radclient([
+        "User-Name = boom", f"User-Password = {PASSWORD}"], ports["auth"])
+    assert code != 0, output
+    assert "Received" not in output
+    code, output = radclient([
+        "User-Name = alice", f"User-Password = {PASSWORD}"], ports["auth"])
+    assert code == 0, output
+    assert "Received Access-Accept" in output
+
+
+def test_utf8_strings(server):
+    srv, ports = server
+    code, output = radclient([
+        "User-Name = Jürgen", f"User-Password = {PASSWORD}"], ports["auth"])
+    assert code == 0, output
+    assert srv.received[-1]["User-Name"] == ["Jürgen"]
+    assert_attribute(output, 'Reply-Message = "Hello, Jürgen"')
+
+
+def test_untagged_reply_attributes(server):
+    # radclient decodes them with tag 0
+    _, ports = server
+    code, output = radclient([
+        "User-Name = untagged", f"User-Password = {PASSWORD}"], ports["auth"])
+    assert code == 0, output
+    assert_attribute(output, "Tunnel-Type:0 = VLAN")
+    assert_attribute(output, 'Tunnel-Private-Group-Id:0 = "\\005vlan"')
+    assert_attribute(output, f'Tunnel-Password:0 = "{TUNNEL_PASSWORD}"')
+
+
+@pytest.mark.parametrize("command, request_code", [
+    ("coa", packet.CoARequest),
+    ("disconnect", packet.DisconnectRequest),
+])
+def test_coa_with_message_authenticator(server, command, request_code):
+    # radclient calculates the Message-Authenticator
+    srv, ports = server
+    code, output = radclient(["User-Name = alice", "Message-Authenticator = 0x00"],
+                             ports["coa"], command=command)
+    assert code == 0, output
+    req = srv.received[-1]
+    assert req.code == request_code
+    assert "Message-Authenticator" in req
+    assert req.verify_message_authenticator()
+
+
+@pytest.fixture(scope="module")
+def dual_stack_servers(dictionary):
+    """A blocking and an asyncio server bound to '::', which receive IPv4
+    packets with an IPv4-mapped source address (::ffff:127.0.0.1)."""
+    try:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        sock.bind(("::", 0))
+        sock.close()
+    except OSError:
+        pytest.skip("IPv6 is not available")
+    hosts = {SERVER: RemoteHost(SERVER, SECRET, "radclient")}
+    sync_auth, sync_acct, async_auth, async_acct = free_ports(4)
+    sync = PyradServer(addresses=["::"], authport=sync_auth, acctport=sync_acct,
+                       hosts=hosts, dict=dictionary)
+    threading.Thread(target=sync.Run, daemon=True).start()
+
+    loop = asyncio.new_event_loop()
+    async_server = AsyncPyradServer(auth_port=async_auth, acct_port=async_acct,
+                                    hosts=hosts, dictionary=dictionary, loop=loop)
+    loop.run_until_complete(async_server.initialize_transports(
+        enable_auth=True, enable_acct=True, addresses=["::"]))
+    thread = threading.Thread(target=loop.run_forever, daemon=True)
+    thread.start()
+
+    yield {"sync": (sync, {"auth": sync_auth, "acct": sync_acct}),
+           "async": (async_server, {"auth": async_auth, "acct": async_acct})}
+
+    loop.call_soon_threadsafe(loop.stop)
+    thread.join()
+    loop.run_until_complete(async_server.deinitialize_transports())
+    loop.close()
+    for fd in sync.authfds + sync.acctfds:
+        fd.close()
+
+
+@pytest.mark.parametrize("kind", ["sync", "async"])
+def test_dual_stack(dual_stack_servers, kind):
+    # the IPv4 client is matched against its IPv4 hosts entry, the only one
+    srv, ports = dual_stack_servers[kind]
+    code, output = radclient([
+        "User-Name = alice", f"User-Password = {PASSWORD}"], ports["auth"])
+    assert code == 0, output
+    assert "Received Access-Accept" in output
+    if kind == "sync":
+        assert srv.received[-1].source[0] == "::ffff:127.0.0.1"
+    code, output = radclient([
+        "User-Name = alice", "Acct-Status-Type = Start"], ports["acct"], command="acct")
+    assert code == 0, output
+    assert "Received Accounting-Response" in output

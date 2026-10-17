@@ -38,3 +38,14 @@ types	Cleartext-Password := "types-password"
 # Echo request attributes of different data types, as decoded by FreeRADIUS.
 echo	Cleartext-Password := "echo-password"
 	Reply-Message := "%{NAS-IP-Address} %{NAS-IPv6-Address} %{NAS-Port} %{Service-Type} %{Framed-IPv6-Prefix} %{integer:Event-Timestamp} %{Tunnel-Type:1} %{Tunnel-Private-Group-Id:1} %{Tunnel-Private-Group-Id:2} %{Cisco-AVPair}"
+
+# UTF-8 password and strings (RFC 2865 section 5: string values are UTF-8).
+utf8	Cleartext-Password := "pässwörd-ünïcode"
+	Reply-Message := "Grüße, %{Calling-Station-Id}"
+
+# Untagged values of tagged attributes; FreeRADIUS sends the integer and
+# the salt encrypted value with tag 0.
+untagged	Cleartext-Password := "untagged-password"
+	Tunnel-Type := VLAN,
+	Tunnel-Private-Group-Id := "vlan100",
+	Tunnel-Password := "an-untagged-tunnel-password"

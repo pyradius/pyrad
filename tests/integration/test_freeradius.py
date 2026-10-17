@@ -8,6 +8,7 @@ import asyncio
 import hashlib
 import os
 import socket
+import subprocess
 import time
 
 import pytest
@@ -15,8 +16,9 @@ import pytest
 from pyrad import packet
 from pyrad.client import Client, Timeout
 from pyrad.client_async import ClientAsync
+from pyrad.dictionary import Dictionary
 
-from .conftest import SECRET, SERVER, STRICT_CLIENT
+from .conftest import CONTAINER, SECRET, SERVER, STRICT_CLIENT
 
 
 def auth_request(client, user, password, **attributes):
@@ -68,6 +70,30 @@ def test_chap_accept(client):
 def test_chap_wrong_password(client):
     reply = client.SendPacket(chap_request(client, "alice", "wrong"))
     assert reply.code == packet.AccessReject
+
+
+def test_chap_password_starting_with_0x(client):
+    # a CHAP-Password with CHAP ID 48 ("0") and a digest starting with "x"
+    # was decoded as hex and failed to encode (#49)
+    chap_id = b"0"
+    while True:
+        challenge = os.urandom(16)
+        digest = hashlib.md5(chap_id + b"alice-password" + challenge).digest()
+        if digest.startswith(b"x"):
+            break
+    req = client.CreateAuthPacket(code=packet.AccessRequest, User_Name="alice")
+    req["CHAP-Challenge"] = challenge
+    req["CHAP-Password"] = chap_id + digest
+    reply = client.SendPacket(req)
+    assert reply.code == packet.AccessAccept
+
+
+def test_utf8_strings(client):
+    req = auth_request(client, "utf8", "pässwörd-ünïcode",
+                       Calling_Station_Id="Jürgen")
+    reply = client.SendPacket(req)
+    assert reply.code == packet.AccessAccept
+    assert reply["Reply-Message"] == ["Grüße, Jürgen"]
 
 
 def test_enforce_message_authenticator(dictionary):
@@ -123,6 +149,16 @@ def test_tagged_attributes(client):
     assert reply["Tunnel-Password:2"] == [
         "a-tunnel-password-longer-than-16-octets"]
     assert "Tunnel-Password:1" not in reply
+
+
+def test_untagged_attributes(client):
+    reply = client.SendPacket(auth_request(client, "untagged", "untagged-password"))
+    assert reply.code == packet.AccessAccept
+    assert reply["Tunnel-Type"] == ["VLAN"]
+    assert reply["Tunnel-Type:0"] == ["VLAN"]
+    assert reply["Tunnel-Private-Group-Id"] == ["vlan100"]
+    # FreeRADIUS sends the mandatory tag 0 (RFC 2868 section 3.5)
+    assert reply["Tunnel-Password:0"] == ["an-untagged-tunnel-password"]
 
 
 def test_vendor_attributes(client):
@@ -194,6 +230,16 @@ def test_status_server_with_enforce_ma(dictionary):
     assert "Message-Authenticator" in reply
 
 
+def test_status_server_accounting_port(dictionary):
+    # RFC 5997 section 3: a random Request Authenticator and a
+    # Message-Authenticator, which FreeRADIUS requires
+    client = Client(server=SERVER, secret=SECRET, dict=dictionary,
+                    retries=2, timeout=2, enforce_ma=True)
+    reply = client.SendPacket(client.CreateAcctPacket(code=packet.StatusServer))
+    assert reply.code == packet.AccountingResponse
+    assert "Message-Authenticator" in reply
+
+
 @pytest.mark.parametrize("status", ["Start", "Interim-Update", "Stop"])
 def test_accounting(client, status):
     req = client.CreateAcctPacket(User_Name="alice")
@@ -217,6 +263,14 @@ def test_accounting_attributes(client):
     req.AddAttribute("Tunnel-Type:1", "VLAN")
     req.AddAttribute("Tunnel-Private-Group-Id:1", "100")
     req["Cisco-AVPair"] = ["acct:first=1", "acct:second=2"]
+    reply = client.SendPacket(req)
+    assert reply.code == packet.AccountingResponse
+
+
+def test_accounting_with_message_authenticator(client):
+    req = client.CreateAcctPacket(User_Name="alice", message_authenticator=True)
+    req["Acct-Status-Type"] = "Start"
+    req["Acct-Session-Id"] = "pyrad-integration-message-authenticator"
     reply = client.SendPacket(req)
     assert reply.code == packet.AccountingResponse
 
@@ -280,3 +334,81 @@ def test_async_client_attributes(dictionary):
         "a-tunnel-password-longer-than-16-octets"]
     assert vendor["MS-MPPE-Send-Key"] == [bytes(range(0, 32))]
     assert status.code == packet.AccessAccept
+
+
+def test_async_client_more_than_256_requests(dictionary):
+    # ids of answered requests are reused, ids of pending ones are not
+    async def run():
+        client = ClientAsync(server=SERVER, secret=SECRET, dict=dictionary,
+                             loop=asyncio.get_running_loop(), timeout=3)
+        await client.initialize_transports(enable_auth=True)
+        try:
+            replies = []
+            for _ in range(3):
+                replies += await asyncio.gather(*(
+                    client.SendPacket(auth_request(client, "alice", "alice-password"))
+                    for _ in range(100)))
+            return replies, dict(client.protocol_auth.pending_requests)
+        finally:
+            await client.deinitialize_transports()
+
+    replies, pending = asyncio.run(run())
+    assert [reply.code for reply in replies] == 300 * [packet.AccessAccept]
+    assert pending == {}
+
+
+def test_async_client_cancelled_request(dictionary):
+    # a request cancelled by asyncio.wait_for is forgotten, and later
+    # requests on the same transport are still answered
+    async def run():
+        client = ClientAsync(server=SERVER, secret=SECRET, dict=dictionary,
+                             loop=asyncio.get_running_loop(), timeout=2)
+        await client.initialize_transports(enable_auth=True)
+        try:
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(client.SendPacket(
+                    auth_request(client, "alice", "alice-password")), timeout=0)
+            reply = await client.SendPacket(
+                auth_request(client, "alice", "alice-password"))
+            return reply, dict(client.protocol_auth.pending_requests)
+        finally:
+            await client.deinitialize_transports()
+
+    reply, pending = asyncio.run(run())
+    assert reply.code == packet.AccessAccept
+    assert pending == {}
+
+
+@pytest.fixture(scope="module")
+def freeradius_dictionary(tmp_path_factory):
+    """The dictionary files of the FreeRADIUS server, as they are."""
+    if not CONTAINER:
+        pytest.skip("FREERADIUS_CONTAINER is not set")
+    path = tmp_path_factory.mktemp("freeradius")
+    subprocess.run(["docker", "cp", f"{CONTAINER}:/opt/share/freeradius", str(path)],
+                   check=True, capture_output=True, timeout=60)
+    return Dictionary(str(path / "freeradius" / "dictionary"))
+
+
+def test_freeradius_dictionary(freeradius_dictionary):
+    # attributes pyrad does not support are skipped, all others are usable
+    assert freeradius_dictionary.skipped_attributes
+    client = Client(server=SERVER, secret=SECRET, dict=freeradius_dictionary,
+                    retries=2, timeout=2, enforce_ma=True)
+    reply = client.SendPacket(auth_request(client, "vendor", "vendor-password"))
+    assert reply.code == packet.AccessAccept
+    assert reply["Cisco-AVPair"] == ["shell:priv-lvl=15", "ip:addr-pool=pyrad"]
+    assert reply["MS-MPPE-Send-Key"] == [bytes(range(0, 32))]
+
+    reply = client.SendPacket(auth_request(client, "tunnel", "tunnel-password"))
+    assert reply["Tunnel-Type"] == ["VLAN", "L2TP"]
+    assert reply["Tunnel-Password:2"] == ["a-tunnel-password-longer-than-16-octets"]
+
+    reply = client.SendPacket(auth_request(client, "types", "types-password"))
+    assert reply["Delegated-IPv6-Prefix"] == ["2001:db8:2::/56"]
+    assert reply["Class"] == [b"\x01\x02\x03\x04\x05"]
+
+    req = client.CreateAcctPacket(User_Name="alice", Acct_Status_Type="Start",
+                                  Acct_Session_Id="pyrad-freeradius-dictionary",
+                                  Framed_Interface_Id="211:22ff:fe33:4455")
+    assert client.SendPacket(req).code == packet.AccountingResponse
