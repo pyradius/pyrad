@@ -70,3 +70,7 @@ select = ["E4", "E7", "E9", "F"]
 # Measure the whole package, including modules not imported by any test
 source = ["pyrad"]
 omit = ["pyrad/tests/*"]
+
+[tool.coverage.report]
+# demo code run as a script, e.g. starting the Twisted reactor
+exclude_also = ['if __name__ == .__main__.:']

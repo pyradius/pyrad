@@ -153,6 +153,17 @@ class SocketTests(unittest.TestCase):
             self.server._GrabPacket(gen, MockFd())
         self.assertIn('AttributeError: boom', str(cm.exception))
 
+    def testGrabPacketPacketError(self):
+        # a PacketError is passed on unchanged
+        error = PacketError('corrupt')
+
+        def gen(data):
+            raise error
+
+        with self.assertRaises(PacketError) as cm:
+            self.server._GrabPacket(gen, MockFd())
+        self.assertIs(cm.exception, error)
+
     def testPrepareSocketNoFds(self):
         self.server._poll = MockPoll()
         self.server._PrepareSockets()

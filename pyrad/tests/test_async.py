@@ -83,6 +83,9 @@ class RadiusServer(ServerAsync):
         EAP-Response/MD5-Challenge with Access-Accept or -Reject."""
         eap = pkt[79][0]
         reply = self.CreateReplyPacket(pkt)
+        if pkt['User-Name'] != ['alice']:
+            reply.code = packet.AccessReject
+            return reply
         if eap[4] == 1:  # Identity
             reply.code = packet.AccessChallenge
             reply[79] = [struct.pack('!BBHBB', 1, 7, 22, 4, 16) + EAP_CHALLENGE]
@@ -176,6 +179,18 @@ class AsyncRoundTripTests(unittest.TestCase):
         self.assertNotIn(2, response)
         self.assertEqual(response[24], [b'state'])
         self.assertNotEqual(response.id, first_id)
+        self.assertEqual(req['User-Password'], [PASSWORD])
+
+    def testEapMd5WithoutChallenge(self):
+        # the server rejects the EAP-Identity without a challenge
+        async def test(client, server):
+            req = client.CreateAuthPacket(auth_type='eap-md5', User_Name='mallory')
+            req['User-Password'] = PASSWORD
+            reply = await client.SendPacket(req)
+            return req, reply, server.received
+        req, reply, received = self.run_with(test)
+        self.assertEqual(reply.code, packet.AccessReject)
+        self.assertEqual(len(received), 1)
         self.assertEqual(req['User-Password'], [PASSWORD])
 
     def testEapMd5WrongPassword(self):
@@ -283,6 +298,40 @@ class AsyncClientTests(unittest.TestCase):
         self.assertRaises(Exception, self.client.CreateCoAPacket)
         for pkt in (packet.AuthPacket(), packet.AcctPacket(), packet.CoAPacket()):
             self.assertRaises(Exception, self.client.SendPacket, pkt)
+
+    def testEapMd5TransportNotInitialized(self):
+        pkt = packet.AuthPacket(auth_type='eap-md5', secret=SECRET, dict=self.dict,
+                                User_Name='alice')
+        pkt['User-Password'] = PASSWORD
+        self.assertRaises(Exception, self.client.SendPacket, pkt)
+        self.assertEqual(pkt['User-Password'], [PASSWORD])
+
+    def testEapMd5SendFails(self):
+        # the User-Password is restored if the identity can't be sent
+        async def test():
+            loop = asyncio.get_running_loop()
+            self.client.protocol_auth = self.mock_protocol()
+            pkt = self.client.CreateAuthPacket(auth_type='eap-md5', User_Name='alice')
+            pkt['User-Password'] = PASSWORD
+            # a pending request with the same id
+            self.client.protocol_auth.send_packet(
+                packet.AuthPacket(id=pkt.id, secret=SECRET, dict=self.dict),
+                loop.create_future())
+            with self.assertRaises(Exception):
+                self.client.SendPacket(pkt)
+            return pkt
+        pkt = self.loop.run_until_complete(test())
+        self.assertEqual(pkt['User-Password'], [PASSWORD])
+
+    def testLoopOutsideRunningLoop(self):
+        # without a loop and outside of a running loop, the current event
+        # loop is used
+        client = ClientAsync(server=LOCALHOST, secret=SECRET, dict=self.dict)
+        asyncio.set_event_loop(self.loop)
+        try:
+            self.assertIs(client.loop, self.loop)
+        finally:
+            asyncio.set_event_loop(None)
 
     def testCreateAuthPacketDecodesMessageAuthenticator(self):
         self.client.protocol_auth = self.mock_protocol()
@@ -705,6 +754,18 @@ class AsyncServerProtocolTests(unittest.TestCase):
 
 
 class AsyncServerTests(unittest.TestCase):
+    def testLoopOutsideRunningLoop(self):
+        # without a loop and outside of a running loop, the current event
+        # loop is used
+        loop = asyncio.new_event_loop()
+        server = RadiusServer()
+        asyncio.set_event_loop(loop)
+        try:
+            self.assertIs(server.loop, loop)
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
+
     def testNoTransportsSelected(self):
         loop = asyncio.new_event_loop()
         server = RadiusServer(loop=loop)

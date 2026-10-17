@@ -1051,6 +1051,14 @@ class PacketEdgeCaseTests(unittest.TestCase):
         del pkt['Test-Tlv-Int']
         self.assertEqual(pkt.keys(), ['Test-String'])
 
+    def testTlvSubAttributeOfRawTlv(self):
+        # a TLV set with raw bytes has no sub-attributes to look up
+        pkt = packet.Packet(dict=self.dict)
+        pkt[4] = [b'\x01\x05abc']
+        self.assertNotIn('Test-Tlv-Str', pkt)
+        self.assertRaises(KeyError, pkt.__getitem__, 'Test-Tlv-Str')
+        self.assertRaises(KeyError, pkt.__delitem__, 'Test-Tlv-Str')
+
     def testVendorTlvSubAttributeAccess(self):
         pkt = packet.Packet(dict=self.dict)
         pkt['Simplon-Number'] = 1
