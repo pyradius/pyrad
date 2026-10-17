@@ -299,6 +299,17 @@ class AsyncClientTests(unittest.TestCase):
         for pkt in (packet.AuthPacket(), packet.AcctPacket(), packet.CoAPacket()):
             self.assertRaises(Exception, self.client.SendPacket, pkt)
 
+    def testCloseTransportCancelsRetryTask(self):
+        # the retry task ends as cancelled instead of swallowing the
+        # CancelledError, and close_transport still returns normally
+        async def test():
+            await self.client.initialize_transports(enable_auth=True)
+            task = self.client.protocol_auth.timeout_future
+            await self.client.deinitialize_transports()
+            return task
+        task = self.loop.run_until_complete(test())
+        self.assertTrue(task.cancelled())
+
     def testEapMd5TransportNotInitialized(self):
         pkt = packet.AuthPacket(auth_type='eap-md5', secret=SECRET, dict=self.dict,
                                 User_Name='alice')
@@ -554,7 +565,8 @@ class AsyncClientTests(unittest.TestCase):
                 await asyncio.wait_for(future, 5 * timeout)
             sent.append(loop.time())
             handler.cancel()
-            await handler
+            await asyncio.wait([handler])
+            self.assertTrue(handler.cancelled())
             self.assertEqual(protocol.pending_requests, {})
             return sent
         (request, retry, failed) = self.loop.run_until_complete(test())
@@ -588,7 +600,8 @@ class AsyncClientTests(unittest.TestCase):
                 handler = asyncio.ensure_future(protocol.__timeout_handler__())
                 await asyncio.wait([future], timeout=1)
             handler.cancel()
-            await handler
+            await asyncio.wait([handler])
+            self.assertTrue(handler.cancelled())
             return future
         return self.loop.run_until_complete(test())
 
@@ -624,7 +637,8 @@ class AsyncClientTests(unittest.TestCase):
                 await asyncio.wait_for(future, 2)
             self.assertFalse(handler.done())
             handler.cancel()
-            await handler
+            await asyncio.wait([handler])
+            self.assertTrue(handler.cancelled())
         self.loop.run_until_complete(test())
 
     def testReplyForCancelledRequest(self):
@@ -661,7 +675,8 @@ class AsyncClientTests(unittest.TestCase):
                 await asyncio.wait_for(future, 2)
             self.assertFalse(handler.done())
             handler.cancel()
-            await handler
+            await asyncio.wait([handler])
+            self.assertTrue(handler.cancelled())
         self.loop.run_until_complete(test())
 
     def testCloseTransportFailsPendingRequests(self):

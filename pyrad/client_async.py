@@ -51,57 +51,52 @@ class DatagramProtocolClient(asyncio.Protocol):
         self.timeout_future = None
 
     async def __timeout_handler__(self):
+        # cancelled by close_transport; the CancelledError ends the task
+        while True:
 
-        try:
+            req2delete = []
+            # monotonic, not affected by steps of the system clock
+            now = time.monotonic()
+            next_wake_up = self.timeout
+            # noinspection PyShadowingBuiltins
+            for id, req in self.pending_requests.items():
 
-            while True:
+                if req['future'].done():
+                    # cancelled by the caller
+                    req2delete.append(id)
+                    continue
 
-                req2delete = []
-                # monotonic, not affected by steps of the system clock
-                now = time.monotonic()
-                next_wake_up = self.timeout
-                # noinspection PyShadowingBuiltins
-                for id, req in self.pending_requests.items():
-
-                    if req['future'].done():
-                        # cancelled by the caller
+                secs = now - req['send_date']
+                if secs >= self.timeout:
+                    if req['retries'] == self.retries:
+                        self.logger.debug('[%s:%d] For request %d execute all retries', self.server, self.port, id)
+                        req['future'].set_exception(
+                            TimeoutError('Timeout on Reply')
+                        )
                         req2delete.append(id)
-                        continue
-
-                    secs = now - req['send_date']
-                    if secs >= self.timeout:
-                        if req['retries'] == self.retries:
-                            self.logger.debug('[%s:%d] For request %d execute all retries', self.server, self.port, id)
+                    else:
+                        # Send again packet
+                        req['send_date'] = now
+                        req['retries'] += 1
+                        self.logger.debug('[%s:%d] For request %d execute retry %d', self.server, self.port, id, req['retries'])
+                        try:
+                            self.transport.sendto(req['raw'])
+                        except Exception as exc:
+                            # without the traceback, which references
+                            # the frame of this long-running task
                             req['future'].set_exception(
-                                TimeoutError('Timeout on Reply')
-                            )
+                                exc.with_traceback(None))
                             req2delete.append(id)
-                        else:
-                            # Send again packet
-                            req['send_date'] = now
-                            req['retries'] += 1
-                            self.logger.debug('[%s:%d] For request %d execute retry %d', self.server, self.port, id, req['retries'])
-                            try:
-                                self.transport.sendto(req['raw'])
-                            except Exception as exc:
-                                # without the traceback, which references
-                                # the frame of this long-running task
-                                req['future'].set_exception(
-                                    exc.with_traceback(None))
-                                req2delete.append(id)
-                    elif next_wake_up > self.timeout - secs:
-                        # wake up when this request times out
-                        next_wake_up = self.timeout - secs
+                elif next_wake_up > self.timeout - secs:
+                    # wake up when this request times out
+                    next_wake_up = self.timeout - secs
 
-                # noinspection PyShadowingBuiltins
-                for id in req2delete:
-                    # Remove request from map
-                    self.pending_requests.pop(id, None)
+            # noinspection PyShadowingBuiltins
+            for id in req2delete:
+                # Remove request from map
+                self.pending_requests.pop(id, None)
 
-                await asyncio.sleep(next_wake_up)
-
-        except asyncio.CancelledError:
-            pass
+            await asyncio.sleep(next_wake_up)
 
     def send_packet(self, packet, future):
         if packet.id in self.pending_requests:
@@ -197,7 +192,10 @@ class DatagramProtocolClient(asyncio.Protocol):
             self.transport = None
         if self.timeout_future:
             self.timeout_future.cancel()
-            await self.timeout_future
+            # wait for the cancelled task to end; unlike awaiting it, this
+            # doesn't raise its CancelledError, only a cancellation of the
+            # caller
+            await asyncio.wait([self.timeout_future])
             self.timeout_future = None
 
     def create_id(self):
