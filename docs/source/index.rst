@@ -3,7 +3,7 @@
 :mod:`pyrad` -- RADIUS for Python
 *********************************
 
-:Author: Christian Giese (GIC-de), Istvan Ruzman (Istvan91) and Stefan Lieberth (slieberth)
+:Author: Christian Giese (GIC-de)
 :Version: |version|
 
 Introduction

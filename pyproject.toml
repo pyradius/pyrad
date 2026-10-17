@@ -11,7 +11,7 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE.txt"]
 requires-python = ">=3.10"
 authors = [
-  { name = "Christian Giese", email = "gic@gicnet.de" }
+  { name = "Christian Giese (GIC-de)" }
 ]
 keywords = ["radius", "authentication", "AAA", "accounting", "authorization", "RADIUS"]
 classifiers = [

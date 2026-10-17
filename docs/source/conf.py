@@ -51,8 +51,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'pyrad'
-copyright = 'Copyright 2002-2026 Wichert Akkerman, Christian Giese, Istvan Ruzman and Stefan Lieberth. All rights reserved.'
-author = 'Christian Giese <gic@gicnet.de>, Istvan Ruzman <istvan@ruzman.eu> and Stefan Lieberth <stefan@lieberth.net>'
+copyright = 'Copyright 2002-2026 Wichert Akkerman, Christian Giese. All rights reserved.'
+author = 'Christian Giese (GIC-de)'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -136,7 +136,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'pyrad.tex', 'pyrad Documentation',
-     'Christian Giese, Istvan Ruzman and Stefan Lieberth', 'manual'),
+     'Christian Giese', 'manual'),
 ]
 
 
