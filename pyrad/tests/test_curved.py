@@ -226,6 +226,27 @@ class CurvedTests(unittest.TestCase):
         self.assertIsNone(self.received(
             protocol, packet.AcctPacket(secret=b'wrong', dict=self.dict)))
 
+    def testHostsMappingToSecrets(self):
+        protocol = self.curved.RADIUSAccounting(
+            hosts={'127.0.0.1': SECRET}, dict=self.dict)
+        pkt = self.received(protocol, packet.AcctPacket(secret=SECRET, dict=self.dict))
+        self.assertEqual(pkt.secret, SECRET)
+
+    def testHostsWithoutSecret(self):
+        # hosts given as a set or list, as 2.5.4 only checked membership,
+        # have no secret to verify and decrypt packets with
+        for hosts in ({'127.0.0.1'}, ['127.0.0.1'], {'127.0.0.1': None}):
+            self.log.reset_mock()
+            protocol = self.curved.RADIUSAccess(hosts=hosts, dict=self.dict)
+            self.assertIsNone(self.received(
+                protocol, packet.AuthPacket(secret=SECRET, dict=self.dict)))
+            self.assertIn('no secret', self.log.msg.call_args[0][0])
+        protocol = self.curved.RADIUSAccess(hosts={'127.0.0.1'}, dict=self.dict)
+        self.assertIsNone(self.received(
+            protocol, packet.AuthPacket(secret=SECRET, dict=self.dict),
+            host='192.0.2.1'))
+        self.assertIn('unknown host', self.log.msg.call_args[0][0])
+
     def testIPv6Source(self):
         self.hosts['::1'] = RemoteHost('::1', SECRET, 'localhost6')
         protocol = self.curved.RADIUSAccounting(hosts=self.hosts, dict=self.dict)

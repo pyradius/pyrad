@@ -103,7 +103,10 @@ Unreleased
     secret, the Message-Authenticator of Access-Requests (BlastRADIUS) and
     the Request Authenticator of Accounting-Requests are verified (new
     enforce_ma and enable_pkt_verify arguments), and the default hosts and
-    dictionary are no longer shared between instances.
+    dictionary are no longer shared between instances. The hosts must map
+    to RemoteHost instances or to the secrets; packets of hosts without a
+    secret, e.g. given as a set or list of addresses, are dropped and
+    logged.
   * Twisted integration: exceptions raised by packet handlers (including
     pyrad.packet.PacketError and ServerPacketError) or by createPacket are
     now dropped and logged, like in Server.Run and ServerAsync. Packets

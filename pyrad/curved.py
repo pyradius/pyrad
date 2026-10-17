@@ -16,7 +16,7 @@ from pyrad import host
 from pyrad import packet
 from pyrad.server import CheckMessageAuthenticator
 from pyrad.server import ServerPacketError
-from pyrad.server import _LookupHost
+from pyrad.server import _HostAddresses
 
 
 class PacketError(Exception):
@@ -37,7 +37,8 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
 
         @param hosts: hosts who we can talk to, packets from other hosts
             are dropped
-        @type hosts: dictionary mapping IP to RemoteHost class instances
+        @type hosts: dictionary mapping IP to RemoteHost class instances or
+            to secrets (bytes)
         @param dict: RADIUS dictionary to use
         @type dict: Dictionary class instance
         @param enforce_ma: drop Access-Requests without Message-Authenticator
@@ -68,6 +69,18 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
             return self.CreatePacket(**kwargs)
         return self.createPacket(**kwargs)
 
+    def _HostSecret(self, key):
+        """Return the secret of a hosts entry, which is a RemoteHost or the
+        secret itself, or None if it has none (e.g. hosts is a set).
+        """
+        try:
+            entry = self.hosts[key]
+        except (TypeError, KeyError):
+            return None
+        if isinstance(entry, bytes):
+            return entry
+        return getattr(entry, 'secret', None)
+
     def _verifyPacket(self, pkt):
         """Verify a received request the way pyrad.server.Server does.
 
@@ -93,12 +106,17 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
                     % (type(err).__name__, err))
             return
 
-        remote_host = _LookupHost(self.hosts, host)
-        if remote_host is None:
+        key = next((k for k in _HostAddresses(host) if k in self.hosts), None)
+        if key is None:
             log.msg('Dropping packet from unknown host ' + host)
             return
+        secret = self._HostSecret(key)
+        if secret is None:
+            log.msg('Dropping packet from %s: no secret in its hosts entry'
+                    % host)
+            return
 
-        pkt.secret = remote_host.secret
+        pkt.secret = secret
         pkt.source = (host, port)
         try:
             self._verifyPacket(pkt)
