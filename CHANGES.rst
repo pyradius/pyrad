@@ -99,7 +99,8 @@ Unreleased
   * Proxy accepts Access-Challenge, CoA-ACK/NAK and Disconnect-ACK/NAK
     replies on the proxy socket instead of dropping them.
   * Twisted integration (pyrad.curved): packets are decoded with the
-    packet class of RADIUSAccess/RADIUSAccounting and get the client's
+    packet class of RADIUSAccess/RADIUSAccounting (an overridden
+    createPacket that returns None gets a generic packet) and get the client's
     secret, the Message-Authenticator of Access-Requests (BlastRADIUS) and
     the Request Authenticator of Accounting-Requests are verified (new
     enforce_ma and enable_pkt_verify arguments), and the default hosts and

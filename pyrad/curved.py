@@ -67,7 +67,11 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
         if type(self).createPacket is RADIUS.createPacket:
             # createPacket is not implemented, use a generic packet
             return self.CreatePacket(**kwargs)
-        return self.createPacket(**kwargs)
+        pkt = self.createPacket(**kwargs)
+        if pkt is None:
+            # an override written for 2.5.4, which never called createPacket
+            return self.CreatePacket(**kwargs)
+        return pkt
 
     def _HostSecret(self, key):
         """Return the secret of a hosts entry, which is a RemoteHost or the

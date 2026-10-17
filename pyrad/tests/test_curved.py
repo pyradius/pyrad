@@ -226,6 +226,18 @@ class CurvedTests(unittest.TestCase):
         self.assertIsNone(self.received(
             protocol, packet.AcctPacket(secret=b'wrong', dict=self.dict)))
 
+    def testCreatePacketReturningNone(self):
+        # in 2.5.4 createPacket was never called, and the one of
+        # RADIUSAccess and RADIUSAccounting returned None
+        class Access(self.curved.RADIUSAccess):
+            def createPacket(self, **kwargs):
+                self.CreateAuthPacket(**kwargs)
+
+        protocol = Access(hosts=self.hosts, dict=self.dict)
+        pkt = self.received(protocol, packet.AuthPacket(secret=SECRET, dict=self.dict))
+        self.assertEqual(pkt.code, packet.AccessRequest)
+        self.assertEqual(pkt.secret, SECRET)
+
     def testHostsMappingToSecrets(self):
         protocol = self.curved.RADIUSAccounting(
             hosts={'127.0.0.1': SECRET}, dict=self.dict)
