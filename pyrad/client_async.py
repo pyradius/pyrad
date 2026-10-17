@@ -411,7 +411,9 @@ class ClientAsync:
         """
         if not self.protocol_auth:
             raise Exception('Transport not initialized')
-        args.setdefault('message_authenticator', True)
+        if 'packet' not in args:
+            # a decoded packet has a Message-Authenticator if it contains one
+            args.setdefault('message_authenticator', True)
 
         return AuthPacket(dict=self.dict,
                           id=self.protocol_auth.create_id(),

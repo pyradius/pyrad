@@ -212,6 +212,14 @@ class AsyncClientTests(unittest.TestCase):
         for pkt in (packet.AuthPacket(), packet.AcctPacket(), packet.CoAPacket()):
             self.assertRaises(Exception, self.client.SendPacket, pkt)
 
+    def testCreateAuthPacketDecodesMessageAuthenticator(self):
+        self.client.protocol_auth = self.mock_protocol()
+        raw = packet.AuthPacket(secret=SECRET).RequestPacket()
+        decoded = self.client.CreateAuthPacket(packet=raw)
+        self.assertFalse(decoded.message_authenticator)
+        self.assertNotIn(80, decoded)
+        self.assertTrue(self.client.CreateAuthPacket().message_authenticator)
+
     def testUnsupportedPacket(self):
         self.assertRaises(Exception, self.client.SendPacket, packet.Packet())
 

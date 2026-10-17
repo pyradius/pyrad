@@ -212,6 +212,15 @@ class OtherTests(unittest.TestCase):
         self.assertEqual(packet.id, 15)
         self.assertEqual(packet.secret, b'zeer geheim')
 
+    def testCreateAuthPacketDecodesMessageAuthenticator(self):
+        # decoding a received packet keeps what it contains
+        raw = AuthPacket(secret=b'zeer geheim').RequestPacket()
+        decoded = self.client.CreateAuthPacket(packet=raw)
+        self.assertFalse(decoded.message_authenticator)
+        self.assertNotIn(80, decoded)
+        self.assertEqual(decoded.RequestPacket(), raw)
+        self.assertTrue(self.client.CreateAuthPacket().message_authenticator)
+
     def testCreateAcctPacket(self):
         packet = self.client.CreateAcctPacket(id=15)
         self.assertTrue(isinstance(packet, AcctPacket))

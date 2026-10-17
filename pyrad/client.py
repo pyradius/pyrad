@@ -113,7 +113,9 @@ class Client(host.Host):
         :return: a new empty packet instance
         :rtype:  pyrad.packet.AuthPacket
         """
-        args.setdefault('message_authenticator', True)
+        if 'packet' not in args:
+            # a decoded packet has a Message-Authenticator if it contains one
+            args.setdefault('message_authenticator', True)
         return host.Host.CreateAuthPacket(self, secret=self.secret, **args)
 
     def CreateAcctPacket(self, **args):
