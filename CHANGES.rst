@@ -20,9 +20,14 @@ Check these before upgrading from 2.5.4. Details follow under Changes.
     Message-Authenticator as first attribute; it shows up in ``keys()``.
     Pass ``message_authenticator=False`` to leave it out.
   * Status-Server packets built with AcctPacket get a random Request
-    Authenticator and a Message-Authenticator. Servers running pyrad 2.5.4
-    reject them, and this version rejects Status-Server packets without a
-    Message-Authenticator, e.g. from pyrad 2.5.4 clients.
+    Authenticator and a Message-Authenticator, as RFC 5997 requires,
+    instead of an Accounting-Request style authenticator.
+    AcctPacket.VerifyAcctRequest() verifies the Message-Authenticator of
+    Status-Server packets and fails without one, so code that calls it on
+    Status-Server packets doesn't accept those of pyrad 2.5.4 clients, and
+    pyrad 2.5.4 doesn't accept those of this version. The pyrad servers
+    don't answer Status-Server, and Status-Server on the authentication
+    port is not affected.
   * CreateReply() copies the Proxy-State attributes of the request. A
     handler that copies them itself sends them twice, and the client
     rejects that reply.
