@@ -15,6 +15,7 @@ from pyrad import packet
 EAP_CODE_REQUEST = 1
 EAP_CODE_RESPONSE = 2
 EAP_TYPE_IDENTITY = 1
+EAP_TYPE_MD5 = 4
 
 
 class Timeout(Exception):
@@ -232,6 +233,69 @@ class Client(host.Host):
 
         raise Timeout
 
+    def _SendEapMd5Packet(self, pkt):
+        """Authenticate with EAP-MD5 (RFC 3748 section 5.4) over RADIUS
+        (RFC 3579).
+
+        The EAP-Response/Identity carries the User-Name. The password is
+        the cleartext value of the User-Password attribute of the packet,
+        which is only used for the MD5 response: it is removed while the
+        requests are sent, because it would be sent in clear and RFC 3579
+        section 3.3 doesn't allow User-Password together with EAP-Message.
+
+        :param pkt: the Access-Request with User-Name and User-Password
+        :type pkt:  pyrad.packet.AuthPacket
+        :return:    the reply packet received
+        :rtype:     pyrad.packet.Packet
+        :raise ValueError: User-Name or User-Password is missing
+        :raise Timeout: RADIUS server does not reply
+        """
+        if 1 not in pkt or 2 not in pkt:
+            raise ValueError('EAP-MD5 requires User-Name and the cleartext '
+                             'password as User-Password')
+        identity = pkt[1][0]
+        password = pkt[2][0]
+        user_password = pkt[2]
+        del pkt[2]
+        try:
+            pkt[79] = [struct.pack('!BBHB', EAP_CODE_RESPONSE, packet.CurrentID,
+                                   len(identity) + 5, EAP_TYPE_IDENTITY) + identity]
+            reply = self._SendPacket(pkt, self.authport)
+            if reply.code != packet.AccessChallenge:
+                return reply
+
+            # RFC 3579 section 3.1: an EAP packet may be split over several
+            # EAP-Message attributes
+            eap = b''.join(reply.get(79, []))
+            if len(eap) < 6 or eap[0] != EAP_CODE_REQUEST or eap[4] != EAP_TYPE_MD5:
+                # not an EAP-MD5 challenge
+                return reply
+            eap_id = eap[1]
+            eap = eap[:struct.unpack('!H', eap[2:4])[0]]
+            # RFC 3748 section 5.4: Type-Data is Value-Size, Value and an
+            # optional Name; the response is the MD5 hash of the EAP
+            # Identifier, the password and the Value (RFC 1994 section 4.1)
+            value = eap[6:6 + eap[5]]
+            digest = hashlib.md5(struct.pack('!B', eap_id) + password + value).digest()
+            pkt[79] = [struct.pack('!BBHBB', EAP_CODE_RESPONSE, eap_id,
+                                   len(digest) + 6, EAP_TYPE_MD5, len(digest)) + digest]
+            # RFC 2865 section 4.4: the State of the challenge is returned
+            if 24 in reply:
+                pkt[24] = reply[24]
+            elif 24 in pkt:
+                del pkt[24]
+            # RFC 2865 section 4.4: the Access-Request answering an
+            # Access-Challenge has a new Identifier, and section 3: its
+            # Request Authenticator is unique. The Message-Authenticator
+            # is calculated with it when the packet is encoded.
+            previous_id = pkt.id
+            while pkt.id == previous_id:
+                pkt.id = pkt.CreateID()
+            pkt.authenticator = pkt.CreateAuthenticator()
+            return self._SendPacket(pkt, self.authport)
+        finally:
+            pkt[2] = user_password
+
     def SendPacket(self, pkt):
         """Send a packet to a RADIUS server.
         Authentication packets are sent to the authport, CoA and
@@ -247,50 +311,8 @@ class Client(host.Host):
         """
         if isinstance(pkt, packet.AuthPacket):
             if pkt.auth_type == 'eap-md5':
-                # Creating EAP-Identity
-                password = pkt[2][0] if 2 in pkt else pkt[1][0]
-                pkt[79] = [struct.pack('!BBHB%ds' % len(password),
-                                       EAP_CODE_RESPONSE,
-                                       packet.CurrentID,
-                                       len(password) + 5,
-                                       EAP_TYPE_IDENTITY,
-                                       password)]
-            reply = self._SendPacket(pkt, self.authport)
-            if (
-                reply
-                and reply.code == packet.AccessChallenge
-                and pkt.auth_type == 'eap-md5'
-            ):
-                # Got an Access-Challenge
-                eap_code, eap_id, eap_size, eap_type, eap_md5 = struct.unpack(
-                    '!BBHB%ds' % (len(reply[79][0]) - 5), reply[79][0]
-                )
-                # Sending back an EAP-Type-MD5-Challenge response: the MD5
-                # hash of the EAP Identifier, the password and the challenge
-                # (RFC 3748 section 5.4, RFC 1994 section 4.1)
-                client_pw = pkt[2][0] if 2 in pkt else pkt[1][0]
-                # RFC 3748 section 5.4: Type-Data is Value-Size, Value and
-                # an optional Name
-                value = eap_md5[1:1 + eap_md5[0]] if eap_md5 else b''
-                md5_challenge = hashlib.md5(
-                    struct.pack('!B', eap_id) + client_pw + value
-                ).digest()
-                pkt[79] = [
-                    struct.pack('!BBHBB', 2, eap_id, len(md5_challenge) + 6,
-                                4, len(md5_challenge)) + md5_challenge
-                ]
-                # Copy over Challenge-State
-                pkt[24] = reply[24]
-                # RFC 2865 section 4.4: the Access-Request answering an
-                # Access-Challenge has a new Identifier, and section 3: its
-                # Request Authenticator is unique. The Message-Authenticator
-                # is calculated with it when the packet is encoded.
-                previous_id = pkt.id
-                while pkt.id == previous_id:
-                    pkt.id = pkt.CreateID()
-                pkt.authenticator = pkt.CreateAuthenticator()
-                reply = self._SendPacket(pkt, self.authport)
-            return reply
+                return self._SendEapMd5Packet(pkt)
+            return self._SendPacket(pkt, self.authport)
         elif isinstance(pkt, packet.CoAPacket):
             return self._SendPacket(pkt, self.coaport)
         else:

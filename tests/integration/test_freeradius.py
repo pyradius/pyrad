@@ -72,6 +72,35 @@ def test_chap_wrong_password(client):
     assert reply.code == packet.AccessReject
 
 
+def eap_md5_request(client, user, password):
+    req = client.CreateAuthPacket(code=packet.AccessRequest, auth_type="eap-md5",
+                                  User_Name=user)
+    req["User-Password"] = password
+    return req
+
+
+@pytest.mark.parametrize("user, password", [
+    ("alice", "alice-password"),
+    ("bob", "a-very-long-password-exceeding-sixteen-octets"),
+])
+def test_eap_md5_accept(dictionary, user, password):
+    # FreeRADIUS drops requests with User-Password and EAP-Message
+    # (RFC 3579 section 3.3), so the password must not be sent
+    client = Client(server=SERVER, secret=SECRET, dict=dictionary,
+                    retries=2, timeout=2, enforce_ma=True)
+    req = eap_md5_request(client, user, password)
+    reply = client.SendPacket(req)
+    assert reply.code == packet.AccessAccept
+    assert reply[79][0][:1] == b"\x03"  # EAP-Success
+    assert req["User-Password"] == [password]
+
+
+def test_eap_md5_wrong_password(client):
+    reply = client.SendPacket(eap_md5_request(client, "alice", "wrong"))
+    assert reply.code == packet.AccessReject
+    assert reply[79][0][:1] == b"\x04"  # EAP-Failure
+
+
 def test_chap_password_starting_with_0x(client):
     # a CHAP-Password with CHAP ID 48 ("0") and a digest starting with "x"
     # was decoded as hex and failed to encode (#49)

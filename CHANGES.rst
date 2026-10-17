@@ -103,6 +103,10 @@ Check these before upgrading from 2.5.4. Details follow under Changes.
 
 * Servers and clients:
 
+  * Client with ``auth_type='eap-md5'``: the EAP-Identity is the User-Name
+    instead of the User-Password, the User-Password is not sent, and a
+    request without User-Name or User-Password raises ValueError instead
+    of using the User-Name as password.
   * An exception raised by a handler of the blocking Server or Proxy is
     logged and the packet dropped; it no longer stops ``Run()``.
   * Proxy passes Access-Challenge, CoA-ACK/NAK and Disconnect-ACK/NAK
@@ -195,6 +199,13 @@ Changes
     so challenges with a Name work, and the Access-Request answering the
     Access-Challenge has a new Identifier and Request Authenticator
     (RFC 2865 section 4.4).
+  * EAP-MD5 works with FreeRADIUS: the EAP-Identity is the User-Name
+    instead of the password, which was sent in clear (#151), and the
+    cleartext User-Password is only used for the MD5 response instead of
+    being sent in clear with the EAP-Message, which RFC 3579 section 3.3
+    doesn't allow. Challenges without State, EAP packets split over
+    several EAP-Message attributes and challenges of other EAP types (which
+    are returned) are handled.
   * A Client without a dictionary can send Access-Requests again.
 
 * ClientAsync and ServerAsync:

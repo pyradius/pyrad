@@ -18,6 +18,7 @@ from pyrad.packet import AccountingResponse
 from pyrad.packet import AcctPacket
 from pyrad.packet import AccessAccept
 from pyrad.packet import AccessChallenge
+from pyrad.packet import AccessReject
 from pyrad.packet import AccessRequest
 from pyrad.packet import AccountingRequest
 from pyrad.dictionary import Dictionary
@@ -240,7 +241,7 @@ class EapMd5Tests(unittest.TestCase):
         self.replies = []
 
     def fakeSendPacket(self, pkt, port):
-        self.sent.append((port, pkt[79][0], pkt.get(24)))
+        self.sent.append((port, pkt[79][0], pkt.get(24), 2 in pkt))
         return self.replies.pop(0)
 
     def reply(self, code, attributes={}):
@@ -256,47 +257,96 @@ class EapMd5Tests(unittest.TestCase):
         self.client._SendPacket = self.fakeSendPacket
         return self.client.SendPacket(pkt)
 
+    def eapRequest(self, eap_id=7, name=b''):
+        return (struct.pack('!BBHBB', 1, eap_id, 22 + len(name), 4, 16)
+                + self.challenge + name)
+
     def testIdentity(self):
+        # the EAP-Identity is the User-Name, not the password (#151)
         accept = self.reply(AccessAccept)
         self.replies = [accept]
-        self.assertIs(self.send({1: [b'alice']}), accept)
-        ((port, eap, state),) = self.sent
+        self.assertIs(self.send({1: [b'alice'], 2: [b'password']}), accept)
+        ((port, eap, state, user_password),) = self.sent
         self.assertEqual(port, self.client.authport)
         self.assertEqual(eap[0:1], b'\x02')  # EAP-Response
         self.assertEqual(eap[2:], struct.pack('!HB', 10, 1) + b'alice')
         self.assertIsNone(state)
+        self.assertFalse(user_password)
 
     def testChallenge(self):
-        eap_request = struct.pack('!BBHBB', 1, 7, 22, 4, 16) + self.challenge
         accept = self.reply(AccessAccept)
-        self.replies = [self.reply(AccessChallenge, {79: [eap_request], 24: [b'state']}),
+        self.replies = [self.reply(AccessChallenge, {79: [self.eapRequest()], 24: [b'state']}),
                         accept]
         self.assertIs(self.send({1: [b'alice'], 2: [b'password']}), accept)
         self.assertEqual(len(self.sent), 2)
-        # the EAP-Identity carries the User-Password if present
-        self.assertEqual(self.sent[0][1][4:], b'\x01password')
-        (port, eap, state) = self.sent[1]
+        self.assertEqual(self.sent[0][1][4:], b'\x01alice')
+        (port, eap, state, user_password) = self.sent[1]
         digest = hashlib.md5(b'\x07' + b'password' + self.challenge).digest()
         self.assertEqual(eap, struct.pack('!BBHBB', 2, 7, 22, 4, 16) + digest)
         self.assertEqual(state, [b'state'])
+        # RFC 3579 section 3.3: no User-Password with EAP-Message
+        self.assertFalse(user_password)
+
+    def testUserPasswordIsRestored(self):
+        self.replies = [self.reply(AccessChallenge, {79: [self.eapRequest()]}),
+                        self.reply(AccessReject)]
+        pkt = self.client.CreateAuthPacket(auth_type='eap-md5')
+        pkt[1] = [b'alice']
+        pkt[2] = [b'password']
+        self.client._SendPacket = self.fakeSendPacket
+        self.client.SendPacket(pkt)
+        self.assertEqual(pkt[2], [b'password'])
 
     def testChallengeWithName(self):
         # the Name after the Value is not part of the MD5 challenge
-        eap_request = struct.pack('!BBHBB', 1, 7, 28, 4, 16) + self.challenge + b'server'
         accept = self.reply(AccessAccept)
-        self.replies = [self.reply(AccessChallenge, {79: [eap_request], 24: [b'state']}),
+        self.replies = [self.reply(AccessChallenge, {79: [self.eapRequest(name=b'server')],
+                                                     24: [b'state']}),
                         accept]
         self.assertIs(self.send({1: [b'alice'], 2: [b'password']}), accept)
         eap = self.sent[1][1]
         digest = hashlib.md5(b'\x07' + b'password' + self.challenge).digest()
         self.assertEqual(eap, struct.pack('!BBHBB', 2, 7, 22, 4, 16) + digest)
 
+    def testChallengeSplitOverEapMessages(self):
+        # RFC 3579 section 3.1
+        request = self.eapRequest()
+        accept = self.reply(AccessAccept)
+        self.replies = [self.reply(AccessChallenge, {79: [request[:10], request[10:]]}),
+                        accept]
+        self.assertIs(self.send({1: [b'alice'], 2: [b'password']}), accept)
+        digest = hashlib.md5(b'\x07' + b'password' + self.challenge).digest()
+        self.assertEqual(self.sent[1][1], struct.pack('!BBHBB', 2, 7, 22, 4, 16) + digest)
+
+    def testChallengeWithoutState(self):
+        accept = self.reply(AccessAccept)
+        self.replies = [self.reply(AccessChallenge, {79: [self.eapRequest()]}), accept]
+        self.assertIs(self.send({1: [b'alice'], 2: [b'password'], 24: [b'old']}), accept)
+        self.assertIsNone(self.sent[1][2])
+
+    def testOtherChallengeIsReturned(self):
+        # a challenge which is not EAP-MD5, e.g. another EAP type
+        for eap in ([struct.pack('!BBHB', 1, 7, 6, 13) + b'\x20'], []):
+            challenge = self.reply(AccessChallenge, {79: eap} if eap else {})
+            self.replies = [challenge]
+            self.sent = []
+            self.assertIs(self.send({1: [b'alice'], 2: [b'password']}), challenge)
+            self.assertEqual(len(self.sent), 1)
+
+    def testMissingUserNameOrPassword(self):
+        self.client._SendPacket = self.fakeSendPacket
+        for attributes in ({1: [b'alice']}, {2: [b'password']}):
+            pkt = self.client.CreateAuthPacket(auth_type='eap-md5')
+            for (key, value) in attributes.items():
+                pkt[key] = value
+            self.assertRaises(ValueError, self.client.SendPacket, pkt)
+        self.assertEqual(self.sent, [])
+
     def testChallengeNewIdAndAuthenticator(self):
         # RFC 2865 section 4.4: the answer to an Access-Challenge is a new
         # Access-Request with a new Identifier and Request Authenticator
         self.client.dict = Dictionary(StringIO(EAP_DICTIONARY))
-        eap_request = struct.pack('!BBHBB', 1, 7, 22, 4, 16) + self.challenge
-        self.replies = [self.reply(AccessChallenge, {79: [eap_request], 24: [b'state']}),
+        self.replies = [self.reply(AccessChallenge, {79: [self.eapRequest()], 24: [b'state']}),
                         self.reply(AccessAccept)]
         requests = []
 
@@ -305,6 +355,7 @@ class EapMd5Tests(unittest.TestCase):
             return self.replies.pop(0)
 
         pkt = self.client.CreateAuthPacket(auth_type='eap-md5', User_Name='alice')
+        pkt[2] = [b'password']
         self.client._SendPacket = fakeSendPacket
         self.client.SendPacket(pkt)
         (first, second) = requests
@@ -314,6 +365,7 @@ class EapMd5Tests(unittest.TestCase):
         self.assertEqual(second[4:20], pkt.authenticator)
         decoded = AuthPacket(secret=b'secret', dict=self.client.dict, packet=second)
         self.assertTrue(decoded.verify_message_authenticator())
+        self.assertNotIn(2, decoded)
 
     def testChallengeIgnoredForPap(self):
         challenge = self.reply(AccessChallenge)

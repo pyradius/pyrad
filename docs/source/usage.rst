@@ -157,6 +157,20 @@ instead of the User-Password:
         chap_id + b"password" + challenge).digest()
     reply = client.SendPacket(req)
 
+EAP-MD5
+-------
+
+:class:`~pyrad.client.Client` can authenticate with EAP-MD5 (RFC 3748,
+RFC 3579). Set the cleartext password as User-Password: it is only used
+to answer the challenge of the server and is not sent.
+
+.. code-block:: python
+
+    req = client.CreateAuthPacket(code=pyrad.packet.AccessRequest,
+                                  auth_type="eap-md5", User_Name="alice")
+    req["User-Password"] = "password"  # not encrypted with PwCrypt
+    reply = client.SendPacket(req)
+
 Status-Server
 -------------
 
