@@ -32,11 +32,11 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
-      run: uv sync --group test
+      run: uv sync --locked --no-build --group test
     - name: Run integration tests
       env:
         FREERADIUS_CONTAINER: freeradius
-      run: uv run pytest tests/integration
+      run: uv run --locked --no-build pytest tests/integration
     - name: FreeRADIUS log
       if: always()
       run: docker logs freeradius

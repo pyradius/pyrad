@@ -27,16 +27,18 @@ jobs:
       uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7
       with:
         python-version: ${{ matrix.python-version }}
+    # the versions locked in uv.lock, installed from wheels only (no setup
+    # scripts of dependencies are run)
     - name: Install dependencies
-      run: uv sync --all-groups --dev
+      run: uv sync --locked --no-build --all-groups --dev
     # https://docs.astral.sh/ruff/integrations/#github-actions
     - name: Run ruff check
-      run: uv run ruff check --output-format=github .
+      run: uv run --locked --no-build ruff check --output-format=github .
     - name: Run pytest with coverage
       run: |
-        uv run coverage run -m pytest
-        uv run coverage report -m
-        uv run coverage lcov
+        uv run --locked --no-build coverage run -m pytest
+        uv run --locked --no-build coverage report -m
+        uv run --locked --no-build coverage lcov
     - name: Coveralls
       uses: coverallsapp/github-action@v2
       with:

@@ -8,6 +8,10 @@ changes backwards compatible.
 
 The project uses uv (as CI does):
 
+The dependency versions are locked in `uv.lock`, which CI installs with
+`--locked --no-build`; run `uv lock` after changing dependencies in
+`pyproject.toml` and commit `uv.lock` with them.
+
 ```sh
 uv sync --all-groups --dev        # install dependencies
 uv run ruff check .               # lint
