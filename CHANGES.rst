@@ -4,6 +4,122 @@ Changelog
 Unreleased
 ----------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Check these before upgrading from 2.5.4. Details follow under Changes.
+
+* Requirements: Python 3.10 or later; building from source needs
+  setuptools 77 or later. The ``test`` and ``docs`` extras are replaced by
+  dependency groups, so ``pip install pyrad[test]`` no longer installs
+  pytest.
+* Packets on the wire change:
+
+  * Access-Request and Status-Server packets of Client and ClientAsync,
+    and replies to them built with CreateReply(), carry a
+    Message-Authenticator as first attribute; it shows up in ``keys()``.
+    Pass ``message_authenticator=False`` to leave it out.
+  * Status-Server packets built with AcctPacket get a random Request
+    Authenticator and a Message-Authenticator. Servers running pyrad 2.5.4
+    reject them, and this version rejects Status-Server packets without a
+    Message-Authenticator, e.g. from pyrad 2.5.4 clients.
+  * CreateReply() copies the Proxy-State attributes of the request. A
+    handler that copies them itself sends them twice, and the client
+    rejects that reply.
+  * An untagged Tunnel-Password is sent with the tag 0.
+
+* Packets that were accepted before are dropped:
+
+  * Servers verify the Request Authenticator of Accounting-, CoA- and
+    Disconnect-Requests (the Twisted integration: Accounting-Requests) by
+    default (``enable_pkt_verify=True``). Clients whose secret doesn't
+    match, e.g. accepted with a catch-all ``0.0.0.0`` hosts entry, are no
+    longer served; pass ``enable_pkt_verify=False`` to accept them.
+  * Servers drop Access-Requests with an invalid Message-Authenticator;
+    this cannot be disabled. In ServerAsync enable_pkt_verify no longer
+    affects Access-Requests.
+  * Clients discard replies with an invalid Message-Authenticator or with
+    a Proxy-State the request didn't have, so the request times out.
+  * ``enforce_ma`` of the clients now requires a Message-Authenticator in
+    replies to Access-Request and Status-Server; it no longer adds one to
+    requests (that is the default now).
+  * The blocking Server no longer passes Accounting-Response packets on
+    the accounting port to HandleAcctPacket.
+  * A Vendor-Specific attribute containing a malformed vendor TLV makes
+    the whole packet invalid (PacketError).
+
+* Attribute values read from packets change:
+
+  * Tagged attributes (RFC 2868): ``pkt['Tunnel-Type']`` returns the
+    values, e.g. ``['L2TP']`` instead of ``16777219`` with the tag in the
+    high octet, and the tag is stripped from string values. A tagged
+    string value starting with an octet up to 0x1F is read as tag and
+    value.
+  * Values of ``string`` attributes that are not valid UTF-8 are returned
+    as bytes instead of str with replacement characters. This applies to
+    every string attribute (e.g. a Latin-1 Calling-Station-Id), not only
+    User-Password.
+  * Undefined TLV sub-attributes are returned keyed by their code instead
+    of raising KeyError. A Vendor-Specific attribute whose sub-attribute
+    lengths don't add up is kept as raw value of attribute 26.
+  * ``pkt['Name'] = value``, ``pkt['Name']``, ``in`` and ``del`` of a TLV
+    sub-attribute use its TLV instead of a top-level attribute with the
+    sub-attribute's code.
+  * ``PwCrypt('')`` returns 16 octets instead of none.
+
+* Exception types change:
+
+  * Values out of range or too long for their type or attribute raise
+    ValueError instead of struct.error, which is not a subclass of
+    ValueError.
+  * Dictionary errors raise ParseError instead of ValueError, TypeError,
+    KeyError or struct.error. ParseError is not a subclass of ValueError.
+  * AddAttribute with a key that is not a name raises TypeError instead of
+    AttributeError. PwDecrypt and SaltDecrypt of a value with a wrong
+    length raise PacketError.
+  * Decoding a value with the wrong length (e.g. integer, ipaddr,
+    ipv6prefix) raises ValueError instead of struct.error or returning a
+    wrong value.
+  * ipaddr attributes reject IPv6 addresses, and strings longer than 253
+    octets in UTF-8 are rejected.
+
+* Dictionaries:
+
+  * Attributes pyrad cannot encode correctly are skipped with a warning
+    instead of being loaded: vendors with a format other than 1,1 (e.g.
+    USR, Lucent, Starent, WiMAX, Kineto, Alcatel-ESAM), nested TLVs (also
+    TLV-typed sub-attributes, which loaded before), arrays (also those
+    with has_tag or encrypt, which loaded before) and others. Code using
+    them gets KeyError; see Dictionary.skipped_attributes.
+  * A sub-attribute of a TLV of another vendor makes the dictionary fail
+    to load with ParseError instead of being attached to the wrong TLV.
+  * Reading a dictionary that skips attributes logs a warning on the
+    ``pyrad`` logger.
+
+* Servers and clients:
+
+  * An exception raised by a handler of the blocking Server or Proxy is
+    logged and the packet dropped; it no longer stops ``Run()``.
+  * Proxy passes Access-Challenge, CoA-ACK/NAK and Disconnect-ACK/NAK
+    replies to its handlers instead of dropping them.
+  * Twisted integration: the RADIUS constructor takes
+    ``(hosts=None, dict=None, enforce_ma=False, enable_pkt_verify=True)``,
+    hosts must map addresses to RemoteHost instances or secrets, and an
+    overridden createPacket is called.
+  * ClientAsync: requests pending when the transport is closed fail with
+    ConnectionAbortedError (a request nobody awaits logs "Future exception
+    was never retrieved"); retransmissions send the bytes of the first
+    attempt, so changes to the packet after SendPacket are not sent; a
+    request is retried only after ``timeout`` seconds, so a request times
+    out after ``(retries + 1) * timeout`` seconds; CreatePacket raises if
+    all 256 ids are in use (the Create*Packet methods raise Exception).
+  * ClientAsync and ServerAsync: ``loop`` is a property. Without a loop
+    passed to the constructor it returns the running loop at the time it
+    is used.
+
+Changes
+~~~~~~~
+
 * BlastRADIUS (CVE-2024-3596) countermeasures (#200):
 
   * Clients add a Message-Authenticator to all Access-Request and
@@ -20,19 +136,18 @@ Unreleased
   * With enforce_ma, clients require a Message-Authenticator in replies to
     Access-Request and Status-Server packets.
 
-* The FreeRADIUS dictionary files can be read as they are (#173).
-  Attributes that pyrad does not support, such as the RFC 6929 extended
-  attributes, attributes of the types vsa, ipv4prefix, combo-ip, bool,
-  uint16 and uint32, arrays, nested TLVs and attributes of vendors with a
-  format other than format=1,1 (e.g. USR, Lucent, Starent, WiMAX), which
-  pyrad encoded as format=1,1 before, are skipped with a warning and listed
-  in Dictionary.skipped_attributes. The flags secret and virtual and
-  BEGIN-VENDOR with a format= option are accepted. Attributes with the
-  concat flag, such as EAP-Message, are loaded as normal attributes instead
-  of being dropped. A VALUE for an unknown attribute is
-  ignored with a warning instead of raising a ParseError, and a
-  sub-attribute of an unknown TLV raises a ParseError instead of a
-  KeyError.
+* The FreeRADIUS dictionary files can be read as they are (#173). Attributes
+  that pyrad does not support, such as the RFC 6929 extended attributes,
+  attributes of the types vsa, ipv4prefix, combo-ip, bool, uint16 and uint32,
+  arrays, nested TLVs and attributes of vendors with a format other than
+  format=1,1 (e.g. USR, Lucent, Starent, WiMAX, Kineto, Alcatel-ESAM), which
+  pyrad encoded as format=1,1 before, are skipped with a warning and listed in
+  Dictionary.skipped_attributes. The flags secret and virtual and BEGIN-VENDOR
+  with a format= option are accepted. Attributes with the concat flag, such as
+  EAP-Message, are loaded as normal attributes instead of being dropped. A
+  VALUE for an unknown attribute is ignored with a warning instead of raising a
+  ParseError, and a sub-attribute of an unknown TLV raises a ParseError instead
+  of a KeyError.
 * Fix salt decryption (encrypt=2, e.g. Tunnel-Password) of received
   Accounting-, CoA- and Disconnect-Requests, which used the Request
   Authenticator instead of zeros, and salt encryption of these requests
@@ -62,6 +177,7 @@ Unreleased
 * ClientAsync and ServerAsync created without a loop use the running
   event loop instead of calling asyncio.get_event_loop() in the
   constructor, which fails outside of a running loop on Python 3.14.
+  ``loop`` is a property that returns the running loop when it is used.
 * Client:
 
   * Timeouts use a monotonic clock, so a step of the system clock no
@@ -84,7 +200,10 @@ Unreleased
     256 requests over time no longer fail with "Packet with id N already
     present"; it raises only if all 256 ids are in use. CreatePacket
     accepts the id 0.
-  * ClientAsync timeouts use a monotonic clock.
+  * ClientAsync timeouts use a monotonic clock, and the dates in
+    pending_requests are time.monotonic() values.
+  * ClientAsync retransmits the bytes encoded for the first attempt
+    instead of encoding the packet again.
   * Transports are opened on platforms without SO_REUSEPORT (e.g.
     Windows), and ClientAsync binds to local_addr also without a local
     port.
@@ -160,7 +279,8 @@ Unreleased
 * Dictionaries:
 
   * TLV sub-attributes are no longer attached to a TLV with the same code
-    of another vendor, and TLVs defined in one dictionary file are found
+    of another vendor (the dictionary fails to load with ParseError), and
+    TLVs defined in one dictionary file are found
     by sub-attributes in another.
   * Malformed attribute codes, vendor codes and VALUE definitions raise
     ParseError with file and line instead of ValueError, TypeError or
@@ -169,10 +289,14 @@ Unreleased
     looping forever, and the FreeRADIUS ``$INCLUDE-`` directive (include
     if the file exists) is supported.
   * A redefined attribute or value name is no longer decoded to its old
-    name (stale BiDict reverse entries).
+    name (stale BiDict reverse entries). Deleting a BiDict value removes
+    all keys mapping to it, and deleting one of several keys of a value
+    keeps the reverse entry of the others.
 
 * The package metadata declares the license as the SPDX expression
-  BSD-3-Clause (PEP 639); building requires setuptools 77 or later.
+  BSD-3-Clause (PEP 639); building requires setuptools 77 or later. The
+  test and docs extras are replaced by the dependency groups of the same
+  names (``uv sync --all-groups`` or ``pip install --group test``).
 * The FreeRADIUS dictionary of the examples is an attributed excerpt of
   the current FreeRADIUS dictionary (CC-BY 4.0), and names attribute 182
   FreeRADIUS-Queue-PPS-Out instead of FreeRADIUS-Queue-PPS-In.
@@ -183,9 +307,11 @@ Unreleased
   MS-MPPE-Send-Key, MS-MPPE-Recv-Key and long Tunnel-Passwords.
 * Fix PwDecrypt of the decoded User-Password attribute, which failed since
   2.5 because invalid UTF-8 was decoded with replacement characters
-  (#232, #192).
+  (#232, #192). Values of all string attributes that are not valid UTF-8
+  are returned as bytes now.
 * Fix ServerAsync dropping all Access-Requests with enable_pkt_verify=True
-  (#178).
+  (#178). enable_pkt_verify no longer applies to Access-Requests, whose
+  Message-Authenticator is always verified.
 * Fix decoding of tagged attributes (RFC 2868). The tag is stripped from
   the values, ``pkt['Tunnel-Type']`` returns the values of all tags and
   ``pkt['Tunnel-Type:1']`` the values with tag 1. Decoding a tagged
