@@ -58,7 +58,8 @@ order of attributes when it encodes and decodes a packet.
   ``str`` for ``string`` and addresses, ``int`` for ``integer`` and
   ``date``, ``bytes`` for ``octets``. For attributes with ``VALUE``
   definitions the value names are used, such as
-  ``Service_Type="Framed-User"``.
+  ``Service_Type="Framed-User"``. A received ``string`` value which is
+  not valid UTF-8 is returned as ``bytes``.
 * Vendor-specific attributes are used by name like any other attribute.
 * Attributes can also be accessed by their code, or by a
   ``(vendor, code)`` tuple for vendor-specific attributes. This works
@@ -264,8 +265,8 @@ address ``0.0.0.0`` is used for all other clients.
                       dict=Dictionary("dictionary"))
     server.Run()
 
-``Run`` only catches errors of invalid packets: an exception raised by a
-handler stops the server, so handlers must cope with missing attributes.
+If a handler raises an exception, ``Run`` logs it and drops the packet,
+so the request isn't answered and the server keeps running.
 
 The authentication (1812) and accounting (1813) ports are enabled by
 default. CoA and Disconnect requests are received with

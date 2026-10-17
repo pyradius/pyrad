@@ -57,7 +57,8 @@ pyrad implements the countermeasures against the BlastRADIUS attack
   Replies containing Proxy-State attributes which were not sent in the
   request are discarded.
 * Servers add a Message-Authenticator as first attribute to all replies to
-  Access-Requests and copy the Proxy-State attributes from the request.
+  Access-Request and Status-Server packets and copy the Proxy-State
+  attributes from the request.
 * ``Client(enforce_ma=True)`` and ``ClientAsync(enforce_ma=True)`` discard
   replies to Access-Request and Status-Server packets without
   Message-Authenticator, and ``Server(enforce_ma=True)`` and
