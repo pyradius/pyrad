@@ -26,6 +26,12 @@ def _endpoint_options():
     return {}
 
 
+def _is_open(protocol):
+    # the transport is set by connection_made and closed again by
+    # create_datagram_endpoint if it fails or is cancelled afterwards
+    return protocol.transport is not None and not protocol.transport.is_closing()
+
+
 class ServerType(Enum):
     Auth = 'Authentication'
     Acct = 'Accounting'
@@ -334,9 +340,7 @@ class ServerAsync(metaclass=ABCMeta):
             )
         finally:
             for protocols, protocol, _ in connects:
-                # connection_made sets the transport before
-                # create_datagram_endpoint returns
-                if protocol.transport is None and protocol in protocols:
+                if not _is_open(protocol) and protocol in protocols:
                     protocols.remove(protocol)
 
         for result in results:

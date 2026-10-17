@@ -21,6 +21,12 @@ def _endpoint_options():
     return {}
 
 
+def _is_open(protocol):
+    # the transport is set by connection_made and closed again by
+    # create_datagram_endpoint if it fails or is cancelled afterwards
+    return protocol.transport is not None and not protocol.transport.is_closing()
+
+
 class DatagramProtocolClient(asyncio.Protocol):
 
     def __init__(self, server, port, logger,
@@ -359,10 +365,12 @@ class ClientAsync:
             )
         finally:
             for name, protocol, _ in connects:
-                # connection_made sets the transport before
-                # create_datagram_endpoint returns
-                if protocol.transport is None and getattr(self, name) is protocol:
-                    setattr(self, name, None)
+                if _is_open(protocol) or getattr(self, name) is not protocol:
+                    continue
+                setattr(self, name, None)
+                if protocol.timeout_future:
+                    protocol.timeout_future.cancel()
+                    protocol.timeout_future = None
 
         for result in results:
             if isinstance(result, BaseException):

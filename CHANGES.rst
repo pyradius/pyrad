@@ -195,7 +195,8 @@ Changes
 * ClientAsync and ServerAsync:
 
   * initialize_transports can be retried after a transport failed to open
-    (e.g. a DNS or bind error); the failed transport stayed registered.
+    (e.g. a DNS or bind error) or the call was cancelled (e.g. by
+    asyncio.wait_for); the failed or closed transport stayed registered.
   * ClientAsync doesn't hand out the id of a pending request, so more than
     256 requests over time no longer fail with "Packet with id N already
     present"; it raises only if all 256 ids are in use. CreatePacket

@@ -388,6 +388,31 @@ class AsyncClientTests(unittest.TestCase):
                 await future
         self.loop.run_until_complete(test())
 
+    def testInitializeCancelledAfterConnectionMade(self):
+        # cancelled after connection_made, e.g. by asyncio.wait_for, asyncio
+        # closes the transport; the closed transport stayed registered, so
+        # a retry was skipped and requests only timed out
+        async def test():
+            loop = asyncio.get_running_loop()
+            connect = loop.create_datagram_endpoint
+
+            async def cancel_auth(protocol, **kwargs):
+                transport, _ = await connect(protocol, **kwargs)
+                if protocol.port == 1812:
+                    transport.close()
+                    raise asyncio.CancelledError()
+                return transport, protocol
+            with mock.patch.object(loop, 'create_datagram_endpoint', cancel_auth):
+                with self.assertRaises(asyncio.CancelledError):
+                    await self.client.initialize_transports(enable_auth=True,
+                                                            enable_acct=True)
+            self.assertIsNone(self.client.protocol_auth)
+            self.assertIsNotNone(self.client.protocol_acct)
+            await self.client.initialize_transports(enable_auth=True)
+            self.assertFalse(self.client.protocol_auth.transport.is_closing())
+            await self.client.deinitialize_transports()
+        self.loop.run_until_complete(test())
+
     def testRetryTimeout(self):
         timeout = 0.3
 
@@ -659,6 +684,31 @@ class AsyncServerTests(unittest.TestCase):
             with without_reuse_port():
                 await server.initialize_transports(enable_auth=True)
             self.assertIsNotNone(server.auth_protocols[0].transport)
+            await server.deinitialize_transports()
+        asyncio.run(test())
+
+    def testInitializeCancelledAfterConnectionMade(self):
+        # a closed transport stayed registered and a retry was a no-op
+        ports = dict(zip(('auth_port', 'acct_port', 'coa_port'), free_ports(3)))
+
+        async def test():
+            loop = asyncio.get_running_loop()
+            server = RadiusServer(loop=loop, **ports)
+            connect = loop.create_datagram_endpoint
+
+            async def cancel_auth(protocol, **kwargs):
+                transport, _ = await connect(protocol, **kwargs)
+                if protocol.server_type == ServerType.Auth:
+                    transport.close()
+                    raise asyncio.CancelledError()
+                return transport, protocol
+            with mock.patch.object(loop, 'create_datagram_endpoint', cancel_auth):
+                with self.assertRaises(asyncio.CancelledError):
+                    await server.initialize_transports(enable_auth=True, enable_acct=True)
+            self.assertEqual(server.auth_protocols, [])
+            self.assertEqual(len(server.acct_protocols), 1)
+            await server.initialize_transports(enable_auth=True)
+            self.assertFalse(server.auth_protocols[0].transport.is_closing())
             await server.deinitialize_transports()
         asyncio.run(test())
 
