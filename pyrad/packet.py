@@ -397,8 +397,11 @@ class Packet(OrderedDict):
             return OrderedDict.__getitem__(self, key)
 
         key, _, tag = key.partition(':')
-        values = OrderedDict.__getitem__(self, self._EncodeKey(key))
         attr = self.dict.attributes[key]
+        if attr.is_sub_attribute:
+            values = self._GetTlv(attr)[self._EncodeKey(key)]
+        else:
+            values = OrderedDict.__getitem__(self, self._EncodeKey(key))
         if attr.type == 'tlv':  # return map from sub attribute code to its values
             res = {}
             for (sub_attr_key, sub_attr_val) in values.items():
@@ -421,9 +424,21 @@ class Packet(OrderedDict):
                 raise KeyError('%s:%s' % (key, tag))
             return res
 
+    def _GetTlv(self, attr):
+        """Return the decoded TLV of the parent of a sub-attribute, keyed by
+        the sub-attribute codes.
+
+        :raise KeyError: if the packet has no such TLV
+        """
+        tlv = OrderedDict.__getitem__(self, self._EncodeKey(attr.parent.name))
+        if not isinstance(tlv, dict):
+            raise KeyError(attr.parent.name)
+        return tlv
+
     def __contains__(self, key):
         try:
-            if isinstance(key, str) and ':' in key:
+            if isinstance(key, str) and (
+                    ':' in key or self.dict.attributes[key].is_sub_attribute):
                 self.__getitem__(key)
                 return True
             return OrderedDict.__contains__(self, self._EncodeKey(key))
@@ -433,6 +448,14 @@ class Packet(OrderedDict):
     has_key = __contains__
 
     def __delitem__(self, key):
+        if isinstance(key, str):
+            attr = self.dict.attributes[key]
+            if attr.is_sub_attribute:
+                tlv = self._GetTlv(attr)
+                del tlv[self._EncodeKey(key)]
+                if not tlv:
+                    OrderedDict.__delitem__(self, self._EncodeKey(attr.parent.name))
+                return
         OrderedDict.__delitem__(self, self._EncodeKey(key))
 
     def __setitem__(self, key, item):

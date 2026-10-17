@@ -1020,6 +1020,35 @@ class PacketEdgeCaseTests(unittest.TestCase):
         self.assertEqual(pkt._PktEncodeAttributes(),
                          expected._PktEncodeAttributes())
 
+    def testTlvSubAttributeAccess(self):
+        # Test-String has the code of the sub-attribute Test-Tlv-Str
+        pkt = packet.Packet(dict=self.dict)
+        pkt['Test-String'] = 'top-level'
+        self.assertNotIn('Test-Tlv-Str', pkt)
+        self.assertRaises(KeyError, pkt.__getitem__, 'Test-Tlv-Str')
+        self.assertRaises(KeyError, pkt.__delitem__, 'Test-Tlv-Str')
+        pkt['Test-Tlv-Str'] = 'text'
+        pkt.AddAttribute('Test-Tlv-Int', 10)
+        self.assertIn('Test-Tlv-Str', pkt)
+        self.assertEqual(pkt['Test-Tlv-Str'], ['text'])
+        self.assertEqual(pkt.get('Test-Tlv-Int'), [10])
+        del pkt['Test-Tlv-Str']
+        self.assertNotIn('Test-Tlv-Str', pkt)
+        self.assertEqual(pkt['Test-Tlv'], {'Test-Tlv-Int': [10]})
+        self.assertEqual(pkt['Test-String'], ['top-level'])
+        # the TLV is removed with its last sub-attribute
+        del pkt['Test-Tlv-Int']
+        self.assertEqual(pkt.keys(), ['Test-String'])
+
+    def testVendorTlvSubAttributeAccess(self):
+        pkt = packet.Packet(dict=self.dict)
+        pkt['Simplon-Number'] = 1
+        pkt['Simplon-Tlv-Str'] = 'text'
+        self.assertEqual(pkt['Simplon-Tlv-Str'], ['text'])
+        del pkt['Simplon-Tlv-Str']
+        self.assertNotIn('Simplon-Tlv-Str', pkt)
+        self.assertEqual(pkt['Simplon-Number'], ['One'])
+
     def testSetItemVendorTlvSubAttribute(self):
         pkt = packet.Packet(dict=self.dict)
         pkt['Simplon-Tlv-Str'] = '2.1'

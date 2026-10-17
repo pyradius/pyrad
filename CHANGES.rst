@@ -123,6 +123,8 @@ Unreleased
     TLV.
   * Setting a TLV sub-attribute with ``pkt['Name'] = value`` stores it in
     its TLV; it was sent as a top-level attribute with the sub-attribute's
+    code. Getting, testing (``in``) and deleting a sub-attribute by name
+    use its TLV as well, instead of a top-level attribute with the same
     code.
   * VerifyChapPasswd returns False without CHAP-Password instead of
     raising TypeError, and compares in constant time.
