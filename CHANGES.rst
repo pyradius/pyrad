@@ -113,7 +113,8 @@ Check these before upgrading from 2.5.4. Details follow under Changes.
   * An exception raised by a handler of the blocking Server or Proxy is
     logged and the packet dropped; it no longer stops ``Run()``.
   * Proxy passes Access-Challenge, CoA-ACK/NAK and Disconnect-ACK/NAK
-    replies to its handlers instead of dropping them.
+    replies on the proxy socket to _HandleProxyPacket instead of dropping
+    them.
   * Twisted integration: the RADIUS constructor takes
     ``(hosts=None, dict=None, enforce_ma=False, enable_pkt_verify=True)``,
     hosts must map addresses to RemoteHost instances or secrets, and an
@@ -368,8 +369,13 @@ Changes
   client and server.
 * Fix the examples in the README, the docs and the package docstring.
 * Add a usage guide to the documentation (attributes, tagged and encrypted
-  attributes, accounting, CoA, Status-Server, servers and asyncio) and the
-  API documentation of ClientAsync and ServerAsync.
+  attributes, accounting, CoA, Status-Server, EAP-MD5, servers, asyncio,
+  errors and logging, Proxy and Twisted) and the API documentation of
+  ClientAsync, ServerAsync, the Twisted integration and the dictionary
+  Attribute and BiDict classes. The API documentation shows the
+  constructor parameters, and the docstrings were corrected and completed
+  (e.g. retries, default reply codes, what servers verify before calling a
+  handler, ServerAsync handlers must not be coroutines).
 * The dictionary parse error for an attribute definition with a wrong
   number of fields now includes the file name.
 * Fix wrong and missing parameter types and descriptions in the docstrings

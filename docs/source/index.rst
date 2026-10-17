@@ -1,7 +1,7 @@
 
-*********************************
-:mod:`pyrad` -- RADIUS for Python
-*********************************
+**************************
+pyrad -- RADIUS for Python
+**************************
 
 :Author: Christian Giese (GIC-de)
 :Version: |version|
@@ -9,9 +9,10 @@
 Introduction
 ============
 
-pyrad is an implementation of a RADIUS client/server as described in RFC 2865.
-It takes care of all the details like building RADIUS packets, sending
-them and decoding responses.
+pyrad is an implementation of a RADIUS client/server as described in RFC 2865
+and related RFCs: accounting, CoA and Disconnect, tunnel attributes,
+Status-Server and EAP-MD5. It takes care of all the details like building
+RADIUS packets, sending them and decoding responses.
 
 Here is an example of doing an authentication request::
 
@@ -39,6 +40,9 @@ Here is an example of doing an authentication request::
     for key in reply.keys():
         print(f"{key}: {reply[key]}")
 
+The ``dictionary`` file defines the RADIUS attributes; the ``example``
+directory of the source distribution has one to start from.
+
 See :doc:`usage` for more examples.
 
 
@@ -53,12 +57,12 @@ pyrad implements the countermeasures against the BlastRADIUS attack
 * Clients add a Message-Authenticator as first attribute to all
   Access-Request and Status-Server packets (disable per packet with
   ``message_authenticator=False``).
-* A Message-Authenticator in a reply or request is always verified.
-  Replies containing Proxy-State attributes which were not sent in the
+* A Message-Authenticator in a reply, or in an Access-Request received by
+  a server, is always verified. Replies to Access-Request and Status-Server
+  packets containing Proxy-State attributes which were not sent in the
   request are discarded.
 * Servers add a Message-Authenticator as first attribute to all replies to
-  Access-Request and Status-Server packets and copy the Proxy-State
-  attributes from the request.
+  Access-Requests and copy the Proxy-State attributes from the request.
 * ``Client(enforce_ma=True)`` and ``ClientAsync(enforce_ma=True)`` discard
   replies to Access-Request and Status-Server packets without
   Message-Authenticator, and ``Server(enforce_ma=True)`` and
@@ -78,6 +82,33 @@ To install from a source checkout, run the following in the project directory::
 
   pip install .
 
+Usage
+=====
+
+.. toctree::
+  :maxdepth: 2
+
+  usage
+
+API Documentation
+=================
+
+Per-module API documentation.
+
+.. toctree::
+  :maxdepth: 2
+
+  api/client
+  api/client_async
+  api/curved
+  api/dictionary
+  api/host
+  api/packet
+  api/proxy
+  api/server
+  api/server_async
+
+
 Author, Copyright, Availability
 ===============================
 
@@ -88,7 +119,7 @@ We’re looking for contributors to support the pyrad team! If you’re interest
 helping with development, testing, documentation, or other areas, please contact
 us directly.
 
-This project is licensed under a BSD license.
+This project is licensed under the BSD 3-Clause license.
 
 Copyright and license information can be found in the LICENSE.txt file.
 
@@ -107,32 +138,6 @@ https://github.com/nicholasamorim/pyrad2
 
 **pyrad-server:** Lab-grade RADIUS test server built on top of pyrad.
 https://github.com/slieberth/pyrad-server
-
-Usage
-=====
-
-.. toctree::
-  :maxdepth: 2
-
-  usage
-
-API Documentation
-=================
-
-Per-module :mod:`pyrad` API documentation.
-
-.. toctree::
-  :maxdepth: 2
-
-  api/client
-  api/client_async
-  api/dictionary
-  api/host
-  api/packet
-  api/proxy
-  api/server
-  api/server_async
-
 
 Indices and tables
 ==================

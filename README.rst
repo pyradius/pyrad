@@ -20,9 +20,10 @@
 Introduction
 ============
 
-pyrad is an implementation of a RADIUS client/server as described in RFC 2865.
-It takes care of all the details like building RADIUS packets, sending
-them and decoding responses.
+pyrad is an implementation of a RADIUS client/server as described in RFC 2865
+and related RFCs: accounting, CoA and Disconnect, tunnel attributes,
+Status-Server and EAP-MD5. It takes care of all the details like building
+RADIUS packets, sending them and decoding responses.
 
 Here is an example of doing an authentication request:
 
@@ -56,8 +57,12 @@ Here is an example of doing an authentication request:
     for key in reply.keys():
         print(f"{key}: {reply[key]}")
 
+The ``dictionary`` file defines the RADIUS attributes; the ``example``
+directory of the source distribution has one to start from.
+
 More examples, for accounting, CoA, tagged attributes, servers and asyncio,
-are in the `documentation <https://pyradius-pyrad.readthedocs.io/>`_.
+are in the `usage documentation
+<https://pyradius-pyrad.readthedocs.io/en/latest/usage.html>`_.
 
 
 BlastRADIUS
@@ -69,8 +74,9 @@ pyrad implements the countermeasures against the BlastRADIUS attack
 * Clients add a Message-Authenticator as first attribute to all
   Access-Request and Status-Server packets (disable per packet with
   ``message_authenticator=False``).
-* A Message-Authenticator in a reply or request is always verified.
-  Replies containing Proxy-State attributes which were not sent in the
+* A Message-Authenticator in a reply, or in an Access-Request received by
+  a server, is always verified. Replies to Access-Request and Status-Server
+  packets containing Proxy-State attributes which were not sent in the
   request are discarded.
 * Servers add a Message-Authenticator as first attribute to all replies to
   Access-Requests and copy the Proxy-State attributes from the request.

@@ -11,3 +11,4 @@
 
   .. autoclass:: Server
     :members:
+    :show-inheritance:

@@ -37,6 +37,11 @@ extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode']
 
+# Render the constructor parameters (__init__ docstring) with the class.
+autoclass_content = 'both'
+# Twisted is not a dependency of pyrad; mock it to document pyrad.curved.
+autodoc_mock_imports = ['twisted']
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 

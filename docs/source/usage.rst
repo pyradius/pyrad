@@ -19,6 +19,28 @@ made of several files:
 
     dictionary = Dictionary("dictionary", "dictionary.vendor")
 
+A vendor dictionary defines the vendor and its attributes, and the tagged
+tunnel attributes, which the example dictionary doesn't define, look like
+this::
+
+    VENDOR          Cisco           9
+
+    BEGIN-VENDOR    Cisco
+    ATTRIBUTE       Cisco-AVPair    1       string
+    END-VENDOR      Cisco
+
+    ATTRIBUTE   Tunnel-Type              64  integer  has_tag
+    ATTRIBUTE   Tunnel-Medium-Type       65  integer  has_tag
+    ATTRIBUTE   Tunnel-Password          69  string   has_tag,encrypt=2
+    ATTRIBUTE   Tunnel-Private-Group-Id  81  string   has_tag
+    VALUE       Tunnel-Type          VLAN      13
+    VALUE       Tunnel-Medium-Type   IEEE-802  6
+
+The FreeRADIUS dictionary files can be read as they are. Attributes that
+pyrad cannot encode, such as the RFC 6929 extended attributes, are skipped
+with a warning and listed in ``Dictionary.skipped_attributes``; see
+:mod:`pyrad.dictionary` for the data types.
+
 The dictionary has to define every attribute that you want to use by
 name. Attributes which are not defined can still be sent and received
 as raw values (see `Attributes`_).
@@ -26,8 +48,9 @@ as raw values (see `Attributes`_).
 Secrets
 =======
 
-Shared secrets are ``bytes``, for example ``secret=b"testing123"``.
-Passing a ``str`` raises a ``TypeError``.
+Shared secrets are ``bytes``, for example ``secret=b"testing123"``, also
+in :class:`~pyrad.server.RemoteHost`. Creating a packet with a ``str``
+secret raises a ``TypeError``.
 
 Attributes
 ==========
@@ -55,8 +78,10 @@ order of attributes when it encodes and decodes a packet.
 * Keyword arguments of the ``Create*Packet`` methods are attribute names
   with ``-`` replaced by ``_``.
 * Values are converted according to the attribute type in the dictionary:
-  ``str`` for ``string`` and addresses, ``int`` for ``integer`` and
-  ``date``, ``bytes`` for ``octets``. For attributes with ``VALUE``
+  ``str`` for ``string``, ``ipaddr``, ``ipv6addr``, ``ipv6prefix``,
+  ``ifid`` and ``ether``, ``int`` for ``integer``, ``signed``, ``short``,
+  ``byte``, ``integer64`` and ``date``, ``bytes`` for ``octets`` and a
+  ``dict`` of sub-attributes for ``tlv``. For attributes with ``VALUE``
   definitions the value names are used, such as
   ``Service_Type="Framed-User"``. A received ``string`` value which is
   not valid UTF-8 is returned as ``bytes``.
@@ -74,7 +99,7 @@ Tagged attributes
 
 Attributes with the ``has_tag`` flag (RFC 2868), such as the tunnel
 attributes used for dynamic VLAN assignment, take a tag between 0 and 31
-after the name:
+after the name (see `Dictionaries`_ for their definitions):
 
 .. code-block:: python
 
@@ -113,9 +138,12 @@ Authentication
 --------------
 
 Create a :class:`~pyrad.client.Client` and send the packets created with
-it. :meth:`~pyrad.client.Client.SendPacket` retries the request and
+it. :meth:`~pyrad.client.Client.SendPacket` sends the request up to
+``retries`` times, waiting ``timeout`` seconds for a reply each time, and
 raises :class:`~pyrad.client.Timeout` if the server does not reply.
-Replies are verified, invalid replies are ignored.
+Replies are verified, invalid replies are ignored. The server ports are
+set with ``authport``, ``acctport`` and ``coaport`` (default 1812, 1813
+and 3799).
 
 .. code-block:: python
 
@@ -139,6 +167,10 @@ Replies are verified, invalid replies are ignored.
             print("access accepted")
         else:
             print("access denied")
+        print(reply.get("Reply-Message", []))
+
+The attributes of the reply are read like those of a request, see
+`Attributes`_.
 
 For CHAP (RFC 2865 section 2.2) send a CHAP-Password and a CHAP-Challenge
 instead of the User-Password:
@@ -182,6 +214,10 @@ authentication port and answered with an Access-Accept:
     reply = client.SendPacket(
         client.CreateAuthPacket(code=pyrad.packet.StatusServer))
 
+A Status-Server created with ``CreateAcctPacket`` is sent to the
+accounting port and answered with an Accounting-Response. The pyrad
+servers don't answer Status-Server.
+
 Accounting
 ----------
 
@@ -192,8 +228,9 @@ Accounting
     req["Acct-Session-Id"] = "1234"
     reply = client.SendPacket(req)  # an AccountingResponse
 
-When an accounting request is retried the client adds the time waited so
-far to the Acct-Delay-Time attribute.
+When :class:`~pyrad.client.Client` retries an accounting request it adds
+the time waited so far to the Acct-Delay-Time attribute.
+:class:`~pyrad.client_async.ClientAsync` resends the request unchanged.
 
 CoA and Disconnect
 ------------------
@@ -219,7 +256,11 @@ asyncio
 :class:`~pyrad.client_async.ClientAsync` sends several requests at the
 same time. ``SendPacket`` returns a future, which raises a
 ``TimeoutError`` if the server does not reply. Packets can only be
-created after ``initialize_transports`` enabled the transport for them:
+created after ``initialize_transports`` enabled the transport for them.
+Unlike :class:`~pyrad.client.Client`, its port parameters are
+``auth_port``, ``acct_port`` and ``coa_port``, its default timeout is 30
+seconds and a request is sent up to ``retries + 1`` times. It doesn't
+implement EAP-MD5.
 
 .. code-block:: python
 
@@ -231,8 +272,7 @@ created after ``initialize_transports`` enabled the transport for them:
 
     async def main():
         client = ClientAsync(server="localhost", secret=b"testing123",
-                             dict=Dictionary("dictionary"),
-                             loop=asyncio.get_running_loop())
+                             dict=Dictionary("dictionary"))
         await client.initialize_transports(enable_auth=True, enable_acct=True)
         try:
             requests = []
@@ -254,7 +294,9 @@ Derive from :class:`~pyrad.server.Server` and override the handlers of
 the requests you want to answer. Requests are only accepted from the
 clients in ``hosts``, which maps an IP address to a
 :class:`~pyrad.server.RemoteHost` with its secret. A host with the
-address ``0.0.0.0`` is used for all other clients.
+address ``0.0.0.0`` is used for all other clients. ``addresses`` are the
+local addresses to listen on, ``"0.0.0.0"`` (or ``"::"``) for all; without
+addresses the server receives nothing.
 
 .. code-block:: python
 
@@ -279,20 +321,27 @@ address ``0.0.0.0`` is used for all other clients.
                       dict=Dictionary("dictionary"))
     server.Run()
 
+:meth:`~pyrad.server.Server.CreateReplyPacket` returns an Access-Accept
+for an Access-Request, an Accounting-Response for an Accounting-Request
+and a CoA-ACK for CoA *and* Disconnect requests. Set ``reply.code`` to
+answer differently, e.g. ``pyrad.packet.AccessReject``, or
+``pyrad.packet.DisconnectACK`` for a Disconnect request. Don't copy the
+Proxy-State attributes, the reply already has them.
+
 If a handler raises an exception, ``Run`` logs it and drops the packet,
-so the request isn't answered and the server keeps running.
+so the request isn't answered and the server keeps running. Raise
+:class:`~pyrad.server.ServerPacketError` to drop a request with a short
+log message instead of a traceback.
 
 The authentication (1812) and accounting (1813) ports are enabled by
 default. CoA and Disconnect requests are received with
 ``coa_enabled=True`` and the handlers ``HandleCoaPacket`` and
-``HandleDisconnectPacket``. The reply to a CoA request is a CoAACK; set
-``reply.code`` to answer with a NAK or to acknowledge a Disconnect
-request with ``pyrad.packet.DisconnectACK``.
+``HandleDisconnectPacket``.
 
 Before a handler is called the server drops invalid requests:
 
 * requests from unknown clients
-* requests with an invalid Message-Authenticator, and with
+* Access-Requests with an invalid Message-Authenticator, and with
   ``enforce_ma=True`` Access-Requests without Message-Authenticator
   (see :ref:`blastradius`)
 * Accounting, CoA and Disconnect requests with an invalid request
@@ -303,7 +352,13 @@ asyncio
 -------
 
 :class:`~pyrad.server_async.ServerAsync` has to implement all four
-handlers, which send their reply with ``protocol.send_response``:
+handlers, which send their reply with ``protocol.send_response``.
+``initialize_transports`` listens on 127.0.0.1 unless ``addresses`` is
+given. The handlers are called synchronously from the event loop, so don't
+define them with ``async def``, they would never run. To await something
+before answering, start a task with
+``asyncio.get_running_loop().create_task(...)`` and call
+``protocol.send_response`` from it:
 
 .. code-block:: python
 
@@ -333,8 +388,7 @@ handlers, which send their reply with ``protocol.send_response``:
 
     async def main():
         hosts = {"127.0.0.1": RemoteHost("127.0.0.1", b"testing123", "localhost")}
-        server = MyServer(hosts=hosts, dictionary=Dictionary("dictionary"),
-                          loop=asyncio.get_running_loop())
+        server = MyServer(hosts=hosts, dictionary=Dictionary("dictionary"))
         await server.initialize_transports(enable_auth=True, enable_acct=True,
                                            enable_coa=True,
                                            addresses=["127.0.0.1"])
@@ -344,3 +398,34 @@ handlers, which send their reply with ``protocol.send_response``:
             await server.deinitialize_transports()
 
     asyncio.run(main())
+
+Errors and logging
+==================
+
+* Clients ignore replies they cannot verify (wrong secret, invalid
+  Message-Authenticator, unexpected Proxy-State), so these requests end
+  with :class:`~pyrad.client.Timeout` (``Client``) or ``TimeoutError``
+  (``ClientAsync``). Requests still pending when
+  ``deinitialize_transports`` closes the transport fail with
+  ``ConnectionAbortedError``.
+* Servers drop invalid requests and requests whose handler raised, and
+  log why on the ``pyrad`` logger; enable it with e.g.
+  ``logging.basicConfig(level=logging.INFO)``.
+* An attribute name which is not in the dictionary raises ``KeyError``; a
+  value that does not fit the attribute type raises ``ValueError`` or
+  ``TypeError``.
+
+Proxy and Twisted
+=================
+
+:class:`~pyrad.proxy.Proxy` is a :class:`~pyrad.server.Server` with an
+additional socket to forward requests to other RADIUS servers. Their
+replies are passed to :meth:`~pyrad.proxy.Proxy._HandleProxyPacket`,
+which a subclass overrides to answer the client.
+
+:mod:`pyrad.curved` provides the Twisted protocols
+:class:`~pyrad.curved.RADIUSAccess` and
+:class:`~pyrad.curved.RADIUSAccounting` (Twisted is not a dependency of
+pyrad). ``hosts`` maps addresses to :class:`~pyrad.server.RemoteHost`
+instances or to the secrets; override ``processPacket`` to handle the
+verified requests.

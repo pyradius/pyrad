@@ -5,3 +5,5 @@
 
   .. autoclass:: Proxy
     :members:
+    :private-members: _HandleProxyPacket
+    :show-inheritance:

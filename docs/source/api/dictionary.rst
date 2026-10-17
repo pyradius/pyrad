@@ -8,3 +8,8 @@
 
   .. autoclass:: Dictionary
     :members:
+
+  .. autoclass:: Attribute
+
+.. autoclass:: pyrad.bidict.BiDict
+  :members:
