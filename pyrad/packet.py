@@ -1363,11 +1363,11 @@ class CoAPacket(Packet):
         Packet.__init__(self, code, id, secret, authenticator, **attributes)
 
     def CreateReply(self, **attributes):
-        """Create a reply to this packet, a CoA-ACK by default.
+        """Create a reply to this packet: a Disconnect-ACK for a
+        Disconnect-Request, otherwise a CoA-ACK.
 
-        The default is CoA-ACK also for a Disconnect-Request: set
-        ``reply.code`` to ``DisconnectACK`` or ``DisconnectNAK``
-        (or ``CoANAK``). Passing ``code`` raises :exc:`TypeError`.
+        Set ``reply.code`` for a NAK (``CoANAK`` or ``DisconnectNAK``).
+        Passing ``code`` raises :exc:`TypeError`.
 
         The reply gets the id, Request Authenticator, secret and dictionary
         of this packet, and its Proxy-State attributes. Don't copy
@@ -1380,8 +1380,11 @@ class CoAPacket(Packet):
         :return: the reply
         :rtype: pyrad.packet.CoAPacket
         """
+        # RFC 5176 section 3: a Disconnect-Request is answered with a
+        # Disconnect-ACK or -NAK
+        code = DisconnectACK if self.code == DisconnectRequest else CoAACK
         return self._PrepareReply(
-            CoAPacket(CoAACK, self.id,
+            CoAPacket(code, self.id,
                       self.secret, self.authenticator, dict=self.dict,
                       **attributes), attributes)
 

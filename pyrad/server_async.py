@@ -285,10 +285,10 @@ class ServerAsync(metaclass=ABCMeta):
         """Create a reply to a received request.
 
         The reply is an Access-Accept for an Access-Request, an
-        Accounting-Response for an Accounting-Request and a CoA-ACK for a
-        CoA-Request or Disconnect-Request; change ``reply.code`` for
-        another reply, e.g. ``pyrad.packet.AccessReject`` or
-        ``pyrad.packet.DisconnectACK``. The Proxy-State attributes of the
+        Accounting-Response for an Accounting-Request, a CoA-ACK for a
+        CoA-Request and a Disconnect-ACK for a Disconnect-Request; change
+        ``reply.code`` for another reply, e.g. ``pyrad.packet.AccessReject``
+        or ``pyrad.packet.CoANAK``. The Proxy-State attributes of the
         request are copied and replies to Access-Requests get a
         Message-Authenticator. Send it with
         :meth:`DatagramProtocolServer.send_response`.
@@ -488,8 +488,8 @@ class ServerAsync(metaclass=ABCMeta):
         Called for each Disconnect-Request from a known client. With
         ``enable_pkt_verify`` its Request Authenticator has been verified.
         Reply as described for :meth:`handle_auth_packet`.
-        :meth:`CreateReplyPacket` creates a CoA-ACK; set ``reply.code`` to
-        ``pyrad.packet.DisconnectACK`` or ``pyrad.packet.DisconnectNAK``.
+        :meth:`CreateReplyPacket` creates a Disconnect-ACK; set
+        ``reply.code`` to ``pyrad.packet.DisconnectNAK`` to refuse it.
 
         :param protocol: transport the request was received on
         :type  protocol: DatagramProtocolServer

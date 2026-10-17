@@ -77,10 +77,8 @@ def create_reply(create_reply_packet, pkt):
             reply["Session-Timeout"] = 3600
             reply["Framed-IPv6-Prefix"] = "2001:db8:1::/64"
         return reply
-    reply = create_reply_packet(pkt)
-    if pkt.code == packet.DisconnectRequest:
-        reply.code = packet.DisconnectACK
-    return reply
+    # a Disconnect-Request gets a Disconnect-ACK by default
+    return create_reply_packet(pkt)
 
 
 class PyradServer(Server):

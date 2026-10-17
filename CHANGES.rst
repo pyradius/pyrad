@@ -110,6 +110,9 @@ Check these before upgrading from 2.5.4. Details follow under Changes.
     instead of the User-Password, the User-Password is not sent, and a
     request without User-Name or User-Password raises ValueError instead
     of using the User-Name as password.
+  * The reply to a Disconnect-Request created with CreateReply() or
+    CreateReplyPacket() is a Disconnect-ACK instead of a CoA-ACK; a
+    handler that sets ``reply.code`` is not affected.
   * An exception raised by a handler of the blocking Server or Proxy is
     logged and the packet dropped; it no longer stops ``Run()``.
   * Proxy passes Access-Challenge, CoA-ACK/NAK and Disconnect-ACK/NAK
@@ -349,6 +352,9 @@ Changes
   of struct.error or returning a wrong value, such as an IPv6 address for a
   16 byte ipaddr value (#13). Shorter ipv6addr values are still padded with
   zeros.
+* Replies to Disconnect-Requests created with CreateReply() or the
+  CreateReplyPacket() of the servers are Disconnect-ACKs instead of
+  CoA-ACKs (RFC 5176 section 3).
 * Fix Host.SendPacket(fd, pkt), which called the missing method
   pkt.Packet() and always raised AttributeError; it sends
   pkt.RequestPacket() to pkt.source.

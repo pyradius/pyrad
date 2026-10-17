@@ -1170,6 +1170,22 @@ class PacketEdgeCaseTests(unittest.TestCase):
         self.assertEqual(reply.id, request.id)
         self.assertTrue(request.VerifyReply(reply, reply.ReplyPacket()))
 
+    def testCoAReplyCodes(self):
+        # RFC 5176: a Disconnect-Request is answered with a Disconnect-ACK
+        # or -NAK, a CoA-Request with a CoA-ACK or -NAK
+        for (code, reply_code) in ((packet.CoARequest, packet.CoAACK),
+                                   (packet.DisconnectRequest, packet.DisconnectACK)):
+            request = packet.CoAPacket(code=code, secret=b'secret', dict=self.dict)
+            request.RequestPacket()
+            raw = request.CreateReply().ReplyPacket()
+            self.assertEqual(raw[0], reply_code)
+            # decoding a received reply keeps its code
+            other = packet.CoANAK
+            reply = request.CreateReply()
+            reply.code = other
+            decoded = request.CreateReply(packet=reply.ReplyPacket())
+            self.assertEqual(decoded.code, other)
+
     def testDictionaryOfSubclass(self):
         class DictPacket(packet.AuthPacket):
             dict = self.dict

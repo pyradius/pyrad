@@ -322,10 +322,11 @@ addresses the server receives nothing.
     server.Run()
 
 :meth:`~pyrad.server.Server.CreateReplyPacket` returns an Access-Accept
-for an Access-Request, an Accounting-Response for an Accounting-Request
-and a CoA-ACK for CoA *and* Disconnect requests. Set ``reply.code`` to
-answer differently, e.g. ``pyrad.packet.AccessReject``, or
-``pyrad.packet.DisconnectACK`` for a Disconnect request. Don't copy the
+for an Access-Request, an Accounting-Response for an Accounting-Request,
+a CoA-ACK for a CoA-Request and a Disconnect-ACK for a Disconnect-Request.
+Set ``reply.code`` to answer differently, e.g.
+``pyrad.packet.AccessReject``, ``pyrad.packet.CoANAK`` or
+``pyrad.packet.DisconnectNAK``. Don't copy the
 Proxy-State attributes, the reply already has them.
 
 If a handler raises an exception, ``Run`` logs it and drops the packet,
@@ -382,9 +383,7 @@ before answering, start a task with
             protocol.send_response(self.CreateReplyPacket(pkt), addr)
 
         def handle_disconnect_packet(self, protocol, pkt, addr):
-            reply = self.CreateReplyPacket(pkt)
-            reply.code = pyrad.packet.DisconnectACK
-            protocol.send_response(reply, addr)
+            protocol.send_response(self.CreateReplyPacket(pkt), addr)
 
     async def main():
         hosts = {"127.0.0.1": RemoteHost("127.0.0.1", b"testing123", "localhost")}

@@ -331,9 +331,8 @@ class Server(host.Host):
         Called by :meth:`Run` for each Disconnect-Request from a known client: a
         client in ``hosts`` or, if present, the ``'0.0.0.0'`` entry.
         With ``enable_pkt_verify`` its Request Authenticator has been
-        verified. :meth:`CreateReplyPacket` creates a CoA-ACK; set
-        ``reply.code`` to ``pyrad.packet.DisconnectACK`` or
-        ``pyrad.packet.DisconnectNAK``.
+        verified. :meth:`CreateReplyPacket` creates a Disconnect-ACK; set
+        ``reply.code`` to ``pyrad.packet.DisconnectNAK`` to refuse it.
 
         To answer, create the reply with :meth:`CreateReplyPacket` and send
         it with ``self.SendReplyPacket(pkt.fd, reply)``
@@ -463,10 +462,10 @@ class Server(host.Host):
         """Create a reply to a received request.
 
         The reply is an Access-Accept for an Access-Request, an
-        Accounting-Response for an Accounting-Request and a CoA-ACK for a
-        CoA-Request or Disconnect-Request; change ``reply.code`` for
-        another reply, e.g. ``pyrad.packet.AccessReject`` or
-        ``pyrad.packet.DisconnectACK``. The Proxy-State attributes of
+        Accounting-Response for an Accounting-Request, a CoA-ACK for a
+        CoA-Request and a Disconnect-ACK for a Disconnect-Request; change
+        ``reply.code`` for another reply, e.g. ``pyrad.packet.AccessReject``
+        or ``pyrad.packet.CoANAK``. The Proxy-State attributes of
         the request are copied, replies to Access-Requests get a
         Message-Authenticator, and ``reply.source`` is set to the client
         address so the reply can be sent with
