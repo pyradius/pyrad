@@ -243,6 +243,7 @@ class AcctPacketHandlingTests(unittest.TestCase):
         self.packet = TrivialObject()
         self.packet.code = AccountingRequest
         self.packet.source = ('host', 'port')
+        self.packet.message_authenticator = None
 
     def testHandleAcctPacketUnknownHost(self):
         self.packet.source = ('stranger', 'port')
@@ -281,6 +282,7 @@ class CoaPacketHandlingTests(unittest.TestCase):
         self.server.hosts['0.0.0.0'].secret = 'supersecret'
         self.packet = TrivialObject()
         self.packet.source = ('host', 'port')
+        self.packet.message_authenticator = None
         self.handled = []
         self.server.HandleCoaPacket = lambda pkt: self.handled.append(('coa', pkt))
         self.server.HandleDisconnectPacket = lambda pkt: self.handled.append(('disconnect', pkt))
@@ -366,6 +368,7 @@ class MappedAddressTests(unittest.TestCase):
         self.packet = TrivialObject()
         self.packet.code = AccountingRequest
         self.packet.source = ('::ffff:127.0.0.1', 1813, 0, 0)
+        self.packet.message_authenticator = None
         self.server.HandleAcctPacket = lambda pkt: None
 
     def testMappedAddressUsesIPv4Host(self):

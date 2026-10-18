@@ -3,7 +3,7 @@
 
 .. automodule:: pyrad.curved
 
-  .. autoclass:: RADIUS(hosts=None, dict=None, enforce_ma=False, enable_pkt_verify=True)
+  .. autoclass:: RADIUS(hosts=None, dict=None, enforce_ma=None, enable_pkt_verify=True)
     :members: processPacket, createPacket
 
   .. autoclass:: RADIUSAccess

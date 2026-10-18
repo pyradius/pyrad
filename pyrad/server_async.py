@@ -13,7 +13,7 @@ from pyrad.packet import Packet, AccessAccept, AccessReject, \
     AccountingRequest, AccountingResponse, \
     DisconnectACK, DisconnectNAK, DisconnectRequest, CoARequest, \
     CoAACK, CoANAK, AccessRequest, AuthPacket, AcctPacket, CoAPacket, \
-    PacketError
+    PacketError, _EnforceMA
 
 from pyrad.server import ServerPacketError, CheckMessageAuthenticator, _LookupHost
 
@@ -120,6 +120,9 @@ class DatagramProtocolServer(asyncio.Protocol):
                 req = CoAPacket(secret=remote_host.secret,
                                 dict=self.server.dict,
                                 packet=data)
+                # RFC 5176 section 3.3: a Message-Authenticator which is
+                # present has to be valid
+                CheckMessageAuthenticator(req, enforce_ma=False)
                 if self.server.enable_pkt_verify:
                     if not req.VerifyCoARequest():
                         raise PacketError('Packet verification failed')
@@ -131,6 +134,9 @@ class DatagramProtocolServer(asyncio.Protocol):
                 req = AcctPacket(secret=remote_host.secret,
                                  dict=self.server.dict,
                                  packet=data)
+                # RFC 2866 does not require a Message-Authenticator here,
+                # but one that is present has to be valid
+                CheckMessageAuthenticator(req, enforce_ma=False)
                 if self.server.enable_pkt_verify:
                     if not req.VerifyAcctRequest():
                         raise PacketError('Packet verification failed')
@@ -185,7 +191,7 @@ class ServerAsync(metaclass=ABCMeta):
                  coa_port=3799, hosts=None, dictionary=None,
                  loop=None, logger_name='pyrad',
                  enable_pkt_verify=True,
-                 debug=False, enforce_ma=False):
+                 debug=False, enforce_ma=None):
         """
         :param auth_port: port to listen on for authentication packets
         :type  auth_port: int
@@ -213,7 +219,10 @@ class ServerAsync(metaclass=ABCMeta):
             in a handler, instead of a one-line message
         :type  debug: bool
         :param enforce_ma: drop Access-Requests without a Message-Authenticator
-            (an invalid Message-Authenticator is always dropped)
+            (an invalid Message-Authenticator is always dropped).
+            ``True`` is recommended. If it is not passed, it is ``False``
+            and a :exc:`FutureWarning` is issued once per process: the
+            default will change to ``True`` in a future release.
         :type  enforce_ma: bool
         """
 
@@ -240,7 +249,7 @@ class ServerAsync(metaclass=ABCMeta):
         self.enable_pkt_verify = enable_pkt_verify
 
         self.debug = debug
-        self.enforce_ma = enforce_ma
+        self.enforce_ma = _EnforceMA(enforce_ma)
 
     def __request_handler__(self, protocol, req, addr):
 

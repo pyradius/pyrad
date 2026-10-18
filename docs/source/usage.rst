@@ -348,6 +348,8 @@ Before a handler is called the server drops invalid requests:
 * Accounting, CoA and Disconnect requests with an invalid request
   authenticator, which proves that the client knows the secret. This
   check can be disabled with ``enable_pkt_verify=False``.
+* Accounting, CoA and Disconnect requests with an invalid
+  Message-Authenticator. It is not required in these requests.
 
 asyncio
 -------

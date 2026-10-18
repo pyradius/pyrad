@@ -53,8 +53,8 @@ class ServerPacketError(Exception):
     Raised by :class:`Server`, :class:`pyrad.server_async.ServerAsync` and
     :class:`pyrad.proxy.Proxy` for packets they don't accept: packets from
     an unknown client, packets of the wrong type for the port they were
-    received on, and Access-Requests with an invalid or (with
-    ``enforce_ma``) a missing Message-Authenticator.
+    received on, requests with an invalid Message-Authenticator and (with
+    ``enforce_ma``) Access-Requests without one.
 
     A packet handler may raise it to drop a request: the server then logs
     a single line with the message instead of a traceback.
@@ -62,11 +62,13 @@ class ServerPacketError(Exception):
 
 
 def CheckMessageAuthenticator(pkt, enforce_ma=False):
-    """Check the Message-Authenticator of a received Access-Request.
+    """Check the Message-Authenticator of a received request.
 
     This is the BlastRADIUS countermeasure (CVE-2024-3596) of the servers.
     An invalid Message-Authenticator is always rejected, a missing one only
-    with ``enforce_ma``.
+    with ``enforce_ma``. Requiring one only makes sense for the packet types
+    which must carry it: Access-Request (RFC 2869 section 5.14) and
+    Status-Server (RFC 5997 section 3).
 
     :param        pkt: received packet with the secret set
     :type         pkt: pyrad.packet.Packet
@@ -77,10 +79,10 @@ def CheckMessageAuthenticator(pkt, enforce_ma=False):
     if pkt.message_authenticator:
         if not pkt.verify_message_authenticator():
             raise ServerPacketError(
-                'Received Access-Request with invalid Message-Authenticator')
+                'Received packet with invalid Message-Authenticator')
     elif enforce_ma:
         raise ServerPacketError(
-            'Received Access-Request without Message-Authenticator')
+            'Received packet without Message-Authenticator')
 
 
 def _HostAddresses(address):
@@ -139,7 +141,7 @@ class Server(host.Host):
 
     def __init__(self, addresses=[], authport=1812, acctport=1813, coaport=3799,
                  hosts=None, dict=None, auth_enabled=True, acct_enabled=True, coa_enabled=False,
-                 enforce_ma=False, enable_pkt_verify=True):
+                 enforce_ma=None, enable_pkt_verify=True):
         """
         :param addresses: IP addresses or host names to listen on. The
             constructor binds them with :meth:`~pyrad.server.Server.BindToAddress`. Without
@@ -167,7 +169,10 @@ class Server(host.Host):
         :param coa_enabled: listen for CoA and Disconnect packets
         :type  coa_enabled: bool
         :param enforce_ma: drop Access-Requests without a Message-Authenticator
-            (an invalid Message-Authenticator is always dropped)
+            (an invalid Message-Authenticator is always dropped).
+            ``True`` is recommended. If it is not passed, it is ``False``
+            and a :exc:`FutureWarning` is issued once per process: the
+            default will change to ``True`` in a future release.
         :type  enforce_ma: bool
         :param enable_pkt_verify: drop Accounting, CoA and Disconnect requests
             with an invalid Request Authenticator
@@ -185,7 +190,7 @@ class Server(host.Host):
         self.acctfds = []
         self.coa_enabled = coa_enabled
         self.coafds = []
-        self.enforce_ma = enforce_ma
+        self.enforce_ma = packet._EnforceMA(enforce_ma)
         self.enable_pkt_verify = enable_pkt_verify
 
         for addr in addresses:
@@ -399,6 +404,9 @@ class Server(host.Host):
         if pkt.code != packet.AccountingRequest:
             raise ServerPacketError(
                     'Received non-accounting packet on accounting port')
+        # RFC 2866 does not require a Message-Authenticator here, but one
+        # that is present has to be valid
+        CheckMessageAuthenticator(pkt, enforce_ma=False)
         if self.enable_pkt_verify and not pkt.VerifyAcctRequest():
             raise packet.PacketError('Packet verification failed')
         self.HandleAcctPacket(pkt)
@@ -416,6 +424,9 @@ class Server(host.Host):
         self._AddSecret(pkt)
         if pkt.code not in (packet.CoARequest, packet.DisconnectRequest):
             raise ServerPacketError('Received non-coa packet on coa port')
+        # RFC 5176 section 3.3: a Message-Authenticator which is present
+        # has to be valid
+        CheckMessageAuthenticator(pkt, enforce_ma=False)
         if self.enable_pkt_verify and not pkt.VerifyCoARequest():
             raise packet.PacketError('Packet verification failed')
         if pkt.code == packet.CoARequest:

@@ -47,13 +47,14 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
     :meth:`processPacket`.
 
     Before :meth:`processPacket` is called, ``pkt.secret`` is set to the
-    secret of the host and ``pkt.source`` to its ``(host, port)``. The
-    Message-Authenticator of an Access-Request has been verified (and with
-    ``enforce_ma`` required), and with ``enable_pkt_verify`` the Request
-    Authenticator of an Accounting-Request.
+    secret of the host and ``pkt.source`` to its ``(host, port)``. A
+    Message-Authenticator in an Access-Request or Accounting-Request has
+    been verified (and with ``enforce_ma`` required in an Access-Request),
+    and with ``enable_pkt_verify`` the Request Authenticator of an
+    Accounting-Request.
     """
 
-    def __init__(self, hosts=None, dict=None, enforce_ma=False,
+    def __init__(self, hosts=None, dict=None, enforce_ma=None,
                  enable_pkt_verify=True):
         """
         :param hosts: hosts allowed to send packets, mapping their IP
@@ -67,7 +68,10 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
             default an empty dictionary
         :type  dict: pyrad.dictionary.Dictionary
         :param enforce_ma: drop Access-Requests without a Message-Authenticator
-            (an invalid Message-Authenticator is always dropped)
+            (an invalid Message-Authenticator is always dropped).
+            ``True`` is recommended. If it is not passed, it is ``False``
+            and a :exc:`FutureWarning` is issued once per process: the
+            default will change to ``True`` in a future release.
         :type  enforce_ma: bool
         :param enable_pkt_verify: drop Accounting-Requests with an invalid
             Request Authenticator
@@ -79,7 +83,7 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
         if hosts is None:
             hosts = {}
         self.hosts = hosts
-        self.enforce_ma = enforce_ma
+        self.enforce_ma = packet._EnforceMA(enforce_ma)
         self.enable_pkt_verify = enable_pkt_verify
 
     def processPacket(self, pkt):
@@ -147,8 +151,12 @@ class RADIUS(host.Host, protocol.DatagramProtocol):
         """
         if pkt.code == packet.AccessRequest:
             CheckMessageAuthenticator(pkt, self.enforce_ma)
-        elif pkt.code == packet.AccountingRequest and self.enable_pkt_verify:
-            if not packet.AcctPacket.VerifyAcctRequest(pkt):
+        elif pkt.code == packet.AccountingRequest:
+            # RFC 2866 does not require a Message-Authenticator here, but
+            # one that is present has to be valid
+            CheckMessageAuthenticator(pkt, enforce_ma=False)
+            if self.enable_pkt_verify and \
+                    not packet.AcctPacket.VerifyAcctRequest(pkt):
                 raise packet.PacketError('Packet verification failed')
 
     def datagramReceived(self, datagram, source):
