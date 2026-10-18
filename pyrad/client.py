@@ -38,8 +38,11 @@ def _EapMd5Identity(pkt):
     identity = pkt[1][0]
     user_password = pkt[2]
     del pkt[2]
-    pkt[79] = [struct.pack('!BBHB', EAP_CODE_RESPONSE, packet.CurrentID,
-                           len(identity) + 5, EAP_TYPE_IDENTITY) + identity]
+    eap = struct.pack('!BBHB', EAP_CODE_RESPONSE, packet.CurrentID,
+                      len(identity) + 5, EAP_TYPE_IDENTITY) + identity
+    # RFC 3579 section 3.1: an EAP packet longer than 253 bytes is split
+    # over several EAP-Message attributes
+    pkt[79] = [eap[i:i + 253] for i in range(0, len(eap), 253)]
     return (user_password[0], user_password)
 
 

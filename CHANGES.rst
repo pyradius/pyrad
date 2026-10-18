@@ -212,7 +212,8 @@ Changes
     being sent in clear with the EAP-Message, which RFC 3579 section 3.3
     doesn't allow. Challenges without State, EAP packets split over
     several EAP-Message attributes and challenges of other EAP types (which
-    are returned) are handled.
+    are returned) are handled. An EAP-Identity longer than one attribute is
+    split over several EAP-Message attributes.
   * ClientAsync authenticates with EAP-MD5 like Client for packets with
     ``auth_type='eap-md5'``; it sent them as they were, with the cleartext
     User-Password and without answering the challenge.

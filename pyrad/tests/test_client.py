@@ -273,6 +273,27 @@ class EapMd5Tests(unittest.TestCase):
         self.assertIsNone(state)
         self.assertFalse(user_password)
 
+    def testLongIdentity(self):
+        # RFC 3579 section 3.1: an EAP-Response/Identity longer than 253
+        # bytes is split over several EAP-Message attributes
+        for length in (248, 249, 253):
+            identity = b'a' * length
+            encoded = []
+
+            def fakeSendPacket(pkt, port):
+                encoded.append(AuthPacket(secret=b'secret', packet=pkt.RequestPacket()))
+                return self.reply(AccessAccept)
+
+            pkt = self.client.CreateAuthPacket(auth_type='eap-md5')
+            pkt[1] = [identity]
+            pkt[2] = [b'password']
+            self.client._SendPacket = fakeSendPacket
+            self.client.SendPacket(pkt)
+            ((request,),) = [encoded]
+            self.assertTrue(all(len(value) <= 253 for value in request[79]))
+            eap = b''.join(request[79])
+            self.assertEqual(eap[2:], struct.pack('!HB', length + 5, 1) + identity)
+
     def testChallenge(self):
         accept = self.reply(AccessAccept)
         self.replies = [self.reply(AccessChallenge, {79: [self.eapRequest()], 24: [b'state']}),

@@ -193,6 +193,23 @@ class AsyncRoundTripTests(unittest.TestCase):
         self.assertEqual(len(received), 1)
         self.assertEqual(req['User-Password'], [PASSWORD])
 
+    def testEapMd5LongIdentity(self):
+        # RFC 3579 section 3.1: the EAP-Response/Identity is split over
+        # several EAP-Message attributes
+        user_name = 'a' * 253
+
+        async def test(client, server):
+            req = client.CreateAuthPacket(auth_type='eap-md5', User_Name=user_name)
+            req['User-Password'] = PASSWORD
+            reply = await client.SendPacket(req)
+            return reply, server.received
+        reply, received = self.run_with(test)
+        self.assertEqual(reply.code, packet.AccessReject)
+        (identity,) = received
+        self.assertEqual(identity['User-Name'], [user_name])
+        eap = b''.join(identity[79])
+        self.assertEqual(eap[2:], struct.pack('!HB', 258, 1) + user_name.encode())
+
     def testEapMd5WrongPassword(self):
         async def test(client, server):
             return await client.SendPacket(self.eap_md5_request(client, 'wrong'))
