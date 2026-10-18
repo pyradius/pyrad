@@ -12,6 +12,7 @@ import struct
 import unittest
 import warnings
 from io import StringIO
+from unittest import mock
 
 from pyrad import packet
 from pyrad.client import Client
@@ -478,3 +479,62 @@ class AcctCoaMessageAuthenticatorTests(BlastRadiusTestCase):
         self.handle(self.acct_request())
         self.handle(self.coa_request(), acct=False)
         self.assertEqual(len(self.handled), 2)
+
+
+class AsyncAcctCoaMessageAuthenticatorTests(AcctCoaMessageAuthenticatorTests):
+    """The same checks in ServerAsync. enable_pkt_verify is off, so only the
+    Message-Authenticator check can drop a request."""
+
+    def setUp(self):
+        BlastRadiusTestCase.setUp(self)
+        self.handled = []
+        server = type('Server', (), {})()
+        server.dict = self.dict
+        server.debug = False
+        server.enable_pkt_verify = False
+        server.enforce_ma = False
+        hosts = {'127.0.0.1': RemoteHost('127.0.0.1', SECRET, 'localhost')}
+        self.logger = mock.Mock()
+        self.protocols = {
+            server_type: DatagramProtocolServer(
+                '127.0.0.1', port, self.logger, server, server_type, hosts,
+                lambda protocol, req, addr: self.handled.append(req))
+            for (server_type, port) in ((ServerType.Acct, 1813),
+                                        (ServerType.Coa, 3799))}
+
+    def handle(self, raw, acct=True):
+        protocol = self.protocols[ServerType.Acct if acct else ServerType.Coa]
+        self.logger.error.reset_mock()
+        protocol.datagram_received(raw, ('127.0.0.1', 1813))
+        for call in self.logger.error.call_args_list:
+            if 'invalid Message-Authenticator' in str(call[0][-1]):
+                raise ServerPacketError(call[0][-1])
+
+
+class CurvedAcctMessageAuthenticatorTests(AcctCoaMessageAuthenticatorTests):
+    """The same checks in the Twisted integration, which has no CoA server.
+    enable_pkt_verify is off, so only the Message-Authenticator check can
+    drop a request."""
+
+    def setUp(self):
+        BlastRadiusTestCase.setUp(self)
+        self.handled = []
+        curved, self.log = load_curved()
+        self.protocol = curved.RADIUSAccounting(
+            dict=self.dict, enforce_ma=False, enable_pkt_verify=False,
+            hosts={'127.0.0.1': RemoteHost('127.0.0.1', SECRET, 'localhost')})
+        self.protocol.processPacket = self.handled.append
+
+    def handle(self, raw, acct=True):
+        self.log.msg.reset_mock()
+        self.protocol.datagramReceived(raw, ('127.0.0.1', 1813))
+        for call in self.log.msg.call_args_list:
+            if 'invalid Message-Authenticator' in call[0][0]:
+                raise ServerPacketError(call[0][0])
+
+    def testInvalidMessageAuthenticatorInCoARequest(self):
+        self.skipTest('curved has no CoA server')
+
+    def testMissingMessageAuthenticatorIsAccepted(self):
+        self.handle(self.acct_request())
+        self.assertEqual(len(self.handled), 1)
