@@ -1,8 +1,8 @@
 Changelog
 =========
 
-Unreleased
-----------
+2.6.0 - Oct 18, 2026
+--------------------
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
