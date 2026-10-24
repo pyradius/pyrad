@@ -27,9 +27,7 @@ classifiers = [
   "Topic :: System :: Systems Administration :: Authentication/Directory",
 ]
 
-dependencies = [
-  "netaddr>=0.8.0",
-]
+dependencies = []
 
 [dependency-groups]
 lint = [
@@ -37,12 +35,11 @@ lint = [
 ]
 test = [
   "coverage",
-  "lcov",
+  "netaddr>=0.8.0",
   "pytest>=8",
 ]
 docs = [
   "sphinx>=7.0",
-  "sphinx-autodoc-typehints",
   "sphinx-rtd-theme>=2.0",
 ]
 

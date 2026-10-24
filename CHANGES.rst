@@ -1,6 +1,14 @@
 Changelog
 =========
 
+Unreleased
+----------
+
+* pyrad no longer depends on netaddr; it was only used by the tests and
+  is now in the ``test`` dependency group. ipv6prefix values given as
+  ``netaddr.IPNetwork`` are still accepted. Code that imports netaddr
+  and relied on pyrad installing it has to depend on it itself.
+
 2.6.0 - Oct 18, 2026
 --------------------
 
