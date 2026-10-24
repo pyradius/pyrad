@@ -9,8 +9,8 @@
     :target: https://pypi.python.org/pypi/pyrad
 .. image:: https://img.shields.io/pypi/dm/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
-.. image:: https://readthedocs.org/projects/pyradius-pyrad/badge/?version=latest
-    :target: https://pyradius-pyrad.readthedocs.io/en/latest/?badge=latest
+.. image:: https://img.shields.io/readthedocs/pyradius-pyrad/latest
+    :target: https://pyradius-pyrad.readthedocs.io/en/latest/
     :alt: Documentation Status
 .. image:: https://img.shields.io/pypi/l/pyrad.svg
     :target: https://pypi.python.org/pypi/pyrad
