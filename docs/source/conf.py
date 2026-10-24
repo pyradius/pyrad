@@ -34,16 +34,12 @@ import pyrad  # noqa: E402
 # ones.
 extensions = ['sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.todo',
     'sphinx.ext.viewcode']
 
 # Render the constructor parameters (__init__ docstring) with the class.
 autoclass_content = 'both'
 # Twisted is not a dependency of pyrad; mock it to document pyrad.curved.
 autodoc_mock_imports = ['twisted']
-
-# Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
 
 # The suffix(es) of source filenames.
 # You can specify multiple suffix as a list of string:
@@ -82,9 +78,6 @@ exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
-
-# If true, `todo` and `todoList` produce output, else they produce nothing.
-todo_include_todos = True
 
 # -- Options for HTML output ----------------------------------------------
 

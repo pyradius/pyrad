@@ -8,6 +8,9 @@ Unreleased
   is now in the ``test`` dependency group. ipv6prefix values given as
   ``netaddr.IPNetwork`` are still accepted. Code that imports netaddr
   and relied on pyrad installing it has to depend on it itself.
+* The sdist and the wheel include the test dictionaries of
+  ``pyrad/tests/data``, so the bundled tests run from an installed package
+  or an unpacked sdist.
 
 2.6.0 - Oct 18, 2026
 --------------------
